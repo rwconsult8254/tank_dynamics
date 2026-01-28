@@ -8,10 +8,11 @@ using namespace tank_sim;
 class TankModelTest : public ::testing::Test {
 protected:
     // Standard test parameters from the plan
+    // Using C++17 positional initialization (area, k_v, max_height)
     TankModel::Parameters params{
-        .area = 120.0,        // square meters
-        .k_v = 1.2649,        // cubic meters per second
-        .max_height = 5.0     // meters
+        120.0,      // area: cross-sectional area (m²)
+        1.2649,     // k_v: valve coefficient (m^2.5/s)
+        5.0         // max_height: maximum tank height (m)
     };
     
     TankModel model{params};

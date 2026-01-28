@@ -1,52 +1,80 @@
-
-
 #ifndef TANK_SIM_TANK_MODEL_H
 #define TANK_SIM_TANK_MODEL_H
 
 #include <Eigen/Dense>
-#include <cmath>
 
 namespace tank_sim {
 
+/**
+ * @brief Physics model for a tank with inlet/outlet flows.
+ * 
+ * TankModel represents the material balance of a liquid tank with variable inlet flow
+ * and outlet flow controlled by a valve. This is a stateless model that computes
+ * derivatives suitable for numerical integration.
+ * 
+ * The model implements:
+ * - Material balance: dh/dt = (q_in - q_out) / A
+ * - Valve equation: q_out = k_v * x * sqrt(h)
+ * 
+ * @note This class is stateless - it computes derivatives without maintaining
+ *       internal state. Integration is handled externally by the Stepper class.
+ */
 class TankModel {
 public:
+    /**
+     * @brief Configuration parameters for the tank model.
+     */
     struct Parameters {
-        double area;          // Cross-sectional area in square meters
-        double k_v;           // Valve coefficient in cubic meters per second
-        double max_height;    // Maximum tank height in meters
+        double area;          ///< Cross-sectional area (m²)
+        double k_v;           ///< Valve coefficient (m^2.5/s)
+        double max_height;    ///< Maximum tank height (m)
     };
 
-    explicit TankModel(const Parameters& params)
-        : params_(params) {}
+    /**
+     * @brief Constructs a TankModel with the given parameters.
+     * 
+     * @param params Physical parameters of the tank system
+     */
+    explicit TankModel(const Parameters& params);
 
-    Eigen::VectorXd derivatives(const Eigen::VectorXd& state, const Eigen::VectorXd& inputs) const {
-        // Current tank level (meters)
-        double h = state(0);
+    /**
+     * @brief Computes the derivative of tank level (dh/dt).
+     * 
+     * Calculates the rate of change of water level based on the material balance
+     * equation: dh/dt = (q_in - q_out) / A
+     * 
+     * @param state Current state vector [h] where h is tank level (m)
+     * @param inputs Input vector [q_in, x] where:
+     *               - q_in is inlet flow rate (m³/s)
+     *               - x is valve position (dimensionless, 0 to 1)
+     * @return Derivative vector [dh/dt] in m/s
+     * 
+     * @pre state(0) >= 0 (tank level must be non-negative)
+     * @pre inputs(1) in [0, 1] (valve position must be in valid range)
+     */
+    Eigen::VectorXd derivatives(
+        const Eigen::VectorXd& state,
+        const Eigen::VectorXd& inputs) const;
 
-        // Inlet flow (cubic meters per second)
-        double q_in = inputs(0);
-
-        // Valve position (dimensionless, 0 to 1)
-        double valve_position = inputs(1);
-
-        // Calculate outlet flow
-        double q_out = outletFlow(h, valve_position);
-
-        // Compute derivative of tank level using material balance equation
-        double dh_dt = (q_in - q_out) / params_.area;
-
-        return Eigen::VectorXd::Constant(1, dh_dt);
-    }
-
-    double outletFlow(double h, double x) const {
-        if (h <= 0.0) {
-            return 0.0; // No flow if tank level is zero or negative
-        }
-        return params_.k_v * x * std::sqrt(h);
-    }
+    /**
+     * @brief Calculates outlet flow rate through the valve.
+     * 
+     * Implements the valve flow equation: q_out = k_v * x * sqrt(h)
+     * Returns zero if tank level is zero or negative.
+     * 
+     * @param h Current tank level (m)
+     * @param x Valve position (dimensionless, 0 to 1)
+     * @return Outlet flow rate (m³/s)
+     * 
+     * @pre h >= 0 (tank level must be non-negative)
+     * @pre x in [0, 1] (valve position must be in valid range)
+     */
+    double outletFlow(double h, double x) const;
 
 private:
-    Parameters params_;
+    double area_;         ///< Cross-sectional area (m²)
+    double k_v_;          ///< Valve coefficient (m^2.5/s)
+    double max_height_;   ///< Maximum tank height (m)
 };
 
 }  // namespace tank_sim

@@ -1,30 +1,74 @@
-# Hybrid AI Coding Project Template
+# Tank Dynamics Simulator
 
-A template for multi-role AI-assisted software development using Claude models and local LLMs.
+A real-time tank level control simulator with a SCADA-style interface. The system models a tank with variable inlet flow and PID-controlled outlet valve, allowing operators to experiment with control parameters and observe process dynamics.
 
-## Overview
+## Architecture
 
-This template implements a proven workflow that optimizes AI costs while maintaining code quality:
+- **C++ Simulation Core**: High-performance physics engine using GSL and Eigen
+- **Python Bindings**: pybind11 interface for Python integration
+- **FastAPI Backend**: Real-time WebSocket server (1 Hz updates)
+- **Next.js Frontend**: Modern web-based SCADA interface
 
-- **Expensive models** (Opus) handle high-value planning
-- **Mid-tier models** (Sonnet) handle task breakdown and code review
-- **Cheap/free models** (Haiku, local LLMs) handle implementation and documentation
+## Developer Setup
+
+### Prerequisites
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install cmake libgsl-dev build-essential
+
+# Arch Linux
+sudo pacman -S cmake gsl base-devel
+
+# macOS
+brew install cmake gsl
+```
+
+### Building the Project
+
+```bash
+# Configure build
+cmake -B build -S .
+
+# Build
+cmake --build build
+
+# Run tests
+ctest --test-dir build --output-on-failure
+```
+
+### IDE/Editor Integration (clangd)
+
+For proper IDE integration with clangd (VSCode, neovim, etc.), create a symlink to the generated `compile_commands.json`:
+
+```bash
+# From project root
+ln -sf build/compile_commands.json compile_commands.json
+```
+
+This enables:
+- Accurate code completion
+- Go-to-definition across the project
+- Real-time error highlighting
+- Automatic include path resolution
+
+**Note:** The build system automatically generates `compile_commands.json` in the `build/` directory via `CMAKE_EXPORT_COMPILE_COMMANDS`. The symlink makes it discoverable by clangd at the project root.
+
+### Git Ignore
+
+Add to `.gitignore`:
+```
+build/
+compile_commands.json
+```
 
 ## Quick Start
 
-1. Clone or copy this template to your project directory
-2. Edit `docs/specs.md` with your project requirements
-3. Follow the workflow in `docs/workflow.md`
-
-```bash
-# Using the setup script
-./scripts/new-project.sh my-project-name
-
-# Or manually
-cp -r hybrid-ai-template/ my-new-project/
-cd my-new-project
-git init
-```
+1. Build the C++ library (see above)
+2. Run the test suite to verify installation
+3. (Future) Install Python bindings: `pip install -e .`
+4. (Future) Start the API server: `python -m api.main`
+5. (Future) Start the frontend: `cd frontend && npm run dev`
 
 ## Workflow Roles
 

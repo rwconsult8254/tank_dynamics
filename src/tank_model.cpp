@@ -1,34 +1,61 @@
+#include "tank_model.h"
+#include <cmath>
+#include <cassert>
 
 namespace tank_sim {
 
-    #include "tank_model.h"
-
 TankModel::TankModel(const Parameters& params)
-    : area(params.area),
-      valve_coefficient(params.valve_coefficient),
-      max_height(params.max_height) {
+    : area_(params.area),
+      k_v_(params.k_v),
+      max_height_(params.max_height) {
+    // Validate parameters
+    assert(area_ > 0.0 && "Tank area must be positive");
+    assert(k_v_ > 0.0 && "Valve coefficient must be positive");
+    assert(max_height_ > 0.0 && "Maximum height must be positive");
 }
 
 Eigen::VectorXd TankModel::derivatives(
     const Eigen::VectorXd& state,
     const Eigen::VectorXd& inputs) const {
-    double current_level = state(0);
-    double inlet_flow = inputs(0);
-    double valve_position = inputs(1);
-
-    double outlet_flow = outletFlow(current_level, valve_position);
-    double dh_dt = (inlet_flow - outlet_flow) / area;
-
+    
+    // Validate preconditions (debug mode only)
+    assert(state.size() == 1 && "State vector must have size 1");
+    assert(inputs.size() == 2 && "Input vector must have size 2");
+    
+    double h = state(0);              // Current tank level (m)
+    double q_in = inputs(0);          // Inlet flow rate (m³/s)
+    double valve_position = inputs(1); // Valve position (0 to 1)
+    
+    // Validate preconditions
+    assert(h >= 0.0 && "Tank level must be non-negative");
+    assert(valve_position >= 0.0 && valve_position <= 1.0 && 
+           "Valve position must be in [0, 1]");
+    
+    // Calculate outlet flow using valve equation
+    double q_out = outletFlow(h, valve_position);
+    
+    // Material balance equation: dh/dt = (q_in - q_out) / A
+    double dh_dt = (q_in - q_out) / area_;
+    
+    // Return derivative vector
     Eigen::VectorXd derivative(1);
-    derivative << dh_dt;
+    derivative(0) = dh_dt;
     return derivative;
 }
 
-double TankModel::outletFlow(double level, double valve_position) const {
-    if (level <= 0.0) {
+double TankModel::outletFlow(double h, double valve_position) const {
+    // Validate preconditions
+    assert(h >= 0.0 && "Tank level must be non-negative");
+    assert(valve_position >= 0.0 && valve_position <= 1.0 && 
+           "Valve position must be in [0, 1]");
+    
+    // No flow if tank is empty
+    if (h <= 0.0) {
         return 0.0;
     }
-    return valve_coefficient * valve_position * std::sqrt(level);
+    
+    // Valve flow equation: q_out = k_v * x * sqrt(h)
+    return k_v_ * valve_position * std::sqrt(h);
 }
 
 }  // namespace tank_sim

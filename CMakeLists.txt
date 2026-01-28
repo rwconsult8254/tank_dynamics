@@ -66,14 +66,13 @@ FetchContent_MakeAvailable(Eigen3 GoogleTest)
 # ============================================================================
 
 # Create the main library target named "tank_sim_core"
-# INTERFACE keyword means this is a header-only library (no source files compiled here)
-# Actual implementation files are added in src/CMakeLists.txt via target_sources()
-add_library(tank_sim_core INTERFACE)
+# This is now a compiled library (not INTERFACE) since we have implementation files
+# Source files are added in src/CMakeLists.txt via target_sources()
+add_library(tank_sim_core)
 
 # Link external libraries to tank_sim_core
-# INTERFACE keyword means these dependencies are required by consumers of tank_sim_core
-# Any executable or library that links to tank_sim_core will also link to these
-target_link_libraries(tank_sim_core INTERFACE
+# PUBLIC keyword means these dependencies are required by both tank_sim_core and its consumers
+target_link_libraries(tank_sim_core PUBLIC
     Eigen3::Eigen          # Linear algebra library
     GSL::gsl               # GSL main library
     GSL::gslcblas          # GSL BLAS library (Basic Linear Algebra Subprograms)
@@ -82,7 +81,8 @@ target_link_libraries(tank_sim_core INTERFACE
 # Specify include directories for tank_sim_core
 # BUILD_INTERFACE: used when building this project (includes are in src/ directory)
 # INSTALL_INTERFACE: used when this library is installed and used by external projects
-target_include_directories(tank_sim_core INTERFACE
+# PUBLIC keyword means consumers of the library also get these include paths
+target_include_directories(tank_sim_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:include>
 )
