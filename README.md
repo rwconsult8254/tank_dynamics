@@ -2,138 +2,351 @@
 
 A real-time tank level control simulator with a SCADA-style interface. The system models a tank with variable inlet flow and PID-controlled outlet valve, allowing operators to experiment with control parameters and observe process dynamics.
 
+## Overview
+
+Tank Dynamics is a proof-of-concept process simulation and control system. It demonstrates real-time simulation of a liquid tank with tunable PID level control. Process operators can monitor tank level, flow rates, and valve position in real-time, while experimenting with different PID controller tuning parameters to understand process control behavior.
+
+## Features
+
+- **Real-time Simulation**: Physics-based tank model running at 1 Hz with RK4 numerical integration
+- **PID Control Loop**: Fully tunable proportional-integral-derivative controller for tank level setpoint
+- **SCADA Interface**: Modern web-based operator interface with live process visualization
+- **Trend Plotting**: Historical data visualization with configurable time ranges
+- **Manual & Auto Inlet Modes**: Manual inlet flow control or simulated Brownian motion disturbances
+- **Persistent Data**: Up to 2 hours of process history for analysis
+
 ## Architecture
 
-- **C++ Simulation Core**: High-performance physics engine using GSL and Eigen
-- **Python Bindings**: pybind11 interface for Python integration
-- **FastAPI Backend**: Real-time WebSocket server (1 Hz updates)
-- **Next.js Frontend**: Modern web-based SCADA interface
-
-## Developer Setup
-
-### Prerequisites
-
-```bash
-# Ubuntu/Debian
-sudo apt-get install cmake libgsl-dev build-essential
-
-# Arch Linux
-sudo pacman -S cmake gsl base-devel
-
-# macOS
-brew install cmake gsl
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Browser (Next.js)                        │
+│  ┌─────────────────────────┐  ┌─────────────────────────────┐  │
+│  │    Process View (Tab)   │  │     Trends View (Tab)       │  │
+│  │  - Tank visualization   │  │  - Level vs Setpoint plot   │  │
+│  │  - PID controls         │  │  - Flow plots (in/out)      │  │
+│  │  - Flow indicators      │  │  - Valve position           │  │
+│  │  - Setpoint input       │  │  - Historical data          │  │
+│  └─────────────────────────┘  └─────────────────────────────┘  │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │ WebSocket (1 Hz updates)
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    FastAPI Server (Python)                      │
+│  - WebSocket endpoint for real-time state                       │
+│  - REST endpoints for control and history                       │
+│  - Simulation orchestration (1 Hz tick rate)                    │
+│  - Ring buffer history (~2 hours of data)                       │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │ pybind11
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 C++ Simulation Library                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │  Tank Model  │  │ PID Control  │  │  RK4 Stepper (GSL)   │  │
+│  │  - ODEs      │  │  - Gains     │  │  - Fixed timestep    │  │
+│  │  - Valve     │  │  - Integral  │  │  - State integration │  │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
+│                           Eigen (vectors/matrices)              │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Building the Project
-
-```bash
-# Configure build
-cmake -B build -S .
-
-# Build
-cmake --build build
-
-# Run tests
-ctest --test-dir build --output-on-failure
-```
-
-### IDE/Editor Integration (clangd)
-
-For proper IDE integration with clangd (VSCode, neovim, etc.), create a symlink to the generated `compile_commands.json`:
-
-```bash
-# From project root
-ln -sf build/compile_commands.json compile_commands.json
-```
-
-This enables:
-- Accurate code completion
-- Go-to-definition across the project
-- Real-time error highlighting
-- Automatic include path resolution
-
-**Note:** The build system automatically generates `compile_commands.json` in the `build/` directory via `CMAKE_EXPORT_COMPILE_COMMANDS`. The symlink makes it discoverable by clangd at the project root.
-
-### Git Ignore
-
-Add to `.gitignore`:
-```
-build/
-compile_commands.json
-```
+**Components:**
+- **C++ Simulation Core** (`libsim`): High-performance physics engine using GSL RK4 integrator and Eigen linear algebra
+- **Python Bindings** (`tank_sim`): pybind11 interface exposing simulation to Python
+- **FastAPI Backend** (`api/`): Real-time WebSocket server orchestrating simulation
+- **Next.js Frontend** (`frontend/`): Modern React-based SCADA interface with Tailwind CSS styling
 
 ## Quick Start
 
-1. Build the C++ library (see above)
-2. Run the test suite to verify installation
-3. (Future) Install Python bindings: `pip install -e .`
-4. (Future) Start the API server: `python -m api.main`
-5. (Future) Start the frontend: `cd frontend && npm run dev`
+### Prerequisites
 
-## Workflow Roles
+**System Dependencies:**
 
-| Role | Model | Responsibility | Deliverable |
-|------|-------|----------------|-------------|
-| Architect | Claude Opus | Strategic planning | `docs/plan.md` |
-| Senior Engineer | Claude Sonnet | Task breakdown | `docs/next.md` |
-| Engineer | Local LLM + Human | Implementation | Code |
-| Code Reviewer | Claude Sonnet | Quality assurance | `docs/feedback.md` |
-| Documentation Writer | Claude Haiku | User/dev docs | README, guides |
-| Docstring Writer | Local LLM | Code documentation | Inline docstrings |
-
-## Model Selection Guide
-
-| Task Type | Recommended Model | Notes |
-|-----------|-------------------|-------|
-| Architecture & Planning | Claude Opus | Broad context needed |
-| Task Breakdown | Claude Sonnet | Balance of capability/cost |
-| Backend Implementation | Local LLM (14B+) | Well-defined patterns |
-| Frontend (React/Vue/etc) | Claude Haiku | Ecosystem complexity |
-| Documentation | Claude Haiku | Excellent at structured writing |
-| Code Review | Claude Sonnet | Nuanced understanding |
-| Docstrings | Local LLM | Mechanical, defined task |
-| Shell/Terminal Commands | Human or Claude | Local LLM unreliable |
-
-## Directory Structure
-
-```
-project/
-├── CLAUDE.md              # Role definitions and rules
-├── prompts/
-│   ├── architect.md
-│   ├── senior-engineer.md
-│   ├── engineer.md
-│   ├── code-reviewer.md
-│   ├── documentation-writer.md
-│   └── docstring-writer.md
-├── docs/
-│   ├── specs.md           # Your project specification
-│   ├── plan.md            # Created by Architect
-│   ├── next.md            # Created by Senior Engineer
-│   ├── workflow.md        # Step-by-step guide
-│   └── feedback.md        # Created by Code Reviewer
-├── src/                   # Your source code
-├── tests/                 # Your tests
-└── scripts/
-    └── new-project.sh
+Ubuntu/Debian:
+```bash
+sudo apt-get install cmake libgsl-dev build-essential
 ```
 
-## Key Principles
+Arch Linux:
+```bash
+sudo pacman -S cmake gsl base-devel
+```
 
-1. **Git from day one** - Commit after each task for context and rollback
-2. **Hard prompt boundaries** - Forbidden actions, not guidelines
-3. **Escalation paths** - Know when to switch from local LLM to Claude
-4. **Human oversight** - AI judgment isn't reliable for all decisions
+macOS:
+```bash
+brew install cmake gsl
+```
 
-## Escalation Triggers
+**Development Tools:**
+- Node.js 18+ (for frontend)
+- Python 3.9+ (for backend)
+- C++17 capable compiler (GCC 9+, Clang 10+, MSVC 2019+)
 
-Switch from local LLM to Haiku/Sonnet when:
-- Task involves unfamiliar framework (React, Vue, complex libraries)
-- Model produces repeated errors on same task
-- Output doesn't match specification after 2 attempts
-- Task requires terminal/shell commands
-- Complex refactoring across multiple files
+### Building the C++ Core
+
+```bash
+# Configure build system (downloads Eigen, GSL, GoogleTest automatically)
+cmake -B build -S .
+
+# Compile C++ library and tests
+cmake --build build
+
+# Run test suite
+ctest --test-dir build --output-on-failure
+```
+
+### Running the Complete System
+
+```bash
+# Start backend (requires C++ library built first)
+pip install -e .  # Install Python bindings
+python -m api.main
+
+# In another terminal, start frontend
+cd frontend
+npm install
+npm run dev
+```
+
+Then open http://localhost:3000 in your browser.
+
+## Project Structure
+
+```
+tank_dynamics/
+├── CMakeLists.txt              # C++ build configuration
+├── src/                        # C++ simulation library
+│   ├── tank_model.h            # Tank physics model
+│   ├── tank_model.cpp
+│   ├── pid_controller.h        # PID controller with state
+│   ├── pid_controller.cpp
+│   ├── stepper.h               # GSL RK4 integrator wrapper
+│   ├── stepper.cpp
+│   ├── simulator.h             # Main simulation orchestrator
+│   └── simulator.cpp
+├── bindings/                   # pybind11 Python bindings
+│   └── bindings.cpp
+├── tests/                      # C++ unit tests (GoogleTest)
+│   ├── test_tank_model.cpp
+│   ├── test_pid_controller.cpp
+│   ├── test_stepper.cpp
+│   └── test_simulator.cpp
+├── api/                        # FastAPI backend
+│   ├── main.py                 # WebSocket server
+│   ├── simulation.py           # Simulation loop
+│   └── models.py               # Data models
+├── frontend/                   # Next.js frontend
+│   ├── app/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   └── components/
+│   │       ├── ProcessView.tsx
+│   │       ├── TrendsView.tsx
+│   │       └── TankGraphic.tsx
+│   ├── tailwind.config.js
+│   └── package.json
+├── docs/                       # Project documentation
+│   ├── specs.md                # Feature specifications
+│   ├── plan.md                 # Architecture & design plan
+│   └── next.md                 # Upcoming tasks
+└── CLAUDE.md                   # AI workflow configuration
+```
+
+## Process Dynamics
+
+### Tank Model
+
+The tank is modeled as a first-order system with one state variable (liquid level `h`):
+
+```
+Material Balance: dh/dt = (q_in - q_out) / A
+Valve Equation:   q_out = k_v * x * sqrt(h)
+```
+
+Where:
+- `h`: Tank level (meters)
+- `q_in`: Inlet volumetric flow (m³/s)
+- `q_out`: Outlet volumetric flow (m³/s)
+- `A`: Cross-sectional area = 120 m²
+- `k_v`: Valve coefficient = 1.2649 m^2.5/s
+- `x`: Valve position (0 = closed, 1 = fully open)
+
+### Control Loop
+
+The PID controller continuously compares tank level against the setpoint and outputs a valve position (0-1):
+
+```
+error = setpoint - actual_level
+valve_position = Kc * (error + (1/tau_I) * ∫error + tau_D * d(error)/dt)
+```
+
+The controller gains are tunable in real-time:
+- **Kc** (proportional gain): Larger = more aggressive response
+- **tau_I** (integral time): Smaller = faster offset correction
+- **tau_D** (derivative time): Larger = more damping of oscillations
+
+## Development Guide
+
+### Workflow Roles
+
+This project uses a structured AI-assisted workflow:
+
+| Role | Model | Responsibility |
+|------|-------|-----------------|
+| Architect | Claude Opus | Strategic planning & design |
+| Senior Engineer | Claude Sonnet | Task breakdown & prioritization |
+| Engineer | Local LLM + Human | Implementation |
+| Code Reviewer | Claude Sonnet | Quality assurance |
+| Documentation | Claude Haiku | User/developer documentation |
+
+See `CLAUDE.md` for detailed role definitions and boundaries.
+
+### Current Phase: Phase 1 - C++ Simulation Core
+
+**Progress:** In development
+- ✅ Task 1: Initialize CMake build system
+- ✅ Task 2: Implement TankModel class
+- ✅ Task 3: Write TankModel unit tests
+- Task 4: Implement PIDController class
+- Task 5: Write PIDController tests
+- Task 6: Implement Stepper (GSL integration)
+- Task 7: Implement Simulator orchestrator
+- Task 8: Write comprehensive Simulator tests
+
+### Running Tests
+
+```bash
+# C++ tests
+ctest --test-dir build --output-on-failure
+
+# C++ tests with detailed output
+./build/tests/test_tank_model --gtest_detail=all
+
+# Python tests (after bindings built)
+pytest api/tests/ -v
+```
+
+### IDE Setup (clangd)
+
+For proper code completion and go-to-definition:
+
+```bash
+# From project root - create symlink to compile database
+ln -sf build/compile_commands.json compile_commands.json
+```
+
+Works with VSCode (clangd extension), Neovim (nvim-lspconfig), Emacs (eglot), etc.
+
+## API Reference
+
+### WebSocket Endpoint: `/ws`
+
+Real-time process state updates at 1 Hz.
+
+**Server → Client:**
+```json
+{
+  "type": "state",
+  "data": {
+    "time": 1234.5,
+    "level": 2.5,
+    "setpoint": 3.0,
+    "inlet_flow": 1.0,
+    "outlet_flow": 1.0,
+    "valve_position": 0.5,
+    "error": -0.5
+  }
+}
+```
+
+**Client → Server (Examples):**
+```json
+{"type": "setpoint", "value": 3.0}
+{"type": "pid", "Kc": 1.0, "tau_I": 10.0, "tau_D": 0.0}
+{"type": "inlet_flow", "value": 1.2}
+{"type": "inlet_mode", "mode": "brownian", "min": 0.8, "max": 1.2}
+{"type": "reset"}
+```
+
+### REST Endpoints
+
+```
+GET /api/history?duration=3600     # Last hour of data (default: last hour)
+GET /api/config                    # Current simulation configuration
+POST /api/reset                    # Reset to initial conditions
+```
+
+## Process Parameters
+
+| Parameter | Value | Unit |
+|-----------|-------|------|
+| Tank height | 5.0 | m |
+| Tank area | 120.0 | m² |
+| Tank volume | 600.0 | m³ |
+| Valve coefficient (k_v) | 1.2649 | m^2.5/s |
+| Steady-state level | 2.5 | m |
+| Steady-state inlet flow | 1.0 | m³/s |
+
+## Troubleshooting
+
+### CMake FetchContent Issues
+
+If `cmake -B build -S .` fails downloading dependencies:
+
+```bash
+# Clear CMake cache and try again
+rm -rf build
+cmake -B build -S .
+
+# Or manually specify GSL location
+cmake -B build -S . -DGSL_ROOT_DIR=/usr/local
+```
+
+### Build Errors
+
+Ensure you have a C++17 capable compiler:
+
+```bash
+gcc --version  # Should be 9.0+
+g++ -std=c++17 -v  # Verify C++17 support
+```
+
+### WebSocket Connection Issues
+
+Check that the FastAPI backend is running on port 8000:
+
+```bash
+curl http://localhost:8000/api/config
+```
+
+If backend isn't running, start it:
+
+```bash
+python -m api.main
+```
+
+## References
+
+- **Tank Dynamics Theory**: See `docs/TankDynamics.md`
+- **Tennessee Eastman Process**: See `docs/Tennessee_Eastman_Process_Equations.md`
+- **Complete Architecture Plan**: See `docs/plan.md`
+- **Next Implementation Tasks**: See `docs/next.md`
 
 ## License
 
-This template is provided as-is for personal and commercial use.
+This project is provided for educational and personal use.
+
+## Contributing
+
+Follow the workflow defined in `CLAUDE.md` when contributing:
+
+1. Read the relevant role prompt (`prompts/*.md`)
+2. Follow role boundaries strictly
+3. Commit after each completed task with descriptive message
+4. Escalate to higher-tier Claude models when appropriate
+
+---
+
+**Last Updated:** 2026-01-28
+**Current Status:** Phase 1 In Progress
+**Next Review:** After Task 4 completion
