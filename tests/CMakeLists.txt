@@ -12,17 +12,20 @@ enable_testing()
 # and registers all TEST() and TEST_F() macros in the executable
 include(GoogleTest)
 
+# Define test executable name derived from core library name
+# Convention: test_<core_library_name>
+set(TEST_EXECUTABLE test_${CORE_LIB})
+
 # Create test executable
-# The executable name should clearly indicate it's a test
-# Convention: test_<component_name>
-add_executable(test_tank_dynamics
+# The executable name is derived from CORE_LIB for consistency
+add_executable(${TEST_EXECUTABLE}
     test_tank_model.cpp
 )
 
 # Link test executable against required libraries
 # PRIVATE keyword means these are only for building this executable, not for consumers
-target_link_libraries(test_tank_dynamics PRIVATE
-    tank_sim_core          # Library being tested
+target_link_libraries(${TEST_EXECUTABLE} PRIVATE
+    ${CORE_LIB}            # Core library being tested
     gtest                  # GoogleTest framework library
     gtest_main             # GoogleTest main function (contains default main())
                            # If you want custom main, remove gtest_main and write your own
@@ -30,12 +33,11 @@ target_link_libraries(test_tank_dynamics PRIVATE
 
 # Specify include directories for the test executable
 # PRIVATE keyword means includes are only used when compiling this target
-target_include_directories(test_tank_dynamics PRIVATE
+target_include_directories(${TEST_EXECUTABLE} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # Automatically discover and register all tests in the executable
 # gtest_discover_tests() parses the executable for TEST() macros and creates
 # CTest entries for each one. This is better than manually listing tests.
-# Alternative: add_test(NAME test_name COMMAND test_tank_dynamics)
-gtest_discover_tests(test_tank_dynamics)
+gtest_discover_tests(${TEST_EXECUTABLE})

@@ -6,20 +6,27 @@
 cmake_minimum_required(VERSION 3.20)
 project(TankDynamics LANGUAGES CXX)
 
+# ============================================================================
+# PROJECT CONFIGURATION
+# ============================================================================
+
+# Define the main library target name as a variable for reusability
+# This allows easy renaming across the entire CMake configuration
+set(CORE_LIB tank_sim_core)
+
+# C++ Standard Configuration
+# Set as variable to allow easy customization across projects
+# C++17 provides modern features like std::optional, std::variant
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard version")
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 # Generate compile_commands.json for clangd and other language servers
 # This file is used by clangd to understand project structure, include paths, and compilation flags
 # CMake will place it at: build/compile_commands.json
 # Create a symlink from project root: ln -sf build/compile_commands.json compile_commands.json
 # This allows clangd to find it automatically when looking in the project root
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# C++ Standard Configuration
-# Set C++ standard to 17 (required for modern features like std::optional, std::variant)
-set(CMAKE_CXX_STANDARD 17)
-# Ensure C++17 is required, not just preferred (will fail if compiler doesn't support it)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# Disable compiler-specific extensions (use standard C++ only, improves portability)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ============================================================================
 # DEPENDENCY MANAGEMENT
@@ -29,6 +36,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # This allows automatic downloading and building of dependencies without requiring
 # pre-installation on the system
 include(FetchContent)
+
+# List of FetchContent dependencies to make available
+set(FETCHCONTENT_DEPS Eigen3 GoogleTest)
 
 # Declare Eigen3 dependency - linear algebra library
 # Version 3.4.0 provides header-only matrix operations and vector math
@@ -46,6 +56,14 @@ FetchContent_Declare(
     GIT_TAG        v1.14.0
 )
 
+# Download and make available all FetchContent declared dependencies
+# This must be called after all FetchContent_Declare() calls
+FetchContent_MakeAvailable(${FETCHCONTENT_DEPS})
+
+# System dependencies - searched for via pkg-config or system paths
+# List of required system packages and their find_package() names
+set(SYSTEM_DEPS GSL)
+
 # GSL (GNU Scientific Library) - numerical computation library
 # Unlike Eigen and GoogleTest, GSL must be installed system-wide
 # find_package() searches for pre-installed GSL
@@ -57,32 +75,28 @@ if(NOT GSL_FOUND)
     - On Arch: sudo pacman -S gsl")
 endif()
 
-# Download and make available all FetchContent declared dependencies
-# This must be called after all FetchContent_Declare() calls
-FetchContent_MakeAvailable(Eigen3 GoogleTest)
-
 # ============================================================================
 # LIBRARY TARGET DEFINITION
 # ============================================================================
 
-# Create the main library target named "tank_sim_core"
+# Create the main library target using CORE_LIB variable
 # This is now a compiled library (not INTERFACE) since we have implementation files
 # Source files are added in src/CMakeLists.txt via target_sources()
-add_library(tank_sim_core)
+add_library(${CORE_LIB})
 
-# Link external libraries to tank_sim_core
-# PUBLIC keyword means these dependencies are required by both tank_sim_core and its consumers
-target_link_libraries(tank_sim_core PUBLIC
+# Link external libraries to the core library
+# PUBLIC keyword means these dependencies are required by both the library and its consumers
+target_link_libraries(${CORE_LIB} PUBLIC
     Eigen3::Eigen          # Linear algebra library
     GSL::gsl               # GSL main library
     GSL::gslcblas          # GSL BLAS library (Basic Linear Algebra Subprograms)
 )
 
-# Specify include directories for tank_sim_core
+# Specify include directories for the core library
 # BUILD_INTERFACE: used when building this project (includes are in src/ directory)
 # INSTALL_INTERFACE: used when this library is installed and used by external projects
 # PUBLIC keyword means consumers of the library also get these include paths
-target_include_directories(tank_sim_core PUBLIC
+target_include_directories(${CORE_LIB} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:include>
 )
@@ -92,7 +106,7 @@ target_include_directories(tank_sim_core PUBLIC
 # ============================================================================
 
 # Add src/ subdirectory - contains implementation files
-# The src/CMakeLists.txt will add actual source files to tank_sim_core library
+# The src/CMakeLists.txt will add actual source files to ${CORE_LIB} library
 add_subdirectory(src)
 
 # Add tests/ subdirectory - contains unit tests
