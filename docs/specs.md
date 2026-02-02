@@ -74,20 +74,119 @@ This is a simulation of a tank.  It will look like a scada screen that a process
 - GoogleTest to test
 - NodeJS
 
+## Core Class Architecture
+
+The simulation follows the Tennessee Eastman architecture pattern with four core classes:
+
+### Class 1: Model (Stateless Physics)
+
+A stateless physics model that computes derivatives of the system given current state and inputs. The model encapsulates all governing equations (ODEs and algebraic equations) of the process.
+
+**Responsibilities:**
+- Compute time derivatives of state variables (dstate/dt) from the ODEs
+- Evaluate algebraic (supplementary) equations
+- Accept current state vector and input vector (manipulated variables)
+- Return derivative vector for use by the stepper class
+- Remain completely stateless - no internal state persistence
+
+**Design Principle:** Pure computation with no memory or side effects. Given the same inputs, always produces the same outputs.
+
+**Interface:**
+- `derivatives(state, inputs)` - The single public method that computes time derivatives
+
+**Detailed specification:** See `docs/Model Class.md`
+
+### Class 2: Stepper (GSL RK4 Wrapper)
+
+Wraps the GSL ODE solver (RK4 fixed-step integrator). Advances the state vector forward in time by calling the Model's derivative function.
+
+**Responsibilities:**
+- Configure and manage GSL ODE stepper (RK4 fixed step)
+- Call the Model's `derivatives()` method at intermediate points as required by RK4
+- Advance state vector by time step dt
+- Return updated state vector after integration
+
+**Design Principle:** Thin wrapper around GSL providing a clean interface. Agnostic to specific model - works with any derivative function signature.
+
+**Interface:**
+- `step(t, dt, state, inputs, derivative_func)` - Advances state by time step dt
+
+**Detailed specification:** See `docs/Stepper Class.md`
+
+### Class 3: PIDController (Feedback Control)
+
+Computes a manipulated variable (control output) from a measured variable error. Implements a discrete-time PID controller with saturation and anti-windup.
+
+**Responsibilities:**
+- Track the integral of error over time (internal state)
+- Compute PID output from proportional, integral, and derivative terms
+- Clamp the output to physical or logical limits (min/max)
+- Prevent integral windup during output saturation
+- Allow dynamic tuning of Kc, tau_I, and tau_D gains
+- Provide reset capability for initialization or retuning
+
+**Anti-Windup Strategy:**
+- Conditional integration: Only update integral when output is NOT saturated
+- Integral clamping: Direct limit on integral state magnitude
+
+**Interface:**
+- `compute(error, error_dot, dt)` - Calculate control output
+- `setGains(gains)` - Update tuning parameters dynamically
+- `setOutputLimits(min, max)` - Change saturation limits
+- `reset()` - Clear integral state
+- `getIntegralState()` - Get current integral accumulator for logging
+
+**Detailed specification:** See `docs/PID Controller Class.md`
+
+### Class 4: Simulator (Master Orchestrator)
+
+The master orchestrator that coordinates the Model, Controllers, and Stepper into a complete simulation system.
+
+**Responsibilities:**
+- Own and manage Model, multiple Controllers, and Stepper instances
+- Maintain state vector, input vector, time, and setpoints
+- Coordinate the simulation loop in the correct order
+- Provide getters for all variables for reporting/logging
+- Allow operators to change setpoints and disturbance inputs
+- Reset simulation to initial conditions
+- Expose clean API suitable for binding and remote calls
+
+**Critical Design Decisions:**
+
+1. **Steady-State Initialization:** The simulation MUST be initialized at or very close to steady state. This is the programmer's responsibility before configuring the Simulator.
+
+2. **State vs. Inputs:** State variables are governed by ODEs and evolve through integration (NEVER manipulated directly). Inputs feed INTO the ODEs and affect derivatives.
+
+3. **Order of Operations:** Step FIRST (integrate model forward using inputs from previous step), then compute controller outputs for NEXT step. This models the one-step delay of real digital control.
+
+4. **Input Vector Structure:** Single vector containing ALL inputs (controller outputs + operator inputs). Model doesn't care where values come from.
+
+**Interface:**
+- `step()` - Advance simulation by dt
+- `getState()`, `getInputs()`, `getTime()` - State getters
+- `setInput(index, value)` - Change any input (disturbances)
+- `setSetpoint(controller_index, sp)` - Change controller setpoint
+- `setControllerGains(index, gains)` - Retune controllers
+- `reset()` - Reset to initial steady state
+
+**Detailed specification:** See `docs/Simulator Class.md`
+
 ## Constraints
 
 None at this stage
 
 ## Open Questions
 
-
-
-1. There is nothign in out process for testing. We need to add testing and a testing engineer prompt.  This should be added to our workflow.  Preferably the local llm will write tests as the senior engineer insruction.
+1. There is nothing in our process for testing. We need to add testing and a testing engineer prompt. This should be added to our workflow. Preferably the local llm will write tests as the senior engineer instruction.
 
 ## References
 
 The technical background is in docs/TankDynamics
-Tenesse Eastman backgroud is in docs/Tennessee_Eastman_Process_Equations.md
+Class specifications are in:
+- docs/Model Class.md
+- docs/Stepper Class.md
+- docs/PID Controller Class.md
+- docs/Simulator Class.md
 
 ---
 

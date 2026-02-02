@@ -66,91 +66,77 @@ A real-time tank level control simulator with a SCADA-style interface. The syste
 
 The simulation follows the Tennessee Eastman architecture pattern: the process model only computes derivatives, while integration is handled by an external stepper. This separation makes testing easier and follows established process simulation conventions.
 
-#### Class 1: TankModel
+**Detailed class specifications are maintained in separate documents:**
+- `docs/Model Class.md` - Stateless physics model
+- `docs/Stepper Class.md` - GSL RK4 wrapper
+- `docs/PID Controller Class.md` - Feedback control with anti-windup
+- `docs/Simulator Class.md` - Master orchestrator
 
-**Purpose:** Stateless physics model - computes derivatives given current state and inputs
+#### Class 1: Model (Stateless Physics)
+
+**Purpose:** Stateless physics model - computes derivatives given current state and inputs. Pure computation with no memory or side effects.
+
+**Design Principle:** Given the same inputs, always produces the same outputs. This makes it easy to test in isolation, safe to call from any numerical integrator, and compatible with different solvers and stepping strategies.
 
 **Responsibilities:**
+- Compute time derivatives of state variables (dstate/dt) from the ODEs
+- Evaluate algebraic (supplementary) equations internally as helpers
+- Accept current state vector and input vector (manipulated variables)
+- Return derivative vector for use by the stepper class
+- Remain completely stateless - no internal state persistence
+
+**For the tank system specifically:**
 - Compute tank material balance derivative: `dh/dt = (q_in - q_out) / A`
-- Compute outlet flow from valve equation: `q_out = k_v * x * sqrt(h)`
-- Pure function with no internal state
+- Compute outlet flow from valve equation: `q_out = k_v * x * sqrt(h)` (internal algebraic)
 
 **Interface:**
 ```cpp
-class TankModel {
+class Model {
 public:
     struct Parameters {
+        // Physical constants and configuration
         double area;        // Cross-sectional area (m²)
         double k_v;         // Valve coefficient (m^2.5/s)
         double max_height;  // Maximum tank height (m)
     };
 
-    explicit TankModel(const Parameters& params);
+    explicit Model(const Parameters& params);
 
-    // Compute derivatives given state and inputs
-    // state: [h] - tank level (m)
-    // inputs: [q_in, x] - inlet flow (m³/s), valve position (0-1)
-    // Returns: [dh/dt]
+    // Core method: compute derivatives given state and inputs
+    // state: Current values of all state variables [n]
+    // inputs: Current values of all inputs/manipulated variables [m]
+    // Returns: Time derivatives [dstate/dt] of same size as state
     Eigen::VectorXd derivatives(
         const Eigen::VectorXd& state,
         const Eigen::VectorXd& inputs
     ) const;
-
-    // Compute outlet flow (algebraic equation, not ODE)
-    double outletFlow(double h, double x) const;
 };
 ```
 
-#### Class 2: PIDController
+**Note:** Algebraic equations (like outlet flow calculation) are kept private - called within `derivatives()` as helper functions. Some algebraic equations in more complex models may need to call external solvers for iterative solutions (e.g., flash calculations).
 
-**Purpose:** Computes valve position from level error. Has internal state for integral term.
+#### Class 2: Stepper (GSL RK4 Wrapper)
 
-**Responsibilities:**
-- Track integral of error over time
-- Compute PID output with saturation (0-1 for valve)
-- Anti-windup when saturated
+**Purpose:** Wraps GSL ODE solver (RK4 fixed-step integrator). Advances state vector forward in time by calling the Model's derivative function.
 
-**Interface:**
-```cpp
-class PIDController {
-public:
-    struct Gains {
-        double Kc;      // Controller gain
-        double tau_I;   // Integral time (s), 0 = no integral
-        double tau_D;   // Derivative time (s), 0 = no derivative
-    };
-
-    explicit PIDController(const Gains& gains, double bias = 0.5);
-
-    // Compute valve position given error and derivative
-    // Returns valve position clamped to [0, 1]
-    double compute(double error, double error_dot, double dt);
-
-    // Update tuning parameters
-    void setGains(const Gains& gains);
-
-    // Reset integral state
-    void reset();
-
-    // Get current integral state (for logging)
-    double getIntegralState() const;
-};
-```
-
-#### Class 3: Stepper
-
-**Purpose:** Wraps GSL RK4 integrator. Advances state vector by calling model's derivative function.
+**Design Principle:** Thin wrapper around GSL providing a clean interface. Agnostic to the specific model - works with any derivative function signature.
 
 **Responsibilities:**
-- Configure GSL ODE stepper (RK4 fixed step)
-- Call TankModel::derivatives() at intermediate points as required by RK4
-- Return updated state vector
+- Configure and manage GSL ODE stepper (RK4 fixed step)
+- Call the Model's `derivatives()` method at intermediate points as required by RK4
+- Advance state vector by time step dt
+- Return updated state vector after integration
+
+**Key Implementation Notes:**
+- RK4 is a single-step method - only requires current state (no history needed)
+- Calls the derivative function multiple times per step (typically 4 times)
+- Each integration step is independent (stateless with respect to simulation)
 
 **Interface:**
 ```cpp
 class Stepper {
 public:
-    // Function type matching what GSL expects
+    // Derivative function signature
     using DerivativeFunc = std::function<Eigen::VectorXd(
         double t,
         const Eigen::VectorXd& state,
@@ -160,7 +146,7 @@ public:
     explicit Stepper(size_t state_dim);
     ~Stepper();
 
-    // Advance state by dt using RK4
+    // Single public method: advance state by dt using RK4
     // derivative_func is called multiple times per step
     Eigen::VectorXd step(
         double t,
@@ -172,63 +158,116 @@ public:
 };
 ```
 
-#### Class 4: Simulator
+#### Class 3: PIDController (Feedback Control)
 
-**Purpose:** Orchestrator that owns all components and exposes the public API.
+**Purpose:** Computes a manipulated variable (control output) from a measured variable error. Implements discrete-time PID with saturation and anti-windup.
 
 **Responsibilities:**
-- Own TankModel, PIDController, and Stepper instances
-- Maintain current state vector and simulation time
-- Coordinate stepping: get PID output, step model, update state
-- Handle inlet flow modes (manual, Brownian)
-- Expose API for pybind11 binding
+- Track the integral of error over time (internal state)
+- Compute PID output from proportional, integral, and derivative terms
+- Clamp output to physical or logical limits (min/max)
+- Prevent integral windup during output saturation
+- Allow dynamic tuning of Kc, tau_I, and tau_D gains
+- Provide reset capability for initialization or retuning
+
+**Anti-Windup Implementation:**
+1. **Conditional Integration:** Only update integral when output is NOT saturated
+2. **Integral Clamping:** Additional safety limit on integral state magnitude
+
+**Algorithm Order (Critical):**
+1. Calculate P, I, D terms using CURRENT integral state
+2. Compute unsaturated output
+3. Clamp to physical limits
+4. Update integral for NEXT timestep only if output was NOT saturated
+
+**Interface:**
+```cpp
+class PIDController {
+public:
+    struct Gains {
+        double Kc;      // Proportional gain (dimensionless)
+        double tau_I;   // Integral time constant (seconds), 0 = no integral action
+        double tau_D;   // Derivative time constant (seconds), 0 = no derivative action
+    };
+
+    PIDController(const Gains& gains, double bias, double min_output,
+                  double max_output, double max_integral);
+
+    // Compute control output
+    double compute(double error, double error_dot, double dt);
+
+    // Dynamic tuning (allows bumpless transfer)
+    void setGains(const Gains& gains);
+    void setOutputLimits(double min_val, double max_val);
+
+    // Reset integral state
+    void reset();
+
+    // Get current integral state (for logging)
+    double getIntegralState() const;
+};
+```
+
+#### Class 4: Simulator (Master Orchestrator)
+
+**Purpose:** Coordinates the Model, Controllers, and Stepper into a complete simulation system. Owns all instances and exposes the public API.
+
+**Critical Design Decisions:**
+
+1. **Steady-State Initialization (MANDATORY):** The simulation MUST be initialized at or very close to steady state. This is the programmer's responsibility. At steady state: all derivatives ≈ 0, all state variables equal their setpoints, controller outputs equal their bias values.
+
+2. **State vs. Inputs:** State variables are governed by ODEs and evolve through integration - NEVER manipulated directly. Inputs feed INTO the ODEs and affect derivatives.
+
+3. **Order of Operations (Critical):**
+   - Step 1: Integrate model forward using inputs from PREVIOUS step
+   - Step 2: Update simulation time
+   - Step 3: Compute controller outputs for NEXT step
+   This models the one-step delay of real digital control systems.
+
+4. **Input Vector Structure:** Single vector containing ALL inputs (controller outputs + operator inputs). Model doesn't care where values come from.
+
+5. **Multiple Controllers:** Each controller has measured_index (which state to read), output_index (which input to write), and its own setpoint.
 
 **Interface:**
 ```cpp
 class Simulator {
 public:
+    struct ControllerConfig {
+        PIDController::Gains gains;
+        double bias;             // Output at zero error (must match initial_inputs)
+        double min_output;
+        double max_output;
+        double max_integral;
+        int measured_index;      // Which state variable to measure
+        int output_index;        // Which input to control
+        double initial_setpoint; // Must equal initial_state[measured_index]
+    };
+
     struct Config {
-        TankModel::Parameters tank;
-        PIDController::Gains pid;
-        double initial_level;      // Initial tank level (m)
-        double initial_setpoint;   // Initial setpoint (m)
-        double initial_inlet_flow; // Initial inlet flow (m³/s)
+        Model::Parameters model_params;
+        std::vector<ControllerConfig> controllers;
+        Eigen::VectorXd initial_state;   // Steady-state values (= setpoints)
+        Eigen::VectorXd initial_inputs;  // All inputs at steady state
+        double dt;
     };
 
     explicit Simulator(const Config& config);
 
-    // Advance simulation by dt seconds
-    void step(double dt);
+    // Core simulation method
+    void step();
 
     // State getters
     double getTime() const;
-    double getLevel() const;
-    double getSetpoint() const;
-    double getInletFlow() const;
-    double getOutletFlow() const;
-    double getValvePosition() const;
-    double getError() const;
+    Eigen::VectorXd getState() const;
+    Eigen::VectorXd getInputs() const;
+    double getSetpoint(int controller_index) const;
+    double getControllerOutput(int controller_index) const;
+    double getError(int controller_index) const;
 
-    // Get full state as struct (for Python binding)
-    struct State {
-        double time;
-        double level;
-        double setpoint;
-        double inlet_flow;
-        double outlet_flow;
-        double valve_position;
-        double error;
-    };
-    State getState() const;
-
-    // Manipulated variable setters
-    void setInletFlow(double q_in);
-    void setSetpoint(double sp);
-    void setPIDGains(double Kc, double tau_I, double tau_D);
-
-    // Inlet flow modes
-    enum class InletMode { MANUAL, BROWNIAN };
-    void setInletMode(InletMode mode, double min = 0.8, double max = 1.2);
+    // Operator control
+    void setInput(int input_index, double value);    // Change any input
+    void setSetpoint(int controller_index, double sp);
+    void setControllerGains(int controller_index, const Gains& gains);
 
     // Reset to initial conditions
     void reset();
@@ -396,13 +435,13 @@ tank_dynamics/
 ├── CMakeLists.txt              # Top-level CMake
 ├── src/                        # C++ source
 │   ├── CMakeLists.txt
-│   ├── tank_model.h            # Class 1: Stateless derivative function
+│   ├── tank_model.h            # Class 1: Stateless derivative function (Model)
 │   ├── tank_model.cpp
-│   ├── pid_controller.h        # Class 2: PID with integral state
-│   ├── pid_controller.cpp
-│   ├── stepper.h               # Class 3: GSL RK4 wrapper
+│   ├── stepper.h               # Class 2: GSL RK4 wrapper
 │   ├── stepper.cpp
-│   ├── simulator.h             # Class 4: Orchestrator
+│   ├── pid_controller.h        # Class 3: PID with integral state
+│   ├── pid_controller.cpp
+│   ├── simulator.h             # Class 4: Master orchestrator
 │   └── simulator.cpp
 ├── bindings/                   # pybind11 bindings
 │   ├── CMakeLists.txt
@@ -410,8 +449,8 @@ tank_dynamics/
 ├── tests/                      # C++ tests
 │   ├── CMakeLists.txt
 │   ├── test_tank_model.cpp     # Test derivative calculations
-│   ├── test_pid_controller.cpp # Test PID logic
 │   ├── test_stepper.cpp        # Test integration accuracy
+│   ├── test_pid_controller.cpp # Test PID logic
 │   └── test_simulator.cpp      # Test full orchestration
 ├── api/                        # FastAPI backend
 │   ├── __init__.py
@@ -430,8 +469,12 @@ tank_dynamics/
 │   └── tests/
 │       └── e2e/
 ├── docs/
-│   ├── specs.md
-│   ├── plan.md
+│   ├── specs.md                # Project specification
+│   ├── plan.md                 # Implementation plan
+│   ├── Model Class.md          # Detailed Model class specification
+│   ├── Stepper Class.md        # Detailed Stepper class specification
+│   ├── PID Controller Class.md # Detailed PIDController class specification
+│   ├── Simulator Class.md      # Detailed Simulator class specification
 │   └── ...
 └── scripts/
     └── run_dev.sh              # Start all services

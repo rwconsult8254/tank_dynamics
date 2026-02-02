@@ -335,9 +335,9 @@ The class should follow the rule of five (or rule of zero if using smart pointer
 
 The class should maintain private member variables for:
 - GSL stepper object (type: gsl_odeiv2_step pointer)
-- GSL control object for step size control (type: gsl_odeiv2_control pointer) - though for fixed step we may not need adaptive control
-- GSL evolution object (type: gsl_odeiv2_evolve pointer)
 - State dimension (type: size_t)
+
+Note: Since this application uses fixed step size, the GSL control and evolve objects are not needed. The step method will use gsl_odeiv2_step_apply directly for simpler, more efficient implementation.
 
 Implement the constructor to:
 - Store the state dimension

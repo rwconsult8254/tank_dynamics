@@ -74,12 +74,16 @@ TEST_F(TankModelTest, NegativeDerivativeWhenOutletExceedsInlet) {
     EXPECT_NEAR(derivative(0), expected_derivative, 0.001);
 }
 
-// Test: Outlet Flow Calculation
+// Test: Outlet Flow Calculation via Public Getter
 TEST_F(TankModelTest, OutletFlowCalculation) {
-    double level = 2.5;       // meters
-    double valve = 0.5;       // 50% open
+    Eigen::VectorXd state(1);
+    state << 2.5;  // tank level in meters
     
-    double outlet_flow = model.outletFlow(level, valve);
+    Eigen::VectorXd inputs(2);
+    inputs << 1.0,   // inlet flow (not used for outlet calculation)
+              0.5;   // valve position: 50% open
+    
+    double outlet_flow = model.getOutletFlow(state, inputs);
     
     // Expected: k_v * x * sqrt(h) = 1.2649 * 0.5 * sqrt(2.5)
     double expected = 1.2649 * 0.5 * std::sqrt(2.5);
@@ -89,30 +93,42 @@ TEST_F(TankModelTest, OutletFlowCalculation) {
 
 // Test: Zero Outlet Flow When Valve Closed
 TEST_F(TankModelTest, ZeroOutletFlowWhenValveClosed) {
-    double level = 5.0;       // any positive level
-    double valve = 0.0;       // valve fully closed
+    Eigen::VectorXd state(1);
+    state << 5.0;  // any positive level
     
-    double outlet_flow = model.outletFlow(level, valve);
+    Eigen::VectorXd inputs(2);
+    inputs << 1.0,   // inlet flow
+              0.0;   // valve fully closed
+    
+    double outlet_flow = model.getOutletFlow(state, inputs);
     
     EXPECT_EQ(outlet_flow, 0.0);
 }
 
 // Test: Zero Outlet Flow When Tank Empty
 TEST_F(TankModelTest, ZeroOutletFlowWhenTankEmpty) {
-    double level = 0.0;       // empty tank
-    double valve = 1.0;       // fully open
+    Eigen::VectorXd state(1);
+    state << 0.0;  // empty tank
     
-    double outlet_flow = model.outletFlow(level, valve);
+    Eigen::VectorXd inputs(2);
+    inputs << 1.0,   // inlet flow
+              1.0;   // valve fully open
+    
+    double outlet_flow = model.getOutletFlow(state, inputs);
     
     EXPECT_EQ(outlet_flow, 0.0);
 }
 
 // Test: Full Valve Opening
 TEST_F(TankModelTest, FullValveOpening) {
-    double level = 5.0;       // max height
-    double valve = 1.0;       // fully open
+    Eigen::VectorXd state(1);
+    state << 5.0;  // max height
     
-    double outlet_flow = model.outletFlow(level, valve);
+    Eigen::VectorXd inputs(2);
+    inputs << 1.0,   // inlet flow
+              1.0;   // valve fully open
+    
+    double outlet_flow = model.getOutletFlow(state, inputs);
     
     // Expected: k_v * 1.0 * sqrt(5.0)
     double expected = 1.2649 * 1.0 * std::sqrt(5.0);

@@ -30,6 +30,10 @@ while [[ $# -gt 0 ]]; do
             RUN_TESTS=true
             shift
             ;;
+        --verify)
+            RUN_TESTS=true
+            shift
+            ;;
         --release)
             CMAKE_BUILD_TYPE="Release"
             shift
@@ -44,6 +48,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --clean          Clean build directory before building"
             echo "  --test           Run tests after building"
+            echo "  --verify         Run verification programs after building"
             echo "  --debug          Build with debug symbols (default)"
             echo "  --release        Build with optimizations"
             echo "  -h, --help       Show this help message"
@@ -112,6 +117,24 @@ if [ "$RUN_TESTS" = true ]; then
         echo -e "${RED}✗ Some tests failed${NC}"
         exit 1
     fi
+fi
+
+# Run verification programs
+echo ""
+echo -e "${YELLOW}Running verification programs...${NC}"
+
+# Stepper verification program
+if [ -f "./bindings/stepper_verify" ]; then
+    echo -e "${YELLOW}Running stepper_verify...${NC}"
+    ./bindings/stepper_verify
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Stepper verification passed${NC}"
+    else
+        echo -e "${RED}✗ Stepper verification failed${NC}"
+        exit 1
+    fi
+else
+    echo -e "${YELLOW}⊙ stepper_verify not built${NC}"
 fi
 
 echo ""

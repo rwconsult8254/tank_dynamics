@@ -10,6 +10,8 @@
 #   - It's cleaner for multi-level CMake projects with subdirectories
 target_sources(${CORE_LIB} PRIVATE
     tank_model.cpp
+    pid_controller.cpp
+    stepper.cpp
 )
 
 # Note: Header files (tank_model.h) are not listed here because:

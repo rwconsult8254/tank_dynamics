@@ -42,6 +42,7 @@ set(FETCHCONTENT_DEPS Eigen3 GoogleTest)
 
 # Declare Eigen3 dependency - linear algebra library
 # Version 3.4.0 provides header-only matrix operations and vector math
+# Note: We manually fetch Eigen to prevent its tests from polluting our test suite
 FetchContent_Declare(
     Eigen3
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
@@ -56,9 +57,17 @@ FetchContent_Declare(
     GIT_TAG        v1.14.0
 )
 
-# Download and make available all FetchContent declared dependencies
-# This must be called after all FetchContent_Declare() calls
-FetchContent_MakeAvailable(${FETCHCONTENT_DEPS})
+# Fetch Eigen manually without adding its subdirectory to prevent test pollution
+FetchContent_GetProperties(Eigen3)
+if(NOT eigen3_POPULATED)
+    FetchContent_Populate(Eigen3)
+    # Do NOT call add_subdirectory - just make the target available
+    add_library(Eigen3::Eigen INTERFACE IMPORTED GLOBAL)
+    target_include_directories(Eigen3::Eigen INTERFACE ${eigen3_SOURCE_DIR})
+endif()
+
+# Fetch GoogleTest normally (it respects BUILD_TESTING)
+FetchContent_MakeAvailable(GoogleTest)
 
 # System dependencies - searched for via pkg-config or system paths
 # List of required system packages and their find_package() names
@@ -105,9 +114,16 @@ target_include_directories(${CORE_LIB} PUBLIC
 # SUBDIRECTORIES
 # ============================================================================
 
+# Note: enable_testing() is called AFTER dependencies are fetched
+# to prevent Eigen from registering its own tests
+
 # Add src/ subdirectory - contains implementation files
 # The src/CMakeLists.txt will add actual source files to ${CORE_LIB} library
 add_subdirectory(src)
+
+# Enable testing NOW (after dependencies fetched, before tests/ directory)
+# This prevents Eigen tests from being registered while allowing our tests
+enable_testing()
 
 # Add tests/ subdirectory - contains unit tests
 # The tests/CMakeLists.txt will create test executables

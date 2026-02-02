@@ -1,5 +1,19 @@
 # CMakeLists.txt for bindings/ directory
-# This directory contains language bindings for the C++ library
+# This directory contains language bindings and verification utilities for the C++ library
+
+# ============================================================================
+# VERIFICATION PROGRAMS
+# ============================================================================
+
+# Stepper verification program
+# Tests RK4 implementation with exponential decay ODE
+# Verifies: numerical accuracy and 4th-order convergence
+add_executable(stepper_verify stepper_verify.cpp)
+target_link_libraries(stepper_verify PRIVATE ${CORE_LIB})
+
+# ============================================================================
+# PYTHON BINDINGS (Phase 2)
+# ============================================================================
 
 # Python bindings will be added in Phase 2 using pybind11
 # pybind11 is a lightweight header-only library that creates Python C++ extension modules

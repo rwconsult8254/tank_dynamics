@@ -1,11 +1,6 @@
 # CMakeLists.txt for tests/ directory
 # This file creates test executables and registers them with CTest
 
-# Enable testing for this project
-# This command enables the add_test() function and creates the "test" build target
-# After calling enable_testing(), you can run tests with: ctest --test-dir build
-enable_testing()
-
 # Include GoogleTest CMake utilities
 # This provides the gtest_discover_tests() function for automatic test discovery
 # gtest_discover_tests() is better than add_test() because it automatically finds

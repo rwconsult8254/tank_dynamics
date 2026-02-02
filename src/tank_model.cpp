@@ -43,6 +43,15 @@ Eigen::VectorXd TankModel::derivatives(
     return derivative;
 }
 
+double TankModel::getOutletFlow(
+    const Eigen::VectorXd& state,
+    const Eigen::VectorXd& inputs) const {
+    
+    double h = state(0);
+    double valve_position = inputs(1);
+    return outletFlow(h, valve_position);
+}
+
 double TankModel::outletFlow(double h, double valve_position) const {
     // Validate preconditions
     assert(h >= 0.0 && "Tank level must be non-negative");

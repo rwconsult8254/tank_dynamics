@@ -57,7 +57,26 @@ public:
         const Eigen::VectorXd& inputs) const;
 
     /**
-     * @brief Calculates outlet flow rate through the valve.
+     * @brief Gets the current outlet flow rate for reporting/logging.
+     * 
+     * Public getter that wraps the internal valve flow calculation.
+     * Use this to report outlet flow to the frontend/SCADA system.
+     * 
+     * @param state Current state vector [h] where h is tank level (m)
+     * @param inputs Input vector [q_in, x] where x is valve position
+     * @return Outlet flow rate (m³/s)
+     */
+    double getOutletFlow(
+        const Eigen::VectorXd& state,
+        const Eigen::VectorXd& inputs) const;
+
+private:
+    double area_;         ///< Cross-sectional area (m²)
+    double k_v_;          ///< Valve coefficient (m^2.5/s)
+    double max_height_;   ///< Maximum tank height (m)
+
+    /**
+     * @brief Internal algebraic equation: calculates outlet flow through valve.
      * 
      * Implements the valve flow equation: q_out = k_v * x * sqrt(h)
      * Returns zero if tank level is zero or negative.
@@ -65,16 +84,8 @@ public:
      * @param h Current tank level (m)
      * @param x Valve position (dimensionless, 0 to 1)
      * @return Outlet flow rate (m³/s)
-     * 
-     * @pre h >= 0 (tank level must be non-negative)
-     * @pre x in [0, 1] (valve position must be in valid range)
      */
     double outletFlow(double h, double x) const;
-
-private:
-    double area_;         ///< Cross-sectional area (m²)
-    double k_v_;          ///< Valve coefficient (m^2.5/s)
-    double max_height_;   ///< Maximum tank height (m)
 };
 
 }  // namespace tank_sim
