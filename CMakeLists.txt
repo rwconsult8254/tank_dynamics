@@ -37,36 +37,57 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # pre-installation on the system
 include(FetchContent)
 
-# List of FetchContent dependencies to make available
-set(FETCHCONTENT_DEPS Eigen3 GoogleTest)
+# ============================================================================
+# EIGEN SPECIAL HANDLING
+# ============================================================================
+# IMPORTANT: Eigen is fetched manually to prevent test pollution
+#
+# Problem: Eigen's CMakeLists.txt registers 900+ tests via add_test() when
+# processed by add_subdirectory(). These tests pollute our CTest suite even
+# though the test executables aren't built.
+#
+# Solution: Use FetchContent_Populate() instead of FetchContent_MakeAvailable()
+# This downloads Eigen but doesn't process its CMakeLists.txt. We manually
+# create an INTERFACE IMPORTED target with just the include path.
+#
+# Why this works:
+# - Eigen is header-only, so it only needs include directories (no compilation)
+# - We don't need Eigen's CMake targets, build options, or tests
+# - Creating INTERFACE IMPORTED gives us a proper CMake target for linking
+#
+# Trade-off: We lose Eigen's CMake configuration features, but for this project
+# we only need the headers, making this approach simpler and cleaner.
+#
+# See docs/CTEST_FIX.md for detailed explanation.
+# ============================================================================
 
-# Declare Eigen3 dependency - linear algebra library
-# Version 3.4.0 provides header-only matrix operations and vector math
-# Note: We manually fetch Eigen to prevent its tests from polluting our test suite
 FetchContent_Declare(
     Eigen3
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
     GIT_TAG        3.4.0
 )
 
-# Declare GoogleTest dependency - unit testing framework
-# Version 1.14.0 provides gtest and gmock libraries
+# Fetch Eigen source without processing its CMakeLists.txt
+FetchContent_GetProperties(Eigen3)
+if(NOT eigen3_POPULATED)
+    FetchContent_Populate(Eigen3)
+    # Create INTERFACE IMPORTED target manually (no add_subdirectory!)
+    add_library(Eigen3::Eigen INTERFACE IMPORTED GLOBAL)
+    target_include_directories(Eigen3::Eigen INTERFACE ${eigen3_SOURCE_DIR})
+endif()
+
+# ============================================================================
+# GOOGLETEST STANDARD FETCH
+# ============================================================================
+# GoogleTest is fetched normally because it respects BUILD_TESTING and doesn't
+# pollute the test suite when BUILD_TESTING is OFF during FetchContent.
+
 FetchContent_Declare(
     GoogleTest
     GIT_REPOSITORY https://github.com/google/googletest.git
     GIT_TAG        v1.14.0
 )
 
-# Fetch Eigen manually without adding its subdirectory to prevent test pollution
-FetchContent_GetProperties(Eigen3)
-if(NOT eigen3_POPULATED)
-    FetchContent_Populate(Eigen3)
-    # Do NOT call add_subdirectory - just make the target available
-    add_library(Eigen3::Eigen INTERFACE IMPORTED GLOBAL)
-    target_include_directories(Eigen3::Eigen INTERFACE ${eigen3_SOURCE_DIR})
-endif()
-
-# Fetch GoogleTest normally (it respects BUILD_TESTING)
 FetchContent_MakeAvailable(GoogleTest)
 
 # System dependencies - searched for via pkg-config or system paths
@@ -114,15 +135,28 @@ target_include_directories(${CORE_LIB} PUBLIC
 # SUBDIRECTORIES
 # ============================================================================
 
-# Note: enable_testing() is called AFTER dependencies are fetched
-# to prevent Eigen from registering its own tests
-
 # Add src/ subdirectory - contains implementation files
 # The src/CMakeLists.txt will add actual source files to ${CORE_LIB} library
 add_subdirectory(src)
 
-# Enable testing NOW (after dependencies fetched, before tests/ directory)
-# This prevents Eigen tests from being registered while allowing our tests
+# ============================================================================
+# TESTING CONFIGURATION - TIMING IS CRITICAL
+# ============================================================================
+# IMPORTANT: enable_testing() must be called at this exact point in the build
+#
+# Why here and not earlier?
+# - If called BEFORE FetchContent: Eigen's CMakeLists.txt will register 900+ tests
+#   when add_subdirectory() is processed, polluting our test suite
+# - By manually fetching Eigen (above), we skip its CMakeLists.txt entirely
+# - Calling enable_testing() here ensures only OUR tests are registered
+#
+# Why here and not later?
+# - Must be called BEFORE add_subdirectory(tests/) so the tests/ CMakeLists.txt
+#   can use add_test() and gtest_discover_tests()
+#
+# Result: CTest discovers exactly our 17 tests, nothing more.
+# ============================================================================
+
 enable_testing()
 
 # Add tests/ subdirectory - contains unit tests
