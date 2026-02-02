@@ -187,6 +187,22 @@ The controller gains are tunable in real-time:
 
 ## Development Guide
 
+### Documentation
+
+**For Developers:**
+- **[Developer Guide](docs/DEVELOPER_GUIDE.md)** - Setup, building, testing, and development workflow
+- **[API Reference](docs/API_REFERENCE.md)** - Complete C++ class documentation with examples
+- **[Architecture Plan](docs/plan.md)** - System design, technology decisions, and phase breakdown
+
+**For Understanding the Project:**
+- **[Process Specifications](docs/specs.md)** - Feature requirements and acceptance criteria
+- **[Tank Dynamics Theory](docs/TankDynamics.md)** - Process physics and control theory
+- **[Detailed Class Specifications](docs/)** - `Model Class.md`, `PID Controller Class.md`, `Stepper Class.md`, `Simulator Class.md`
+
+**For Current Work:**
+- **[Project Status](docs/STATUS.md)** - Detailed progress report and completed work
+- **[Next Tasks](docs/next.md)** - Current implementation phase and upcoming work
+
 ### Workflow Roles
 
 This project uses a structured AI-assisted workflow:
@@ -203,15 +219,15 @@ See `CLAUDE.md` for detailed role definitions and boundaries.
 
 ### Current Phase: Phase 1 - C++ Simulation Core
 
-**Progress:** In development
+**Progress:** 50% complete - Core simulation library implemented and tested
 - ✅ Task 1: Initialize CMake build system
-- ✅ Task 2: Implement TankModel class
+- ✅ Task 2: Implement TankModel class (7 passing tests)
 - ✅ Task 3: Write TankModel unit tests
-- Task 4: Implement PIDController class
-- Task 5: Write PIDController tests
-- Task 6: Implement Stepper (GSL integration)
-- Task 7: Implement Simulator orchestrator
-- Task 8: Write comprehensive Simulator tests
+- ✅ Task 4: Implement PIDController class (10 passing tests)
+- ✅ Task 5: Write PIDController unit tests
+- 🔄 Task 6: Implement Stepper (GSL integration) - In Progress
+- ⏳ Task 7: Implement Simulator orchestrator
+- ⏳ Task 8: Write comprehensive Simulator tests
 
 ### Running Tests
 
