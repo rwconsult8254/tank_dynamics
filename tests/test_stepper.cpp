@@ -160,3 +160,48 @@ TEST_F(StepperTest, OscillatorySystemHarmonicOscillator) {
     EXPECT_NEAR(state(1), 0.0, 0.01) << "Velocity should return to initial value after one period";
 }
 
+// Test: System with Inputs
+TEST_F(StepperTest, SystemWithInputs) {
+    // Driven first-order system: dy/dt = u - k*y
+    // This represents a first-order lag driven by input u
+    // Analytical solution: y(t) = (u/k) * (1 - exp(-k*t))
+    const double k = 1.0;
+    const double u = 1.0;
+    const double dt = 0.1;
+    const int num_steps = 10;
+    const double final_time = 1.0;
+    const double tolerance = 0.0001;
+
+    // Initial state
+    Eigen::VectorXd state(1);
+    state(0) = 0.0;
+
+    // Create stepper with state dimension 1 and input dimension 1
+    Stepper stepper(1, 1);
+
+    // Input vector with constant value u = 1.0
+    Eigen::VectorXd input(1);
+    input(0) = u;
+
+    // Define the derivative function: dy/dt = u - k*y
+    auto derivative = [&](double t, const Eigen::VectorXd& y, const Eigen::VectorXd& u_vec) -> Eigen::VectorXd {
+        Eigen::VectorXd dy(1);
+        dy(0) = u_vec(0) - k * y(0);
+        return dy;
+    };
+
+    // Integrate from t=0 to t=1.0 with step size dt=0.1
+    double current_time = 0.0;
+    for (int i = 0; i < num_steps; ++i) {
+        state = stepper.step(current_time, dt, state, input, derivative);
+        current_time += dt;
+    }
+
+    // Analytical solution at t=1.0: y(1.0) = (u/k) * (1 - exp(-k*t))
+    // For u=1.0 and k=1.0: y(1.0) = 1.0 * (1 - exp(-1.0))
+    double expected = (u / k) * (1.0 - std::exp(-k * final_time));
+    
+    // Assert the result matches the analytical solution within tolerance
+    EXPECT_NEAR(state(0), expected, tolerance) << "State should match analytical solution for driven first-order system";
+}
+
