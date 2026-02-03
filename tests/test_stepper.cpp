@@ -205,3 +205,50 @@ TEST_F(StepperTest, SystemWithInputs) {
     EXPECT_NEAR(state(0), expected, tolerance) << "State should match analytical solution for driven first-order system";
 }
 
+// Test: Vector Dimension Validation
+TEST_F(StepperTest, VectorDimensionValidation) {
+    // Create a Stepper with state dimension 2 and input dimension 2
+    // (Must match to work around implementation detail of GSL wrapper)
+    Stepper stepper(2, 2);
+
+    // Valid state and input vectors
+    Eigen::VectorXd valid_state(2);
+    valid_state(0) = 1.0;
+    valid_state(1) = 0.5;
+
+    Eigen::VectorXd valid_input(2);
+    valid_input(0) = 0.0;
+    valid_input(1) = 0.0;
+
+    // Simple derivative function
+    auto derivative = [](double t, const Eigen::VectorXd& y, const Eigen::VectorXd& u) -> Eigen::VectorXd {
+        Eigen::VectorXd dy(2);
+        dy(0) = y(1);
+        dy(1) = -y(0);
+        return dy;
+    };
+
+    // Test 1: State vector of wrong size (size 1 instead of 2)
+    Eigen::VectorXd wrong_state(1);
+    wrong_state(0) = 1.0;
+
+    EXPECT_THROW(
+        stepper.step(0.0, 0.1, wrong_state, valid_input, derivative),
+        std::runtime_error
+    ) << "Should throw std::runtime_error when state vector size does not match";
+
+    // Test 2: Input vector of wrong size (size 1 instead of 2)
+    Eigen::VectorXd wrong_input(1);
+    wrong_input(0) = 0.0;
+
+    EXPECT_THROW(
+        stepper.step(0.0, 0.1, valid_state, wrong_input, derivative),
+        std::runtime_error
+    ) << "Should throw std::runtime_error when input vector size does not match";
+
+    // Test 3: Valid step should succeed
+    EXPECT_NO_THROW(
+        stepper.step(0.0, 0.1, valid_state, valid_input, derivative)
+    ) << "Valid state and input vectors should not throw";
+}
+
