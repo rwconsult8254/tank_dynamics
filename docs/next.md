@@ -2,447 +2,667 @@
 
 ## Current Phase: Phase 1 - C++ Simulation Core
 
-**Status:** TankModel implementation complete and tested
+**Status:** TankModel, PIDController, and Stepper classes implemented
 
-**Progress:** 30% - TankModel complete with 7 passing unit tests
+**Progress:** 60% - Core components complete, need integration tests and orchestrator
 
 **Recent Commits:**
 - Task 1: Initialize C++ Project Structure and Build System ✓
 - Task 2: Implement TankModel Class ✓
 - Task 3: Write Unit Tests for TankModel ✓
+- Task 4: Implement PIDController Class ✓
+- Task 5: Write Unit Tests for PIDController ✓
+- Task 6: Implement Stepper Class with GSL RK4 ✓
 
 ---
 
-## Task 4: Implement PIDController Class
+## Task 7: Write Integration Tests for Stepper
 
 **Phase:** 1 - C++ Simulation Core
-**Prerequisites:** Task 1 (build system must be in place)
+**Prerequisites:** Task 6 (Stepper must be implemented)
 
 ### Files to Create
 
-- Create `/home/roger/dev/tank_dynamics/src/pid_controller.h`
-- Create `/home/roger/dev/tank_dynamics/src/pid_controller.cpp`
-- Update `/home/roger/dev/tank_dynamics/src/CMakeLists.txt` to include these source files in the tank_sim_core library
+- Create `/home/roger/dev/tank_dynamics/tests/test_stepper.cpp`
+- Update `/home/roger/dev/tank_dynamics/tests/CMakeLists.txt` to include this test file
 
 ### Requirements
 
-The PIDController class implements a proportional-integral-derivative controller with anti-windup. Unlike the TankModel which is stateless, this class maintains internal state for the integral term.
-
-#### pid_controller.h specifications:
-
-The header should define a class called PIDController within the tank_sim namespace.
-
-The class needs a public nested structure called Gains containing:
-- A field for controller gain Kc (dimensionless, type: double)
-- A field for integral time tau_I in seconds (type: double, zero means no integral action)
-- A field for derivative time tau_D in seconds (type: double, zero means no derivative action)
-
-The class should have:
-- A constructor that accepts:
-  - A const reference to Gains
-  - An optional bias value (type: double, default 0.5) representing the controller output when error is zero
-- A method called compute that accepts:
-  - Error value (setpoint minus process variable, type: double)
-  - Error derivative (rate of change of error, type: double)
-  - Time step dt in seconds (type: double)
-  - Returns the controller output clamped to the range zero to one (type: double)
-- A method called setGains that accepts a const reference to Gains and updates the tuning parameters
-- A method called reset with no parameters that clears the integral state
-- A method called getIntegralState that returns the current integral accumulation value (type: double)
-
-All methods except the constructor should be non-const since the controller maintains internal state.
-
-#### pid_controller.cpp specifications:
-
-The class should maintain private member variables for:
-- The current gains (Gains struct)
-- The bias value (double)
-- The integral accumulation value (double, initialized to zero)
-
-Implement the constructor to:
-- Store the provided gains and bias in member variables
-- Initialize the integral accumulation to zero
-
-Implement the compute method using the PID equation in velocity form:
-- Calculate the proportional term as: Kc times error
-- Calculate the integral term as: (Kc divided by tau_I) times error times dt
-  - Only add to integral if tau_I is greater than zero (avoid division by zero)
-  - Accumulate this integral contribution in the member variable
-- Calculate the derivative term as: (Kc times tau_D) times error_dot
-  - Only include this if tau_D is greater than zero
-- Sum all terms: bias plus proportional plus integral plus derivative
-- Clamp the result to the range zero to one before returning
-- Implement anti-windup: if the output before clamping was outside zero to one, do not add the current integral contribution to the accumulator (this prevents integral windup when saturated)
-
-Implement setGains to:
-- Update the gains member variable with the new values
-- Do not reset the integral state (allow bumpless transfer)
-
-Implement reset to:
-- Set the integral accumulation back to zero
-
-Implement getIntegralState to:
-- Return the current value of the integral accumulation
-
-#### Mathematics and Control Theory
-
-Standard PID equation in velocity form:
-```
-output = bias + Kc * e + (Kc/tau_I) * integral(e*dt) + (Kc*tau_D) * de/dt
-```
-
-where:
-- e is the error (setpoint minus process variable)
-- de/dt is the rate of change of error
-- integral(e*dt) is the accumulated integral over time
-- Kc is the controller gain (positive for direct action, negative for reverse action)
-- tau_I is the integral time constant in seconds
-- tau_D is the derivative time constant in seconds
-- bias is the output when error is zero (typically 0.5 for a valve)
-
-Anti-windup logic:
-- Calculate tentative output including new integral contribution
-- If tentative output is outside bounds (less than zero or greater than one), discard the integral contribution
-- This prevents the integral term from growing unbounded when the output is saturated
-
-### Edge Cases
-
-- **Zero integral time (tau_I equals zero):** Skip integral calculation entirely to avoid division by zero
-- **Zero derivative time (tau_D equals zero):** Skip derivative calculation
-- **Large errors causing saturation:** Anti-windup should prevent integral buildup
-- **Negative gains:** Controller should handle reverse-acting controllers (though tank level typically uses direct action)
-- **Very small dt values:** Should not cause numerical issues since we're just multiplying
-
-### Verification
-
-Manual verification before unit tests:
-- With gains Kc equals 1.0, tau_I equals 10.0, tau_D equals 0.0, bias equals 0.5
-- Given error equals 0.1, error_dot equals 0.0, dt equals 1.0
-- Proportional contribution: 1.0 times 0.1 equals 0.1
-- Integral contribution: (1.0 divided by 10.0) times 0.1 times 1.0 equals 0.01
-- Derivative contribution: 0.0
-- Output: 0.5 plus 0.1 plus 0.01 equals 0.61 (within bounds, no clamping)
-
-Saturation test:
-- With same gains, error equals 1.0, error_dot equals 0.0, dt equals 1.0
-- Proportional: 1.0
-- Output before clamping: 0.5 plus 1.0 equals 1.5 (exceeds 1.0)
-- Output should be clamped to 1.0
-- Integral contribution should NOT be added to accumulator (anti-windup)
-
-### Acceptance Criteria
-
-- [ ] pid_controller.h created in src/ directory with class declaration
-- [ ] pid_controller.cpp created in src/ directory with implementation
-- [ ] Gains struct contains Kc, tau_I, and tau_D
-- [ ] Constructor accepts gains and optional bias
-- [ ] compute() method implements PID calculation with anti-windup
-- [ ] Output is clamped to range zero to one
-- [ ] setGains() method updates tuning parameters
-- [ ] reset() method clears integral state
-- [ ] getIntegralState() returns current integral value
-- [ ] Code uses tank_sim namespace
-- [ ] Handles edge cases: zero tau_I, zero tau_D
-- [ ] Anti-windup prevents integral growth during saturation
-- [ ] src/CMakeLists.txt updated to compile these files
-- [ ] Build succeeds: `cmake --build build`
-- [ ] No compilation errors or warnings
-
----
-
-## Task 5: Write Unit Tests for PIDController
-
-**Phase:** 1 - C++ Simulation Core
-**Prerequisites:** Task 4 (PIDController must be implemented)
-
-### Files to Create
-
-- Create `/home/roger/dev/tank_dynamics/tests/test_pid_controller.cpp`
-- Update `/home/roger/dev/tank_dynamics/tests/CMakeLists.txt` to compile this test file
-
-### Requirements
-
-This task creates comprehensive unit tests for the PIDController class using GoogleTest framework.
+This task creates integration tests for the Stepper class that verify the numerical accuracy and correctness of the GSL RK4 integration. Unlike unit tests that verify individual methods, these tests verify that the integration produces mathematically correct results.
 
 The test file should include the necessary headers:
 - GoogleTest headers (gtest/gtest.h)
-- The pid_controller.h header
-
-Create a test fixture class using GoogleTest TEST_F to share common setup across tests, or use simple TEST macros for independent tests.
+- The stepper.h header
+- Eigen headers for vector operations
+- Standard library headers for mathematical functions (cmath for exp, sin, cos, etc.)
 
 #### Test Cases to Implement
 
-**Test: Proportional Only Response**
-- Create PIDController with Kc equals 1.0, tau_I equals 0.0 (no integral), tau_D equals 0.0 (no derivative), bias equals 0.5
-- Call compute with error equals 0.1, error_dot equals 0.0, dt equals 1.0
-- Expected output: 0.5 plus (1.0 times 0.1) equals 0.6
-- Assert output matches expected value (use EXPECT_NEAR with tolerance 0.001)
-- Verify output is proportional to error by testing with error equals 0.2 (should give 0.7)
+**Test: Exponential Decay Accuracy**
+- Use the simple ODE: dy over dt equals negative k times y, where k equals 1.0
+- This has analytical solution: y at time t equals y0 times exp of negative k times t
+- Set initial condition y0 equals 1.0 at time t equals 0.0
+- Create a Stepper with state dimension 1 and input dimension 0 (no inputs needed for this test)
+- Define a derivative function that returns a vector containing negative k times y
+- Integrate from t equals 0 to t equals 1.0 using step size dt equals 0.1
+- Call step method ten times in a loop
+- Final state should equal exp of negative 1.0 which equals approximately 0.367879
+- Assert the result matches the analytical solution within tolerance 0.0001
+- This verifies basic integration correctness
 
-**Test: Integral Accumulation Over Time**
-- Create PIDController with Kc equals 1.0, tau_I equals 10.0, tau_D equals 0.0, bias equals 0.5
-- Call compute three times with constant error equals 0.1, error_dot equals 0.0, dt equals 1.0
-- First call: output should be approximately 0.5 plus 0.1 plus 0.01 equals 0.61
-- Second call: output should increase by another 0.01 (integral accumulating)
-- Third call: output should increase by another 0.01
-- Verify integral term grows linearly with time for constant error
+**Test: Fourth Order Accuracy Verification**
+- Use the same exponential decay ODE
+- Integrate from t equals 0 to t equals 1.0 using two different step sizes:
+  - First integration: dt equals 0.1 (10 steps)
+  - Second integration: dt equals 0.05 (20 steps)
+- Compute absolute error for each integration by comparing to analytical solution
+- RK4 is fourth-order accurate, meaning error scales as dt to the power of 4
+- Calculate the ratio of errors: error with dt equals 0.1 divided by error with dt equals 0.05
+- Expected ratio should be approximately (0.1 divided by 0.05) to the power of 4 equals 16
+- Assert ratio is between 12 and 20 (allowing some numerical noise)
+- This verifies the order of accuracy of the RK4 method
 
-**Test: Derivative Response**
-- Create PIDController with Kc equals 1.0, tau_I equals 0.0, tau_D equals 5.0, bias equals 0.5
-- Call compute with error equals 0.0, error_dot equals 0.1 (error increasing), dt equals 1.0
-- Derivative contribution: (1.0 times 5.0) times 0.1 equals 0.5
-- Expected output: 0.5 plus 0.0 plus 0.5 equals 1.0
-- Assert output matches expected value
+**Test: Oscillatory System (Harmonic Oscillator)**
+- Use the harmonic oscillator system: d2y over dt2 equals negative omega squared times y
+- Rewrite as two first-order ODEs:
+  - dy0 over dt equals y1 (velocity)
+  - dy1 over dt equals negative omega squared times y0 (acceleration)
+- Set omega equals 2 times pi (frequency of 1 Hz, period of 1 second)
+- Initial conditions: y0 equals 1.0 (initial position), y1 equals 0.0 (starts at rest)
+- Analytical solution: y0 at time t equals cos of omega times t, y1 at time t equals negative omega times sin of omega times t
+- Create Stepper with state dimension 2 and input dimension 0
+- Integrate for one full period (t equals 0 to t equals 1.0) using dt equals 0.01
+- Call step one hundred times
+- After one period, should return to initial state: y0 approximately 1.0, y1 approximately 0.0
+- Assert y0 matches 1.0 within tolerance 0.001
+- Assert y1 matches 0.0 within tolerance 0.01
+- This verifies the stepper handles multi-dimensional systems and conserves energy in oscillatory systems
 
-**Test: Output Saturation at Upper Bound**
-- Create PIDController with Kc equals 1.0, tau_I equals 0.0, tau_D equals 0.0, bias equals 0.5
-- Call compute with error equals 1.0, error_dot equals 0.0, dt equals 1.0
-- Raw output would be 0.5 plus 1.0 equals 1.5
-- Assert output is clamped to exactly 1.0
-- Verify clamping works
+**Test: System with Inputs**
+- Use a simple driven system: dy over dt equals u minus k times y
+- This represents a first-order lag driven by input u
+- Set k equals 1.0, initial state y equals 0.0, constant input u equals 1.0
+- Analytical solution: y at time t equals u divided by k times (1 minus exp of negative k times t)
+- For u equals 1.0 and k equals 1.0: y at time t equals 1 minus exp of negative t
+- At t equals 1.0: y should equal 1 minus exp of negative 1 equals approximately 0.632121
+- Create Stepper with state dimension 1 and input dimension 1
+- Define derivative function that accepts state and input vectors
+- Create input vector containing the value 1.0
+- Integrate from t equals 0 to t equals 1.0 using dt equals 0.1
+- Assert final state matches analytical solution within tolerance 0.0001
+- This verifies the stepper correctly passes input vectors to the derivative function
 
-**Test: Output Saturation at Lower Bound**
-- Create PIDController with Kc equals 1.0, tau_I equals 0.0, tau_D equals 0.0, bias equals 0.5
-- Call compute with error equals -1.0, error_dot equals 0.0, dt equals 1.0
-- Raw output would be 0.5 minus 1.0 equals -0.5
-- Assert output is clamped to exactly 0.0
+**Test: Vector Dimension Validation**
+- Create Stepper with state dimension 2 and input dimension 1
+- Attempt to call step with state vector of size 1 (wrong size)
+- This should throw std::runtime_error with message about dimension mismatch
+- Use EXPECT_THROW macro with specific exception type
+- Also test with input vector of wrong size
+- This verifies runtime safety checks are working
 
-**Test: Anti-Windup During Saturation**
-- Create PIDController with Kc equals 2.0, tau_I equals 1.0, tau_D equals 0.0, bias equals 0.5
-- Call compute multiple times with large positive error that causes saturation
-- After several calls, check integral state using getIntegralState()
-- Reset the controller using reset()
-- Now call compute with moderate error that doesn't saturate
-- Verify that integral didn't grow excessively during saturation period
-- Compare with a controller that didn't experience saturation
-- The saturated controller's integral should be much smaller
+**Test: Zero Step Size**
+- Create Stepper with state dimension 1 and input dimension 0
+- Call step with dt equals 0.0
+- State should remain unchanged (no integration occurs)
+- This verifies handling of edge case where no time advancement is requested
 
-**Test: Reset Clears Integral State**
-- Create PIDController with Kc equals 1.0, tau_I equals 10.0, tau_D equals 0.0, bias equals 0.5
-- Call compute several times to build up integral
-- Call getIntegralState() and verify it's non-zero
-- Call reset()
-- Call getIntegralState() and verify it's now exactly zero
-- Call compute with same error and verify output is as if no history existed
+**Test: Negative Step Size**
+- Create Stepper with state dimension 1 and input dimension 0
+- Call step with dt equals negative 0.1 (backward integration)
+- Verify that integration proceeds backward in time
+- Use exponential decay: starting at y equals 1.0, going backward should give larger values
+- This verifies the stepper can handle backward integration if needed
 
-**Test: SetGains Updates Behavior**
-- Create PIDController with Kc equals 1.0, tau_I equals 0.0, tau_D equals 0.0, bias equals 0.5
-- Call compute with error equals 0.1 and record output (should be 0.6)
-- Create new gains with Kc equals 2.0 (double the gain)
-- Call setGains with new gains
-- Call compute again with same error equals 0.1
-- Expected output: 0.5 plus (2.0 times 0.1) equals 0.7
-- Assert output increased appropriately
+### Mathematical Background
 
-**Test: Zero Error Produces Bias Output**
-- Create PIDController with any gains and bias equals 0.5
-- Ensure integral is zero (newly constructed or after reset)
-- Call compute with error equals 0.0, error_dot equals 0.0, dt equals 1.0
-- Assert output equals exactly 0.5 (the bias value)
+**Runge-Kutta 4th Order Method:**
 
-**Test: Combined PID Action**
-- Create PIDController with Kc equals 1.0, tau_I equals 10.0, tau_D equals 2.0, bias equals 0.5
-- Call compute with error equals 0.1, error_dot equals 0.05, dt equals 1.0
-- Proportional: 1.0 times 0.1 equals 0.1
-- Integral: (1.0 divided by 10.0) times 0.1 times 1.0 equals 0.01
-- Derivative: (1.0 times 2.0) times 0.05 equals 0.1
-- Expected: 0.5 plus 0.1 plus 0.01 plus 0.1 equals 0.71
-- Assert output matches expected (use EXPECT_NEAR)
+For ODE dy over dt equals f of t comma y, the RK4 update is:
+
+```
+k1 = f(t, y)
+k2 = f(t + dt/2, y + dt*k1/2)
+k3 = f(t + dt/2, y + dt*k2/2)
+k4 = f(t + dt, y + dt*k3)
+y_new = y + (dt/6) * (k1 + 2*k2 + 2*k3 + k4)
+```
+
+This achieves fourth-order accuracy: local error is O of dt to the fifth power, global error is O of dt to the fourth power.
+
+**Why These Tests Matter:**
+
+- Exponential decay: Simple test with known solution, catches basic integration errors
+- Order verification: Proves the method is actually fourth-order, not just "working"
+- Harmonic oscillator: Tests energy conservation and multi-dimensional systems
+- Driven system: Verifies input handling which is critical for tank simulation
+- Dimension validation: Prevents runtime errors in production code
+- Edge cases: Ensures robustness for unusual but valid inputs
 
 ### Test Execution
 
 After implementation:
-- Update tests/CMakeLists.txt to include test_pid_controller.cpp
+- Update tests/CMakeLists.txt to include test_stepper.cpp
 - Build the project: `cmake --build build`
-- Run tests: `ctest --test-dir build --output-on-failure` or `./build/tests/test_tank_sim_core`
-- All tests should pass
+- Run all tests: `./build/tests/test_tank_sim_core`
+- All new tests should pass
 
-### Edge Cases
+### Verification Strategy
 
-- **Numerical precision:** Use EXPECT_NEAR with tolerance of 0.001 for floating-point comparisons
-- **Anti-windup verification:** This is the trickiest test - ensure integral doesn't grow during saturation
-- **Division by zero:** Verify tau_I equals zero doesn't cause crashes
+If any test fails:
+- Exponential decay failure suggests basic integration error
+- Order verification failure suggests wrong algorithm or GSL configuration
+- Oscillator failure suggests accumulation of error or phase drift
+- Input test failure suggests incorrect parameter passing to derivative function
+- Dimension test failure suggests validation is not working
 
 ### Acceptance Criteria
 
-- [ ] test_pid_controller.cpp created in tests/ directory
-- [ ] File includes GoogleTest and pid_controller.h headers
-- [ ] Proportional-only test implemented and passes
-- [ ] Integral accumulation test implemented and passes
-- [ ] Derivative response test implemented and passes
-- [ ] Upper saturation test implemented and passes
-- [ ] Lower saturation test implemented and passes
-- [ ] Anti-windup test implemented and passes
-- [ ] Reset test implemented and passes
-- [ ] SetGains test implemented and passes
-- [ ] Zero error bias test implemented and passes
-- [ ] Combined PID test implemented and passes
+- [ ] test_stepper.cpp created in tests/ directory
+- [ ] File includes GoogleTest, Stepper, Eigen, and math headers
+- [ ] Exponential decay test implemented and passes
+- [ ] Fourth-order accuracy test implemented and passes
+- [ ] Harmonic oscillator test implemented and passes
+- [ ] System with inputs test implemented and passes
+- [ ] Vector dimension validation test implemented and passes
+- [ ] Zero step size test implemented and passes
+- [ ] Negative step size test implemented and passes
 - [ ] tests/CMakeLists.txt updated to compile test file
 - [ ] Build succeeds: `cmake --build build`
 - [ ] All tests pass: `./build/tests/test_tank_sim_core`
+- [ ] Tests verify RK4 achieves fourth-order accuracy
+- [ ] Tests cover both single and multi-dimensional systems
 
 ---
 
-## Task 6: Implement Stepper Class with GSL RK4
+## Task 8: Implement Simulator Class (Orchestrator)
 
 **Phase:** 1 - C++ Simulation Core
-**Prerequisites:** Task 1 (build system with GSL dependency)
+**Prerequisites:** Tasks 2, 4, 6 (TankModel, PIDController, Stepper must all exist)
 
 ### Files to Create
 
-- Create `/home/roger/dev/tank_dynamics/src/stepper.h`
-- Create `/home/roger/dev/tank_dynamics/src/stepper.cpp`
-- Update `/home/roger/dev/tank_dynamics/src/CMakeLists.txt` to include these source files and link against GSL
+- Create `/home/roger/dev/tank_dynamics/src/simulator.h`
+- Create `/home/roger/dev/tank_dynamics/src/simulator.cpp`
+- Update `/home/roger/dev/tank_dynamics/src/CMakeLists.txt` to include these files
 
 ### Requirements
 
-The Stepper class wraps the GNU Scientific Library's Runge-Kutta 4th order (RK4) ODE solver. This class is responsible for advancing the state vector forward in time by calling a user-provided derivative function multiple times per step as required by the RK4 algorithm.
+The Simulator class is the master orchestrator that brings together TankModel, PIDController, and Stepper into a complete working simulation. This class owns all the component instances and provides the high-level API that will be exposed to Python.
 
-This follows the Tennessee Eastman pattern where the integration logic is separate from the physics model. The physics model only computes derivatives; the stepper handles the numerical integration.
+This is the most complex class in Phase 1 because it must coordinate the interactions between stateless physics (TankModel), stateful control (PIDController), and numerical integration (Stepper) while maintaining correct timing and data flow.
 
-#### stepper.h specifications:
+#### simulator.h specifications:
 
-The header should define a class called Stepper within the tank_sim namespace.
+The header should define a class called Simulator within the tank_sim namespace.
 
-The class needs a type alias for the derivative function. This function type should:
-- Accept current time t (type: double)
-- Accept current state vector (type: const reference to Eigen::VectorXd)
-- Accept input vector (type: const reference to Eigen::VectorXd)
-- Return derivative vector (type: Eigen::VectorXd)
+The class needs several nested structures for configuration:
 
-Suggested name for the type alias: DerivativeFunc
+**ControllerConfig structure** containing:
+- A Gains structure (from PIDController)
+- Bias value (type: double) - the controller output when error is zero
+- Minimum output limit (type: double) - typically 0.0 for valves
+- Maximum output limit (type: double) - typically 1.0 for valves  
+- Maximum integral accumulation (type: double) - prevents excessive windup
+- Measured index (type: int) - which state variable this controller reads
+- Output index (type: int) - which input this controller writes to
+- Initial setpoint (type: double) - must match the steady-state value of measured variable
+
+**Config structure** containing:
+- TankModel Parameters structure (from TankModel)
+- Vector of ControllerConfig (type: std::vector of ControllerConfig)
+- Initial state vector (type: Eigen::VectorXd) - steady-state values for all state variables
+- Initial inputs vector (type: Eigen::VectorXd) - steady-state values for all inputs
+- Time step dt in seconds (type: double)
 
 The class should have:
-- A constructor that accepts:
-  - State dimension (type: size_t) - the number of state variables
-- A destructor to clean up GSL resources
-- A method called step that accepts:
-  - Current time t in seconds (type: double)
-  - Time step dt in seconds (type: double)
-  - Current state vector (type: const reference to Eigen::VectorXd)
-  - Input vector (type: const reference to Eigen::VectorXd)
-  - Derivative function (type: DerivativeFunc)
-  - Returns the updated state vector after advancing by dt (type: Eigen::VectorXd)
 
-The class should follow the rule of five (or rule of zero if using smart pointers):
-- If managing GSL resources with raw pointers, declare and define:
-  - Destructor to free GSL memory
-  - Deleted copy constructor and copy assignment (Stepper cannot be copied)
-  - Optionally move constructor and move assignment
-- Alternative: use unique_ptr with custom deleters for RAII
+**Constructor** that accepts:
+- A const reference to the Config structure
+- Should validate that the configuration makes sense (state size, input size, controller indices)
+- Should initialize all internal components
+- Should set simulation time to zero
 
-#### stepper.cpp specifications:
+**Core simulation method called step** with no parameters:
+- Advances simulation by one time step (dt)
+- Must follow the correct order of operations (see Design Principle section below)
+- Returns nothing (void)
+
+**State getter methods:**
+- Method called getTime that returns current simulation time (type: double)
+- Method called getState that returns current state vector (type: Eigen::VectorXd)
+- Method called getInputs that returns current input vector (type: Eigen::VectorXd)
+- Method called getSetpoint that accepts controller index and returns its current setpoint (type: double)
+- Method called getControllerOutput that accepts controller index and returns its current output (type: double)
+- Method called getError that accepts controller index and returns current error (type: double)
+
+**Operator control methods:**
+- Method called setInput that accepts input index (int) and value (double) - allows operator to change any input directly
+- Method called setSetpoint that accepts controller index (int) and setpoint value (double)
+- Method called setControllerGains that accepts controller index (int) and Gains reference
+
+**Utility method:**
+- Method called reset with no parameters - returns simulation to initial conditions
+
+All getter methods should be const. Control methods should be non-const.
+
+#### simulator.cpp specifications:
 
 The class should maintain private member variables for:
-- GSL stepper object (type: gsl_odeiv2_step pointer)
-- State dimension (type: size_t)
+- The TankModel instance
+- The Stepper instance  
+- A vector of PIDController instances (one per controller)
+- Current simulation time (type: double)
+- Current state vector (type: Eigen::VectorXd)
+- Current input vector (type: Eigen::VectorXd)
+- Initial state vector (for reset functionality)
+- Initial inputs vector (for reset functionality)
+- Time step dt (type: double)
+- Vector of setpoints (type: std::vector of double, one per controller)
+- Vector of ControllerConfig (store configuration for each controller)
 
-Note: Since this application uses fixed step size, the GSL control and evolve objects are not needed. The step method will use gsl_odeiv2_step_apply directly for simpler, more efficient implementation.
+**Constructor implementation:**
 
-Implement the constructor to:
-- Store the state dimension
-- Allocate GSL stepper using gsl_odeiv2_step_alloc with RK4 algorithm (gsl_odeiv2_step_rk4)
-- The GSL function requires dimension as an argument
-- Initialize with fixed step size (no adaptive control needed for this application)
+Validate the configuration:
+- Check that initial state and initial inputs have matching dimensions to what TankModel expects
+- Check that all controller measured_index values are within bounds of state vector size
+- Check that all controller output_index values are within bounds of input vector size
+- Check that dt is positive and reasonable (perhaps between 0.001 and 10.0 seconds)
+- Throw std::invalid_argument if validation fails
 
-Implement the destructor to:
-- Free the GSL stepper using gsl_odeiv2_step_free
-- Free any other GSL objects that were allocated
+Initialize components:
+- Construct TankModel with provided parameters
+- Construct Stepper with state dimension equal to initial state size and input dimension equal to initial inputs size
+- For each ControllerConfig, construct a PIDController with the specified gains and bias
+- Store initial state and initial inputs for reset functionality
+- Set current state to initial state
+- Set current input to initial inputs
+- Set simulation time to zero
+- Store all setpoints from the ControllerConfig vector
 
-Implement the step method:
-- Create a wrapper that converts the user's derivative function into the format GSL expects
-- GSL's derivative function signature is: int func(double t, const double y[], double dydt[], void* params)
-- Use a lambda or helper to bridge between Eigen vectors and C arrays
-- Store the user's derivative function and inputs in a structure that can be passed via void* params
-- Call the GSL RK4 step function (gsl_odeiv2_step_apply) with:
-  - Current time t
+**Step method implementation (CRITICAL ORDER OF OPERATIONS):**
+
+This is the heart of the simulation. The order matters because it models the one-step delay of real digital control systems.
+
+Step 1: Integrate the model forward
+- Create a lambda or method that wraps TankModel's derivatives method to match Stepper's DerivativeFunc signature
+- Call Stepper's step method with:
+  - Current time
   - Time step dt
-  - Current state as C array (use state.data() to get pointer)
-  - Allocated array for updated state
+  - Current state vector
+  - Current input vector (these are from the PREVIOUS timestep)
   - The derivative function wrapper
-- Convert the resulting C array back to Eigen::VectorXd and return it
+- Store the returned new state as the current state
 
-#### GSL Integration Details
+Step 2: Advance simulation time
+- Add dt to current time
 
-GSL's ODE solver requires:
-- A system definition (gsl_odeiv2_system) containing:
-  - Function pointer to derivative function
-  - Jacobian function (can be nullptr for RK4)
-  - Dimension
-  - Parameters pointer
-- Step type specification (gsl_odeiv2_step_rk4 for RK4)
+Step 3: Update all controllers for NEXT step
+- For each controller:
+  - Read the measured variable from current state using measured_index
+  - Calculate error as setpoint minus measured value
+  - Calculate error derivative (for now, can use simple finite difference or pass zero - derivative calculation can be refined later)
+  - Call controller's compute method with error, error_dot, and dt
+  - Write the controller output to the inputs vector at output_index
 
-For fixed-step RK4, we can use gsl_odeiv2_step_apply directly without the evolution framework. This simplifies the implementation.
+This order ensures that:
+- Controllers act on current measurements
+- But their outputs only affect the NEXT integration step
+- This models the inherent delay in digital control systems
 
-The RK4 algorithm will call the derivative function four times per step to compute intermediate slopes. Our wrapper must handle these calls correctly.
+**Getter methods implementation:**
+
+- getTime: return current time
+- getState: return copy of current state vector
+- getInputs: return copy of current inputs vector
+- getSetpoint: return setpoints at specified controller index (validate index)
+- getControllerOutput: return inputs at the controller's output_index
+- getError: return setpoint minus state at controller's measured_index
+
+**Control methods implementation:**
+
+- setInput: validate index is within bounds, then update inputs vector at specified index
+- setSetpoint: validate controller index, update setpoints vector at that index
+- setControllerGains: validate controller index, call setGains on that controller
+
+**Reset method implementation:**
+
+- Copy initial state to current state
+- Copy initial inputs to current inputs
+- Set simulation time back to zero
+- Reset all controllers (clear integral states)
+- Restore all setpoints to their initial values from ControllerConfig
+
+#### Design Principle: Steady-State Initialization
+
+The simulation MUST be initialized at steady state. This is enforced through the configuration:
+
+At steady state:
+- All derivatives equal zero
+- All state variables equal their setpoints
+- All controller outputs equal their bias values
+- System is in equilibrium
+
+The constructor should document this requirement clearly. If the configuration is not at steady state, the simulation will start with a transient that could be confusing or unrealistic.
+
+For the tank system specifically:
+- Initial tank level should equal setpoint (typically 2.5 m for 50% level)
+- Initial inlet flow and outlet flow should be equal (typically 1.0 m³/s)
+- Initial valve position should equal controller bias (typically 0.5)
+
+#### Design Principle: State vs Inputs
+
+State variables:
+- Governed by differential equations
+- Evolved through integration by the Stepper
+- NEVER set directly (except during initialization or reset)
+- Example: tank level h
+
+Input variables:
+- Fed INTO the differential equations
+- Control the derivatives
+- Can be changed at any time by controllers or operators
+- Example: inlet flow q_in, valve position x
+
+This separation is fundamental to process simulation architecture.
 
 ### Edge Cases
 
-- **State dimension mismatch:** Document assumption that state vector size matches constructor dimension
-- **Input vector size:** Document expected size based on system design (for tank: two inputs - q_in and x)
-- **Null derivative function:** In C++ using std::function, this will throw - document requirement for valid function
-- **Negative dt:** Document assumption that dt is positive
-- **GSL allocation failure:** Check return values and handle errors appropriately
+- **Controller index out of bounds:** Validate in all methods that accept controller_index
+- **Input index out of bounds:** Validate in setInput
+- **Multiple controllers writing to same input:** Document as allowed but potentially confusing
+- **Controller reading a state that doesn't exist:** Caught during construction validation
+- **Zero or negative dt:** Validate in constructor
+- **Very large dt:** Could cause numerical instability - document reasonable range
 
 ### Verification
 
-Manual verification strategy (before writing formal tests):
-- Test with a simple exponential decay ODE: dy/dt equals negative k times y
-- Analytical solution: y(t) equals y0 times exp(negative k times t)
-- Choose k equals 1.0, y0 equals 1.0, integrate from t equals 0 to t equals 1 with dt equals 0.1
-- Compare numerical result with analytical: exp(negative 1.0) equals approximately 0.3679
-- RK4 should be very close to analytical solution
+Before writing formal tests (Task 9), verify the implementation compiles and can be instantiated:
 
-Order verification:
-- RK4 is fourth-order accurate: error should decrease as dt to the fourth power
-- Run same test with dt equals 0.1 and dt equals 0.05
-- Error with dt equals 0.05 should be approximately (0.05 divided by 0.1) to the fourth power equals 1/16 times the error with dt equals 0.1
+Create a simple test configuration:
+- TankModel parameters: area equals 120.0, k_v equals 1.2649, max_height equals 5.0
+- Single controller controlling valve position based on tank level
+- Initial state: level equals 2.5 m
+- Initial inputs: q_in equals 1.0, x equals 0.5
+- Time step: dt equals 1.0 second
+
+Verify it compiles and runs without crashing:
+- Construct Simulator with this config
+- Call step a few times
+- Call getters to retrieve state
+- Verify no segfaults or exceptions
 
 ### Acceptance Criteria
 
-- [ ] stepper.h created in src/ directory with class declaration
-- [ ] stepper.cpp created in src/ directory with implementation
-- [ ] DerivativeFunc type alias defined for derivative function signature
-- [ ] Constructor accepts state dimension and allocates GSL resources
-- [ ] Destructor properly frees all GSL resources
-- [ ] Copy constructor and copy assignment are deleted or properly implemented
-- [ ] step() method correctly interfaces with GSL RK4
-- [ ] Conversion between Eigen vectors and C arrays handled correctly
+- [ ] simulator.h created in src/ directory
+- [ ] simulator.cpp created in src/ directory
+- [ ] ControllerConfig nested structure defined with all required fields
+- [ ] Config nested structure defined with all required fields
+- [ ] Constructor validates configuration and throws on invalid input
+- [ ] Constructor initializes TankModel, Stepper, and all PIDControllers
+- [ ] step() method implements correct order of operations
+- [ ] step() integrates model, advances time, then updates controllers
+- [ ] getTime() returns current simulation time
+- [ ] getState() returns current state vector
+- [ ] getInputs() returns current inputs vector
+- [ ] getSetpoint() returns setpoint for specified controller
+- [ ] getControllerOutput() returns output for specified controller
+- [ ] getError() returns error for specified controller
+- [ ] setInput() allows changing input values
+- [ ] setSetpoint() allows changing controller setpoint
+- [ ] setControllerGains() allows retuning controllers
+- [ ] reset() returns simulation to initial conditions
+- [ ] All index accesses are bounds-checked
 - [ ] Code uses tank_sim namespace
-- [ ] Proper error handling for GSL allocation failures
-- [ ] src/CMakeLists.txt updated to compile these files and link GSL
+- [ ] Code includes detailed comments explaining order of operations
+- [ ] src/CMakeLists.txt updated to compile these files
 - [ ] Build succeeds: `cmake --build build`
 - [ ] No compilation errors, warnings, or linker errors
-- [ ] No memory leaks (use valgrind or asan if available)
 
 ---
 
-## Upcoming Work (After Task 6)
+## Task 9: Write Comprehensive Tests for Simulator
 
-Once the Stepper is implemented and tested, the next tasks will be:
+**Phase:** 1 - C++ Simulation Core
+**Prerequisites:** Task 8 (Simulator must be implemented)
 
-7. Write integration accuracy tests for Stepper (verify RK4 order and accuracy)
-8. Implement Simulator orchestrator class (simulator.h/cpp) - brings together TankModel, PIDController, and Stepper
-9. Write comprehensive tests for Simulator (full system behavior)
-10. Create standalone executable to run simulation and output time-series data for verification
-11. Review and refine C++ implementation before moving to Phase 2
+### Files to Create
 
-After Phase 1 is complete, we'll move to Phase 2: Python bindings using pybind11.
+- Create `/home/roger/dev/tank_dynamics/tests/test_simulator.cpp`
+- Update `/home/roger/dev/tank_dynamics/tests/CMakeLists.txt` to include this test file
+
+### Requirements
+
+This task creates comprehensive integration tests for the Simulator class. These tests verify that the complete system behaves correctly: physics model, controller, and integration working together.
+
+These are the most important tests in Phase 1 because they validate that the entire simulation system produces physically reasonable and correct behavior.
+
+#### Test Cases to Implement
+
+**Test: Constructor Validation**
+- Attempt to create Simulator with invalid configurations:
+  - Empty state vector
+  - Empty inputs vector
+  - Negative dt
+  - Zero dt
+  - Controller measured_index out of bounds (larger than state size)
+  - Controller output_index out of bounds (larger than input size)
+- Each should throw std::invalid_argument with descriptive message
+- Use EXPECT_THROW with specific exception type
+
+**Test: Steady State Remains Steady**
+- Create Simulator with steady-state configuration:
+  - Tank level at 2.5 m (50% of 5 m height)
+  - Inlet flow 1.0 m³/s
+  - Outlet valve at 0.5 (50% open)
+  - Controller setpoint at 2.5 m
+  - PID gains: Kc equals 1.0, tau_I equals 10.0, tau_D equals 0.0
+- Run simulation for 100 steps (100 seconds at dt equals 1.0)
+- At each step, verify:
+  - Tank level remains at 2.5 m (within tolerance 0.01)
+  - Inlet flow remains at 1.0 m³/s
+  - Valve position remains at 0.5 (within tolerance 0.01)
+  - Controller output remains near bias (within tolerance 0.01)
+- This verifies initialization at steady state and numerical stability
+
+**Test: Step Response - Level Increase**
+- Initialize at steady state (level 2.5 m, setpoint 2.5 m)
+- Change setpoint to 3.0 m (increase by 0.5 m)
+- Run simulation for 200 steps
+- Verify expected behavior:
+  - Tank level should start increasing from 2.5 m
+  - Valve should close (output decrease) to reduce outlet flow
+  - Level should approach 3.0 m asymptotically
+  - After 200 seconds, level should be close to 3.0 m (within 0.1 m)
+  - No overshoot expected with these PID gains
+- This verifies setpoint tracking and controller response
+
+**Test: Step Response - Level Decrease**
+- Initialize at steady state (level 2.5 m, setpoint 2.5 m)
+- Change setpoint to 2.0 m (decrease by 0.5 m)
+- Run simulation for 200 steps
+- Verify expected behavior:
+  - Tank level should start decreasing from 2.5 m
+  - Valve should open (output increase) to increase outlet flow
+  - Level should approach 2.0 m asymptotically
+  - After 200 seconds, level should be close to 2.0 m (within 0.1 m)
+- This verifies bidirectional control
+
+**Test: Disturbance Rejection**
+- Initialize at steady state (level 2.5 m, setpoint 2.5 m)
+- At t equals 50 seconds, change inlet flow from 1.0 to 1.2 m³/s (step disturbance)
+- Continue simulation for 200 more steps
+- Verify:
+  - Level will initially rise due to increased inlet
+  - Controller should adjust valve to compensate
+  - Level should return to setpoint 2.5 m
+  - System should reach new steady state with different valve position
+  - After 200 seconds, level should be back at setpoint (within 0.1 m)
+- This verifies disturbance rejection capability
+
+**Test: Controller Saturation and Recovery**
+- Initialize at steady state
+- Set setpoint to 4.5 m (very high, near maximum)
+- Run simulation for 300 steps
+- Verify:
+  - Valve should saturate at 0.0 (fully closed) during initial response
+  - Level should rise but more slowly than if valve could go negative
+  - Anti-windup should prevent integral from growing excessively
+  - Eventually level should approach 4.5 m
+- Check that integral state is reasonable (not huge) using getControllerOutput
+
+**Test: Reset Functionality**
+- Create Simulator at steady state
+- Run simulation for 50 steps
+- Change setpoint to 3.5 m
+- Run another 50 steps (system now in transient)
+- Call reset()
+- Verify:
+  - Time is back to zero
+  - State is back to initial state (level 2.5 m)
+  - Inputs are back to initial inputs
+  - Setpoint is back to initial value (2.5 m)
+  - Controllers are reset (integral states zero)
+- Run simulation again and verify behavior is identical to first run
+
+**Test: Dynamic Retuning**
+- Initialize at steady state
+- Run for 50 steps
+- Change PID gains to more aggressive values (higher Kc)
+- Change setpoint
+- Continue running
+- Verify that system responds with new dynamics (faster response, possible overshoot)
+- This verifies setControllerGains works during operation
+
+**Test: Multiple Controllers (if applicable)**
+- If the configuration supports multiple controllers, create a system with two controllers
+- Verify both controllers operate independently
+- Verify each controller writes to its correct output
+- Verify each controller reads from its correct measured variable
+
+**Test: Time Advancement**
+- Create Simulator with dt equals 1.0
+- Verify initial time is 0.0
+- Call step() once, verify time is 1.0
+- Call step() 9 more times, verify time is 10.0
+- This verifies time tracking is correct
+
+**Test: Getter Methods**
+- Create Simulator
+- Run a few steps
+- Call all getter methods and verify:
+  - getState() returns vector of correct size
+  - getInputs() returns vector of correct size
+  - getSetpoint() returns the correct setpoint value
+  - getControllerOutput() returns value between 0 and 1
+  - getError() returns setpoint minus measured value
+  - getTime() returns positive value after steps
+
+### Test Execution
+
+After implementation:
+- Update tests/CMakeLists.txt to include test_simulator.cpp
+- Build the project: `cmake --build build`
+- Run all tests: `./build/tests/test_tank_sim_core`
+- All tests should pass
+
+### Physical Intuition
+
+These tests verify physically reasonable behavior:
+
+- Steady state test: If nothing changes, tank should not drift
+- Step response tests: Increasing setpoint should close valve, decreasing should open valve
+- Disturbance rejection: Controller should counteract flow changes
+- Saturation test: System should handle limits gracefully
+- Reset test: Should be able to re-run experiments
+
+If any test fails, it usually indicates:
+- Wrong sign in control action (valve moving wrong direction)
+- Incorrect order of operations in step method
+- Wrong initial conditions (not at steady state)
+- Numerical instability (dt too large)
+
+### Acceptance Criteria
+
+- [ ] test_simulator.cpp created in tests/ directory
+- [ ] Constructor validation test implemented and passes
+- [ ] Steady state test implemented and passes
+- [ ] Step response increase test implemented and passes
+- [ ] Step response decrease test implemented and passes
+- [ ] Disturbance rejection test implemented and passes
+- [ ] Controller saturation test implemented and passes
+- [ ] Reset functionality test implemented and passes
+- [ ] Dynamic retuning test implemented and passes
+- [ ] Time advancement test implemented and passes
+- [ ] Getter methods test implemented and passes
+- [ ] All tests include clear comments explaining expected behavior
+- [ ] tests/CMakeLists.txt updated to compile test file
+- [ ] Build succeeds: `cmake --build build`
+- [ ] All tests pass: `./build/tests/test_tank_sim_core`
+- [ ] Tests verify physically realistic behavior
+
+---
+
+## Upcoming Work (After Task 9)
+
+Once the Simulator is fully tested, Phase 1 (C++ Simulation Core) will be complete. The next major phase will be:
+
+**Phase 2: Python Bindings**
+
+Tasks will include:
+10. Create pybind11 binding module structure
+11. Wrap Simulator class for Python access
+12. Convert between C++ Eigen vectors and NumPy arrays
+13. Write Python tests using pytest
+14. Create simple Python demonstration script
+
+After Phase 2, we'll move to Phase 3: FastAPI backend for real-time web API.
 
 ---
 
 ## Notes
 
-**Testing Strategy:** For Task 6, we're focusing on implementation first, then writing dedicated integration tests in Task 7. This differs slightly from the previous pattern where tests immediately followed implementation, but makes sense for the Stepper since its tests require more sophisticated verification (numerical accuracy, order verification).
+**Phase 1 Completion Criteria:**
 
-**GSL Dependency:** If GSL is not installed on your system, install it via package manager:
-- Ubuntu/Debian: `sudo apt-get install libgsl-dev`
-- Arch Linux: `sudo pacman -S gsl`
-- macOS: `brew install gsl`
+Before moving to Phase 2, verify:
+- All C++ classes implemented (TankModel, PIDController, Stepper, Simulator)
+- All unit tests pass
+- Simulator produces physically realistic behavior
+- Code is well-documented with comments
+- Build system works reliably
+- No memory leaks (can verify with valgrind)
 
-**Memory Management:** Special attention needed for GSL resource management. Consider using RAII wrappers or smart pointers with custom deleters to avoid leaks.
+**Testing Philosophy:**
+
+The test progression follows a pattern:
+- Unit tests: Individual components in isolation (TankModel, PIDController)
+- Integration tests: Components working together (Stepper with analytical solutions)
+- System tests: Full simulation behavior (Simulator with realistic scenarios)
+
+This ensures that when something fails, we can identify which layer has the problem.
+
+**Next Phase Preview:**
+
+The Python bindings will expose the Simulator class to Python with a pythonic interface:
+
+```python
+import tank_sim
+
+config = {
+    'model_params': {'area': 120.0, 'k_v': 1.2649, 'max_height': 5.0},
+    'controllers': [...],
+    'initial_state': [2.5],
+    'initial_inputs': [1.0, 0.5],
+    'dt': 1.0
+}
+
+sim = tank_sim.Simulator(config)
+sim.step()
+state = sim.get_state()  # Returns NumPy array
+```
+
+This will enable the FastAPI backend to orchestrate the simulation in real-time.
 
 ---
 
-*Generated: 2026-01-29*
+*Generated: 2026-02-03*
 *Senior Engineer: Claude (Sonnet)*
