@@ -706,6 +706,137 @@ Eigen::VectorXd derivatives(
 
 ---
 
+## Control System Design
+
+### Direct-Acting vs. Reverse-Acting Control
+
+**CRITICAL LESSON LEARNED:** One of the most common pitfalls in process control is getting the control action direction wrong. This section documents a bug discovered during Task 9 testing that caused the controller to push the system in the wrong direction.
+
+#### The Problem
+
+When testing the Simulator with step response tests, the following incorrect behavior was observed:
+- Setpoint increased from 2.5 m → 3.0 m, but tank level **decreased** to 1.3 m
+- Setpoint decreased from 2.5 m → 2.0 m, but tank level **increased** to 4.2 m
+
+The system was responding exactly backwards!
+
+#### Root Cause Analysis
+
+**The Tank Level Control Loop:**
+```
+                    ┌─────────────────────────────────────────────┐
+                    │                                             │
+   Setpoint ───►(+)─┴─►[PID Controller]───► Valve Position ───►[Tank]───► Level
+                (-)                              │                         │
+                 ▲                               │                         │
+                 │                               ▼                         │
+                 │                          More Open                      │
+                 │                               │                         │
+                 │                               ▼                         │
+                 │                         More Outlet Flow                │
+                 │                               │                         │
+                 │                               ▼                         │
+                 │                         Level DECREASES                 │
+                 │                                                         │
+                 └─────────────────────────────────────────────────────────┘
+```
+
+**Analysis:**
+1. Valve position controls outlet flow: `q_out = k_v × valve_position × √h`
+2. **Opening the valve (higher position) → more outlet flow → level DECREASES**
+3. **Closing the valve (lower position) → less outlet flow → level INCREASES**
+
+**With standard (direct-acting) control (Kc > 0):**
+- Level below setpoint → positive error
+- Positive error × positive Kc → positive output change → valve opens more
+- Valve opens → more outlet → level drops further → **UNSTABLE!**
+
+**This is a reverse-acting control loop.** The manipulated variable (valve) has an inverse relationship with the controlled variable (level).
+
+#### The Fix
+
+Use **negative proportional gain** (Kc < 0) for reverse-acting control:
+
+```cpp
+// WRONG - Direct-acting control (destabilizes this system)
+ctrl_config.gains = PIDController::Gains{
+    1.0,   // Kc: POSITIVE - pushes system in wrong direction!
+    10.0,  // tau_I
+    0.0    // tau_D
+};
+
+// CORRECT - Reverse-acting control
+ctrl_config.gains = PIDController::Gains{
+    -1.0,  // Kc: NEGATIVE - proper reverse-acting control
+    10.0,  // tau_I
+    0.0    // tau_D
+};
+```
+
+**With reverse-acting control (Kc < 0):**
+- Level below setpoint → positive error
+- Positive error × negative Kc → **negative** output change → valve closes
+- Valve closes → less outlet → level rises toward setpoint → **STABLE!**
+
+#### How to Determine Control Action Direction
+
+For any control loop, trace the signal path and count the inversions:
+
+| Step | Signal Change | Inversion? |
+|------|--------------|------------|
+| Error increases (+) | → | — |
+| PID output | → | Kc sign determines |
+| Valve position increases | → | — |
+| Outlet flow increases | → | — |
+| Tank level **decreases** | ← | **YES - INVERSION** |
+
+**Rule:** If there is an **odd number of inversions** in the loop, use Kc < 0 (reverse-acting).
+
+#### Common Process Control Examples
+
+| Process | Manipulated Variable | Controlled Variable | Action |
+|---------|---------------------|--------------------:|--------|
+| Tank level via outlet valve | Valve position | Level | **Reverse** (Kc < 0) |
+| Tank level via inlet valve | Valve position | Level | Direct (Kc > 0) |
+| Temperature via cooling | Coolant flow | Temperature | **Reverse** (Kc < 0) |
+| Temperature via heating | Heater power | Temperature | Direct (Kc > 0) |
+| Pressure via vent valve | Valve position | Pressure | **Reverse** (Kc < 0) |
+
+#### Testing for Correct Control Action
+
+Always include tests that verify the control **direction** is correct:
+
+```cpp
+// Test that level INCREASES when setpoint increases
+TEST_F(SimulatorTest, StepResponseLevelIncrease) {
+    // ... setup at steady state ...
+    sim.setSetpoint(0, 3.0);  // Increase setpoint
+    // ... run simulation ...
+    
+    // Level should have INCREASED (not decreased!)
+    EXPECT_GT(state(0), TANK_NOMINAL_HEIGHT);
+    
+    // Valve should have CLOSED (not opened!)
+    EXPECT_LT(inputs(1), TEST_VALVE_POSITION);
+}
+```
+
+**WARNING:** If tests are failing because the system moves in the wrong direction, do NOT weaken the tests to make them pass. Fix the control action sign!
+
+#### Lesson for Future Projects
+
+When building control systems on this foundation:
+
+1. **Always analyze the control loop** before writing code
+2. **Document the expected control action** (direct or reverse) in specifications
+3. **Write tests that verify direction**, not just magnitude
+4. **If system goes wrong direction**, check Kc sign first
+5. **Never "fix" failing tests** by making assertions less specific
+
+This lesson applies to any project using PID control, not just tank level systems.
+
+---
+
 ## Performance Considerations
 
 ### Profiling

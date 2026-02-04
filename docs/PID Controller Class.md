@@ -182,6 +182,62 @@ CLASS PIDController
 END CLASS
 ```
 
+## Direct-Acting vs. Reverse-Acting Control
+
+**CRITICAL:** The sign of Kc determines whether the controller is direct-acting or reverse-acting. Getting this wrong will cause the control loop to be unstable!
+
+### Direct-Acting Control (Kc > 0)
+
+Use when: **Increasing controller output should INCREASE the controlled variable.**
+
+Examples:
+- Heater power controlling temperature (more power → higher temp)
+- Inlet valve controlling tank level (more open → higher level)
+- Pump speed controlling flow rate (faster → more flow)
+
+### Reverse-Acting Control (Kc < 0)
+
+Use when: **Increasing controller output should DECREASE the controlled variable.**
+
+Examples:
+- Outlet valve controlling tank level (more open → lower level)
+- Cooling flow controlling temperature (more cooling → lower temp)
+- Vent valve controlling pressure (more open → lower pressure)
+
+### How to Determine
+
+Trace the signal path from controller output to controlled variable:
+
+1. If an increase in output leads to an increase in the controlled variable → **Direct (Kc > 0)**
+2. If an increase in output leads to a decrease in the controlled variable → **Reverse (Kc < 0)**
+
+### Tank Level Example (This Project)
+
+In this tank dynamics project, the controller output goes to the **outlet valve**:
+- More open valve → more outlet flow → **lower** tank level
+- Therefore: **Kc must be NEGATIVE** for stable level control
+
+```cpp
+// CORRECT for outlet valve level control
+PIDController::Gains gains{
+    -1.0,   // Kc: NEGATIVE (reverse-acting)
+    10.0,   // tau_I
+    0.0     // tau_D
+};
+```
+
+### Symptoms of Wrong Control Action
+
+If Kc has the wrong sign, the system will:
+- Move in the opposite direction from the setpoint
+- Saturate at limits (0% or 100% valve position)
+- Never reach steady state
+- Appear "unstable" or "runaway"
+
+**If you observe these symptoms, check Kc sign FIRST before investigating other causes.**
+
+---
+
 ## Key Implementation Points
 
 - **Order matters:** Compute output using current integral state FIRST, then decide whether to update integral for next iteration
@@ -189,6 +245,7 @@ END CLASS
 - **Integral clamping:** Additional safety limit on integral state magnitude
 - **Special cases:** tau_I = 0 disables integral; tau_D = 0 disables derivative
 - **Reset on retune:** Call `reset()` when changing gains to clear accumulated history
+- **Control action:** Use negative Kc for reverse-acting loops (see section above)
 
 ## Example Usage
 

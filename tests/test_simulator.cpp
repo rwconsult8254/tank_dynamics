@@ -1,3 +1,25 @@
+/**
+ * @file test_simulator.cpp
+ * @brief Comprehensive integration tests for the Simulator class.
+ *
+ * IMPORTANT LESSON LEARNED - CONTROL ACTION DIRECTION:
+ * =====================================================
+ * This test file uses NEGATIVE Kc (-1.0) for reverse-acting control.
+ *
+ * In this tank level control system:
+ *   - The controller output goes to the OUTLET valve position
+ *   - Opening the valve (higher output) DECREASES tank level
+ *   - Therefore, when level is LOW, we need to CLOSE the valve (DECREASE output)
+ *   - This requires NEGATIVE Kc (reverse-acting control)
+ *
+ * If you see tests failing because the tank level moves in the WRONG direction
+ * (e.g., level decreases when setpoint increases), check the Kc sign first!
+ *
+ * DO NOT weaken test assertions to hide this problem. Fix the control action.
+ *
+ * See docs/DEVELOPER_GUIDE.md section "Control System Design" for full explanation.
+ */
+
 #include <gtest/gtest.h>
 #include <Eigen/Dense>
 #include <cmath>
