@@ -213,8 +213,48 @@ Each test file covers a specific C++ class:
 |-----------|--------|--------|
 | `test_tank_model.cpp` | `TankModel` class | ✅ Complete (7 tests) |
 | `test_pid_controller.cpp` | `PIDController` class | ✅ Complete (10 tests) |
-| `test_stepper.cpp` | `Stepper` class | 🔄 In Progress |
-| `test_simulator.cpp` | `Simulator` class | ⏳ Planned |
+| `test_stepper.cpp` | `Stepper` class | ✅ Complete (7 tests) |
+| `test_simulator.cpp` | `Simulator` class | ✅ Complete (18 tests) |
+| **C++ Total** | **All core classes** | **✅ Complete (42 tests)** |
+
+### Python Unit Tests (Phase 2)
+
+Python tests use pytest framework and verify the pybind11 bindings.
+
+```bash
+# Set up Python environment (one time)
+uv venv
+source .venv/bin/activate
+uv pip install -e ".[dev]"
+
+# Run all Python tests
+pytest tests/python/ -v
+
+# Run specific test class
+pytest tests/python/test_simulator_bindings.py::TestSteadyStateStability -v
+
+# Run with coverage report
+pytest tests/python/ --cov=tank_sim --cov-report=html
+```
+
+### Python Test Coverage
+
+Python tests verify that the C++ bindings work correctly:
+
+| Test Category | File | Tests | Status |
+|---------------|------|-------|--------|
+| Configuration | `test_simulator_bindings.py` | 4 tests | ✅ Complete |
+| Construction | `test_simulator_bindings.py` | 3 tests | ✅ Complete |
+| Steady State | `test_simulator_bindings.py` | 1 test | ✅ Complete |
+| Step Response | `test_simulator_bindings.py` | 2 tests | ✅ Complete |
+| Disturbance | `test_simulator_bindings.py` | 2 tests | ✅ Complete |
+| Reset | `test_simulator_bindings.py` | 2 tests | ✅ Complete |
+| Exceptions | `test_simulator_bindings.py` | 2 tests | ✅ Complete |
+| NumPy Arrays | `test_simulator_bindings.py` | 2 tests | ✅ Complete |
+| Retuning | `test_simulator_bindings.py` | 1 test | ✅ Complete |
+| Edge Cases | `test_simulator_bindings.py` | 7 tests | ✅ Complete |
+| Integration | `test_simulator_bindings.py` | 2 tests | ✅ Complete |
+| **Python Total** | **test_simulator_bindings.py** | **28 tests** | **✅ Complete** |
 
 ### Writing New Tests
 
@@ -244,6 +284,230 @@ Guidelines:
 - Use `EXPECT_*` for non-fatal assertions, `ASSERT_*` for fatal
 - Use `EXPECT_NEAR` for floating-point comparisons (always specify tolerance)
 - Add comments explaining the expected values and why
+
+## Python Bindings (Phase 2)
+
+### Overview
+
+The C++ simulation library is exposed to Python via pybind11 bindings. This allows Python code to use the high-performance C++ engine seamlessly with NumPy integration.
+
+### Building Python Bindings
+
+```bash
+# One-time setup
+uv venv
+source .venv/bin/activate
+
+# Install in development mode with dev dependencies
+uv pip install -e ".[dev]"
+
+# This builds C++ extension module and makes tank_sim importable
+```
+
+### Using the Python Bindings
+
+```python
+import tank_sim
+import numpy as np
+
+# Create simulator with default configuration
+sim = tank_sim.Simulator(tank_sim.create_default_config())
+
+# Run simulation loop
+for step in range(100):
+    sim.step()
+    
+    # Get current state as NumPy array
+    state = sim.get_state()
+    time = sim.get_time()
+    level = state[0]
+    
+    print(f"t={time:.1f}s, level={level:.2f}m")
+
+# Change control parameters
+sim.set_setpoint(0, 3.0)  # New setpoint for controller 0
+
+# Continue simulation
+for step in range(200):
+    sim.step()
+```
+
+### Core Classes and Structures
+
+**SimulatorConfig** - Complete simulation configuration
+
+```python
+config = tank_sim.SimulatorConfig()
+config.model_params = tank_sim.TankModelParameters(
+    area=120.0,           # Cross-sectional area (m²)
+    k_v=1.2649,          # Valve coefficient (m^2.5/s)
+    max_height=5.0       # Maximum tank height (m)
+)
+config.controllers = [
+    tank_sim.ControllerConfig(
+        gains=tank_sim.PIDGains(Kc=1.0, tau_I=10.0, tau_D=2.0),
+        bias=0.5,
+        min_output=0.0,
+        max_output=1.0,
+        max_integral=10.0,
+        measured_index=0,      # Tank level state
+        output_index=1,        # Valve position input
+        initial_setpoint=2.5
+    )
+]
+config.initial_state = np.array([2.5])      # Starting level
+config.initial_inputs = np.array([1.0, 0.5]) # Inlet flow, valve pos
+config.dt = 1.0                              # 1 second timestep
+```
+
+**Simulator** - Main simulation interface
+
+```python
+sim = tank_sim.Simulator(config)
+
+# Control methods
+sim.step()                              # Advance simulation by dt
+sim.reset()                             # Reset to initial conditions
+sim.set_input(index, value)             # Set manual input
+sim.set_setpoint(controller_idx, sp)    # Change controller setpoint
+sim.set_controller_gains(idx, gains)    # Retune PID controller
+
+# Query methods (all return NumPy arrays or floats)
+state = sim.get_state()                 # Current state vector
+inputs = sim.get_inputs()               # Current input vector
+time = sim.get_time()                   # Current simulation time
+setpoint = sim.get_setpoint(0)          # Controller setpoint
+error = sim.get_error(0)                # Control error
+output = sim.get_controller_output(0)   # Controller output
+```
+
+### Convenience Function
+
+For quick prototyping, use the default configuration:
+
+```python
+# Equivalent to manually building the config above
+sim = tank_sim.Simulator(tank_sim.create_default_config())
+
+# This simulator starts at steady state:
+# - Tank level at 2.5 m (50% full)
+# - Inlet flow at 1.0 m³/s
+# - Valve open to 50%
+# - PID controller ready to regulate level
+```
+
+### Working with NumPy Arrays
+
+The bindings automatically convert between C++ Eigen vectors and NumPy arrays:
+
+```python
+import numpy as np
+import tank_sim
+
+config = tank_sim.create_default_config()
+
+# Set initial state using NumPy
+config.initial_state = np.array([2.0])
+
+# Get state as NumPy array (automatically converted from Eigen::VectorXd)
+sim = tank_sim.Simulator(config)
+state = sim.get_state()
+
+# state is a numpy.ndarray with float64 dtype
+print(type(state))        # <class 'numpy.ndarray'>
+print(state.dtype)        # float64
+print(state.shape)        # (1,)
+
+# Can use all NumPy operations
+state_rounded = np.round(state, 2)
+state_abs = np.abs(state)
+```
+
+### Exception Handling
+
+C++ exceptions are automatically converted to Python exceptions:
+
+```python
+import tank_sim
+
+try:
+    # Invalid configuration (empty state vector)
+    config = tank_sim.SimulatorConfig()
+    config.initial_state = np.array([])
+    sim = tank_sim.Simulator(config)
+except ValueError as e:
+    print(f"Configuration error: {e}")
+
+try:
+    # Invalid controller index
+    sim = tank_sim.Simulator(tank_sim.create_default_config())
+    sim.get_setpoint(999)  # Only controller 0 exists
+except IndexError as e:
+    print(f"Index error: {e}")
+```
+
+### Advanced Usage
+
+**Running multiple simulations in parallel:**
+
+```python
+import tank_sim
+from concurrent.futures import ThreadPoolExecutor
+
+def run_simulation(setpoint):
+    config = tank_sim.create_default_config()
+    sim = tank_sim.Simulator(config)
+    
+    sim.set_setpoint(0, setpoint)
+    
+    results = []
+    for _ in range(100):
+        sim.step()
+        results.append(sim.get_state()[0])
+    
+    return results
+
+# Test different setpoints
+setpoints = [2.0, 2.5, 3.0, 3.5, 4.0]
+with ThreadPoolExecutor(max_workers=5) as executor:
+    all_results = executor.map(run_simulation, setpoints)
+```
+
+**Analyzing simulation results:**
+
+```python
+import tank_sim
+import numpy as np
+
+config = tank_sim.create_default_config()
+sim = tank_sim.Simulator(config)
+
+# Record data over time
+times = []
+levels = []
+setpoints = []
+
+# Run simulation with disturbance
+for i in range(300):
+    if i == 100:
+        sim.set_setpoint(0, 3.0)  # Change setpoint
+    if i == 200:
+        sim.set_input(0, 1.2)     # Add disturbance
+    
+    sim.step()
+    times.append(sim.get_time())
+    levels.append(sim.get_state()[0])
+    setpoints.append(sim.get_setpoint(0))
+
+# Analyze results with NumPy
+times = np.array(times)
+levels = np.array(levels)
+setpoints = np.array(setpoints)
+
+error = levels - setpoints
+settling_time = np.where(np.abs(error) < 0.05)[0]
+print(f"Settling time: {settling_time[0] if len(settling_time) > 0 else 'N/A'} seconds")
+```
 
 ## Code Organization
 
