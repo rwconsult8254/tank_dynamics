@@ -19,7 +19,9 @@ Phase 2 implementation is **excellent** and ready for merge. The Python bindings
 - All C++ tests still passing (42/42)
 - Clean integration with existing codebase
 
-**Recommendation:** Merge to main immediately. No blocking issues found.
+**Recommendation:** ✅ All recommendations addressed. Merge to main immediately. No blocking issues found.
+
+**Update (2026-02-04):** All three minor recommendations have been implemented and committed (4d694a9). Test suite expanded from 21 to 28 tests. All tests passing.
 
 ---
 
@@ -164,95 +166,55 @@ install(TARGETS _tank_sim LIBRARY DESTINATION tank_sim)
 
 ## Minor Issues
 
-### Issue 1: Missing validation in create_default_config
+### ✅ Issue 1: Missing validation in create_default_config
 
+**Status:** RESOLVED (commit 4d694a9)  
 **Severity:** Minor  
-**Location:** tank_sim/__init__.py:34-101
+**Location:** tank_sim/__init__.py:87-100
 
-**Problem:** The `create_default_config()` function hardcodes steady-state values but doesn't verify the mathematical relationship. While the current values are correct, future maintenance could break steady state if someone modifies parameters without understanding the constraints.
+**Resolution:** Added comprehensive comments documenting the steady-state constraint:
+- Documents the critical `q_out = q_in` relationship
+- Shows verification calculation: `1.0 = 1.2649 * 0.5 * sqrt(2.5) ✓`
+- Warns maintainers about preserving steady state when modifying parameters
+- Uses named variables (`level`, `q_in`, `valve_position`) for clarity
 
-**Why it matters:** At steady state, outlet flow must equal inlet flow:
-```
-q_out = k_v * x * sqrt(h)
-1.0 = 1.2649 * 0.5 * sqrt(2.5)
-```
+### ✅ Issue 2: Exception message clarity for invalid indices
 
-If someone changes k_v or area without adjusting other parameters, the configuration will no longer be at steady state, causing immediate transients.
-
-**Suggested approach:** Add a validation function or at least a comment documenting the steady-state constraint:
-
-```python
-# Steady-state constraint: q_out = q_in
-# 1.0 = 1.2649 * 0.5 * sqrt(2.5) ✓
-# If modifying parameters, verify this equality holds
-```
-
-Alternatively, compute the valve coefficient from the desired steady state rather than hardcoding:
-```python
-# At steady state: k_v = q_in / (valve_position * sqrt(height))
-k_v_calculated = 1.0 / (0.5 * np.sqrt(2.5))  # = 1.2649
-```
-
-### Issue 2: Exception message clarity for invalid indices
-
+**Status:** RESOLVED (commit 4d694a9)  
 **Severity:** Minor  
-**Location:** bindings/bindings.cpp (various locations)
+**Location:** src/simulator.h:44, bindings/bindings.cpp:347-503
 
-**Problem:** When users call `get_setpoint(99)` with an invalid controller index, the C++ code throws an exception, but the error message may not be immediately clear to Python users unfamiliar with the C++ layer.
+**Resolution:** 
+- Added `getControllerCount()` method to Simulator class (src/simulator.h:44, src/simulator.cpp:217)
+- Wrapped all controller getter/setter methods with lambda functions providing helpful error messages
+- Error messages now show: `"Controller index 99 out of range (have 1 controller)"`
+- Handles singular/plural correctly: "1 controller" vs "2 controllers"
+- Applied to: `get_setpoint()`, `get_controller_output()`, `get_error()`, `set_setpoint()`, `set_controller_gains()`
 
-**Current behavior:** Likely throws `std::out_of_range` which pybind11 converts to Python `IndexError`.
-
-**Why it matters:** Better error messages improve developer experience. A message like "Controller index 99 out of range (have 1 controller)" is more helpful than "vector::_M_range_check".
-
-**Suggested approach:** Consider adding explicit bounds checking in the bindings with custom error messages:
-
-```cpp
-.def("get_setpoint", [](const Simulator& self, int index) {
-    if (index < 0 || index >= self.getControllerCount()) {
-        throw py::index_error("Controller index " + std::to_string(index) + 
-                             " out of range (have " + 
-                             std::to_string(self.getControllerCount()) + 
-                             " controllers)");
-    }
-    return self.getSetpoint(index);
-}, ...)
-```
-
-**Note:** This is very minor since the tests do verify exceptions are raised correctly (test_invalid_controller_index_raises_error).
-
-### Issue 3: Test file could use a few more edge cases
-
-**Severity:** Minor  
-**Location:** tests/python/test_simulator_bindings.py
-
-**Problem:** While test coverage is excellent, a few edge cases could be added:
-
-1. **Empty controller list:** What happens if `config.controllers = []`? (Open-loop simulation)
-2. **Negative timestep:** Does the simulator handle `dt < 0` gracefully?
-3. **Zero timestep:** What about `dt = 0`?
-4. **Extreme valve saturation:** Test with setpoint requiring valve >100% or <0%
-
-**Why it matters:** These edge cases might be encountered by users experimenting with the API. Better to document expected behavior now than field bug reports later.
-
-**Suggested approach:** Add a new test class:
-
+**Example:**
 ```python
-class TestEdgeCases:
-    """Test boundary conditions and unusual configurations."""
-    
-    def test_open_loop_simulation(self):
-        """Verify simulator works without controllers."""
-        config = create_default_config()
-        config.controllers = []
-        sim = Simulator(config)
-        # Manual valve control via set_input
-        
-    def test_zero_timestep_raises_error(self):
-        config = create_default_config()
-        config.dt = 0.0
-        with pytest.raises(ValueError):
-            Simulator(config)
+>>> sim.get_setpoint(99)
+IndexError: Controller index 99 out of range (have 1 controller)
 ```
+
+### ✅ Issue 3: Test file could use a few more edge cases
+
+**Status:** RESOLVED (commit 4d694a9)  
+**Severity:** Minor  
+**Location:** tests/python/test_simulator_bindings.py:652-807
+
+**Resolution:** Added comprehensive `TestEdgeCases` class with 7 new tests:
+
+1. **test_open_loop_simulation:** Verifies operation without controllers (empty controller list)
+2. **test_zero_timestep_raises_error:** Validates timestep validation (dt = 0.0)
+3. **test_negative_timestep:** Documents behavior with invalid timestep (dt < 0)
+4. **test_extreme_setpoint_causing_saturation:** Tests anti-windup with impossibly high setpoint
+5. **test_very_low_setpoint_causing_valve_opening:** Tests saturation with very low setpoint
+6. **test_empty_state_vector:** Validates configuration error handling (empty state)
+7. **test_mismatched_input_dimensions:** Validates input vector dimension checking
+
+**Test suite expanded:** 21 tests → 28 tests (+33%)  
+**All tests passing:** 28/28 Python, 42/42 C++
 
 ---
 
@@ -332,17 +294,23 @@ This will significantly help future contributors (or Roger on a new machine).
 
 ## Recommended Actions
 
-### Priority 1: Merge to main (Immediate)
+### ✅ Priority 1: Minor issues addressed (COMPLETED)
 
-The code is production-ready. All tests pass, documentation is excellent, and no critical or major issues were found.
+All three minor recommendations have been implemented in commit 4d694a9:
 
-### Priority 2: Address minor issues (Optional, can be done post-merge)
+1. ✅ Added steady-state validation comments to `create_default_config()` 
+2. ✅ Improved exception messages for invalid controller indices
+3. ✅ Added 7 comprehensive edge case tests
 
-1. Add steady-state validation comment to `create_default_config()` (5 minutes)
-2. Consider improving exception messages in bindings (15 minutes)
-3. Add edge case tests if desired (30 minutes)
+**Impact:**
+- Code quality improved
+- Developer experience enhanced
+- Test coverage increased by 33% (21 → 28 tests)
+- All tests passing (28 Python + 42 C++)
 
-None of these are blocking. They're nice-to-haves that can be addressed in a follow-up commit or even during Phase 3.
+### Priority 2: Merge to main (READY NOW)
+
+The code is production-ready with all recommendations addressed. No blocking or major issues found.
 
 ### Priority 3: Consider adding examples/ directory (Future work)
 
