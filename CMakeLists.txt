@@ -21,6 +21,11 @@ set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard version")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Position Independent Code (PIC) for shared library building
+# Required for building the Python extension module (.so file)
+# Without -fPIC, the linker fails when creating the shared library
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Generate compile_commands.json for clangd and other language servers
 # This file is used by clangd to understand project structure, include paths, and compilation flags
 # CMake will place it at: build/compile_commands.json
