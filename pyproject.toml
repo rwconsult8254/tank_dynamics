@@ -1,0 +1,50 @@
+[build-system]
+requires = ["scikit-build-core>=0.8", "pybind11>=2.11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "tank-sim"
+version = "0.1.0"
+description = "Real-time tank dynamics simulator with PID control"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Roger"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy>=1.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pybind11>=2.11",
+]
+api = [
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.20",
+    "websockets>=11.0",
+]
+
+[tool.scikit-build]
+cmake.minimum-version = "3.20"
+cmake.build-type = "Release"
+wheel.packages = ["tank_sim"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+python_files = ["test_*.py"]
+addopts = "-v"

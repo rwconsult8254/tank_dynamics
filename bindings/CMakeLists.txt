@@ -18,18 +18,35 @@ add_executable(simulator_verify simulator_verify.cpp)
 target_link_libraries(simulator_verify PRIVATE ${CORE_LIB})
 
 # ============================================================================
-# PYTHON BINDINGS (Phase 2)
+# PYTHON BINDINGS
 # ============================================================================
 
-# Python bindings will be added in Phase 2 using pybind11
-# pybind11 is a lightweight header-only library that creates Python C++ extension modules
+# pybind11 Python module
+# Creates a Python extension module named _tank_sim that wraps the C++ library
 #
-# When implementing Python bindings:
-# 1. Declare pybind11 as a FetchContent dependency in root CMakeLists.txt
-# 2. Create pybind11 module with pybind11_add_module()
-# 3. Bind C++ classes and functions to Python
-# 4. Link against tank_sim_core library
+# The module is named _tank_sim (with underscore) by convention:
+# - The underscore indicates it's the internal C++ extension
+# - The public API is provided by tank_sim/__init__.py which imports from _tank_sim
 #
-# Example structure (to be added later):
-# pybind11_add_module(tank_sim_py tank_sim_py.cpp)
-# target_link_libraries(tank_sim_py PRIVATE tank_sim_core)
+# pybind11_add_module() creates a shared library with proper Python extension suffix
+# (.cpython-310-x86_64-linux-gnu.so on Linux, .pyd on Windows)
+
+pybind11_add_module(_tank_sim bindings.cpp)
+
+# Link against the core C++ library
+# This gives access to all C++ classes (TankModel, PIDController, Stepper, Simulator)
+target_link_libraries(_tank_sim PRIVATE ${CORE_LIB})
+
+# Set include directories for pybind11 module
+# The core library's public include directories are inherited through the link
+target_include_directories(_tank_sim PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src
+)
+
+# Install the Python module
+# scikit-build-core handles the installation path automatically
+# For manual CMake builds, install to a location Python can find
+install(TARGETS _tank_sim
+    LIBRARY DESTINATION tank_sim
+    RUNTIME DESTINATION tank_sim
+)

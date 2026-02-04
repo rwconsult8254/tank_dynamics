@@ -29,6 +29,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ============================================================================
+# PYTHON DETECTION
+# ============================================================================
+
+# Find Python for pybind11 bindings
+# Development.Module is sufficient for building extension modules
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
+
+# ============================================================================
 # DEPENDENCY MANAGEMENT
 # ============================================================================
 
@@ -89,6 +97,17 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(GoogleTest)
+
+# ============================================================================
+# PYBIND11 FETCH (for Python bindings)
+# ============================================================================
+
+FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11.git
+    GIT_TAG        v2.11.1
+)
+FetchContent_MakeAvailable(pybind11)
 
 # System dependencies - searched for via pkg-config or system paths
 # List of required system packages and their find_package() names
