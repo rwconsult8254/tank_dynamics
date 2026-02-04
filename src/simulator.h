@@ -35,13 +35,13 @@ public:
 
   void step();
 
-  // State getters
-  double getTime();
-  Eigen::VectorXd getState();
-  Eigen::VectorXd getInputs();
-  double getSetpoint(int index);
-  double getControllerOutput(int index);
-  double getError(int index);
+  // State getters (const methods - do not modify simulator state)
+  double getTime() const;
+  Eigen::VectorXd getState() const;
+  Eigen::VectorXd getInputs() const;
+  double getSetpoint(int index) const;
+  double getControllerOutput(int index) const;
+  double getError(int index) const;
 
   // Operator control methods
   void setInput(int index, double value);
@@ -63,6 +63,7 @@ public:
   Eigen::VectorXd initialInputs;
   double dt;
   std::vector<double> setpoints;
+  std::vector<double> previousErrors;  // For error derivative calculation
   std::vector<ControllerConfig> controllerConfig;
 };
 

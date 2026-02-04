@@ -68,6 +68,9 @@ Simulator::Simulator(const Config &config)
   for (size_t i = 0; i < controllers.size(); ++i) {
     setpoints[i] = controllerConfig[i].initialSetpoint;
   }
+  
+  // Initialize previous errors to zero (at steady state, error should be zero)
+  previousErrors.resize(controllers.size(), 0.0);
 }
 
 void Simulator::step() {
@@ -101,8 +104,10 @@ void Simulator::step() {
     // Calculate error as setpoint minus measured value
     double error = setpoints[i] - measured_value;
 
-    // Calculate error derivative (using zero for now - can be refined later)
-    double error_dot = 0.0;
+    // Calculate error derivative using backward finite difference
+    // error_dot = (error - previous_error) / dt
+    // This introduces a one-step delay but is standard for discrete-time PID
+    double error_dot = (error - previousErrors[i]) / dt;
 
     // Call controller's compute method with error, error_dot, and dt
     double output = controllers[i].compute(error, error_dot, dt);
@@ -110,22 +115,25 @@ void Simulator::step() {
     // Write the controller output to the inputs vector at output_index
     int output_index = controllerConfig[i].outputIndex;
     inputs(output_index) = output;
+    
+    // Store current error for next derivative calculation
+    previousErrors[i] = error;
   }
 }
 
-double Simulator::getTime() {
+double Simulator::getTime() const {
   return time;
 }
 
-Eigen::VectorXd Simulator::getState() {
+Eigen::VectorXd Simulator::getState() const {
   return state;
 }
 
-Eigen::VectorXd Simulator::getInputs() {
+Eigen::VectorXd Simulator::getInputs() const {
   return inputs;
 }
 
-double Simulator::getSetpoint(int index) {
+double Simulator::getSetpoint(int index) const {
   if (index < 0 || static_cast<size_t>(index) >= setpoints.size()) {
     throw std::out_of_range("Setpoint index " + std::to_string(index) +
                             " out of bounds for " + std::to_string(setpoints.size()) +
@@ -134,7 +142,7 @@ double Simulator::getSetpoint(int index) {
   return setpoints[index];
 }
 
-double Simulator::getControllerOutput(int index) {
+double Simulator::getControllerOutput(int index) const {
   if (index < 0 || static_cast<size_t>(index) >= controllers.size()) {
     throw std::out_of_range("Controller index " + std::to_string(index) +
                             " out of bounds for " + std::to_string(controllers.size()) +
@@ -145,7 +153,7 @@ double Simulator::getControllerOutput(int index) {
   return inputs(output_index);
 }
 
-double Simulator::getError(int index) {
+double Simulator::getError(int index) const {
   if (index < 0 || static_cast<size_t>(index) >= controllers.size()) {
     throw std::out_of_range("Controller index " + std::to_string(index) +
                             " out of bounds for " + std::to_string(controllers.size()) +
@@ -201,6 +209,9 @@ void Simulator::reset() {
   for (size_t i = 0; i < controllers.size(); ++i) {
     setpoints[i] = controllerConfig[i].initialSetpoint;
   }
+  
+  // Reset previous errors to zero (at steady state)
+  std::fill(previousErrors.begin(), previousErrors.end(), 0.0);
 }
 
 } // namespace tank_sim

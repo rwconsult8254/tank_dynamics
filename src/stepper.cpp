@@ -131,14 +131,15 @@ Eigen::VectorXd Stepper::step(double t, double dt, const Eigen::VectorXd &state,
   gsl_odeiv2_system sys = {gsl_derivative_wrapper, nullptr, state_dimension_,
                            &ctx};
 
-  // Step 4: Allocate C arrays for the integration
+  // Step 4: Allocate C arrays for the integration using std::vector for RAII
   // y: the state array - modified IN PLACE by gsl_odeiv2_step_apply
   // yerr: the error estimate array (we don't use it but GSL requires it)
-  double *y = new double[state_dimension_];
-  double *yerr = new double[state_dimension_];
+  // Using std::vector ensures automatic cleanup even if exceptions are thrown
+  std::vector<double> y(state_dimension_);
+  std::vector<double> yerr(state_dimension_);
 
   // Step 5: Copy the input Eigen vector into the C array y
-  std::copy(state.data(), state.data() + state_dimension_, y);
+  std::copy(state.data(), state.data() + state_dimension_, y.data());
 
   // Step 6: Perform one RK4 integration step using GSL
   // gsl_odeiv2_step_apply modifies y IN PLACE and returns error in yerr
@@ -146,31 +147,27 @@ Eigen::VectorXd Stepper::step(double t, double dt, const Eigen::VectorXd &state,
   // - stepper_: the RK4 stepper we allocated in constructor
   // - t: current time
   // - h: the time step to take
-  // - y: state array - INPUT and OUTPUT (modified in place!)
-  // - yerr: error estimate array (output)
+  // - y.data(): state array pointer - INPUT and OUTPUT (modified in place!)
+  // - yerr.data(): error estimate array pointer (output)
   // - dydt_in: derivative at current state (can be nullptr)
   // - dydt_out: derivative at new state (can be nullptr)
   // - sys: the system of ODEs
-  int status = gsl_odeiv2_step_apply(stepper_, t, dt, y, yerr, 
+  int status = gsl_odeiv2_step_apply(stepper_, t, dt, y.data(), yerr.data(), 
                                       nullptr, nullptr, &sys);
 
   // Step 7: Check for errors from GSL
+  // No manual cleanup needed - vectors automatically destroyed on exception
   if (status != GSL_SUCCESS) {
-    delete[] y;
-    delete[] yerr;
     throw std::runtime_error("GSL RK4 step failed");
   }
 
   // Step 8: Copy the result to an Eigen vector
   // y now contains the updated state after the step
   Eigen::VectorXd result(state_dimension_);
-  std::copy(y, y + state_dimension_, result.data());
+  std::copy(y.data(), y.data() + state_dimension_, result.data());
 
-  // Step 9: Free the dynamically allocated C arrays
-  delete[] y;
-  delete[] yerr;
-
-  // Step 10: Return the result
+  // Step 9: Return the result
+  // Vectors automatically cleaned up when going out of scope
   return result;
 }
 

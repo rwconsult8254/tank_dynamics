@@ -318,6 +318,61 @@ TEST(TankModelTest, SteadyState) {
 }
 ```
 
+### Exception Handling Conventions
+
+The project follows a consistent exception handling strategy to make error handling predictable for API users:
+
+**Constructor Validation (Configuration Errors):**
+- Use `std::invalid_argument` for invalid configuration parameters
+- Thrown during object construction when setup is incorrect
+- Examples: negative time step, invalid dimensions, out-of-bounds indices in config
+
+```cpp
+// Constructor validation example (Simulator)
+if (dt <= 0.0 || dt < constants::MIN_DT || dt > constants::MAX_DT) {
+    throw std::invalid_argument(
+        "dt must be positive and between " + 
+        std::to_string(constants::MIN_DT) + " and " + 
+        std::to_string(constants::MAX_DT) + " seconds"
+    );
+}
+```
+
+**Runtime Validation (Index Errors):**
+- Use `std::out_of_range` for index/bounds errors during normal operation
+- Thrown by getter/setter methods when accessing invalid indices
+- Examples: invalid controller index, setpoint index out of bounds
+
+```cpp
+// Runtime validation example (Simulator::getSetpoint)
+if (index < 0 || static_cast<size_t>(index) >= setpoints.size()) {
+    throw std::out_of_range(
+        "Setpoint index " + std::to_string(index) +
+        " out of bounds for " + std::to_string(setpoints.size()) +
+        " controller(s)"
+    );
+}
+```
+
+**Numerical/GSL Errors:**
+- Use `std::runtime_error` for computational failures
+- Examples: GSL allocation failure, integration step failure
+
+```cpp
+// GSL error example (Stepper)
+if (status != GSL_SUCCESS) {
+    delete[] y;
+    delete[] yerr;
+    throw std::runtime_error("GSL RK4 step failed");
+}
+```
+
+**Exception Safety Guidelines:**
+- Always provide descriptive error messages with context
+- Include relevant values in error messages for debugging
+- Use RAII to ensure resources are cleaned up even if exceptions are thrown
+- Document which exceptions each public method can throw
+
 ### Namespace and Naming
 
 All simulation code lives in the `tank_sim` namespace:
