@@ -31,10 +31,17 @@ Phrase questions specifically:
 ### Step 4: Implement
 Write the code according to the specification.
 
-### Step 5: Verify
+### Step 5: Ask Before Proceeding
+After implementing what was requested, stop and ask the human what to do next.
+Do not automatically compile, test, or move to the next subtask. Examples:
+- "I've implemented Step 1. Ready for me to compile and test?"
+- "Step 2 is complete. Should I proceed to Step 3 or make changes first?"
+- "Code is written. What would you like me to do next?"
+
+### Step 6: Verify
 Check your work against the acceptance criteria before marking complete.
 
-### Step 6: Commit
+### Step 7: Commit
 ```bash
 git add <specific-files>
 git commit -m "Task N: Brief description"

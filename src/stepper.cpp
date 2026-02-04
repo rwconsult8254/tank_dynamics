@@ -45,6 +45,7 @@ struct StepperContext {
   Stepper::DerivativeFunc *deriv_func;
   double t;
   const Eigen::VectorXd *input;
+  size_t state_dimension;
 };
 
 /**
@@ -71,9 +72,9 @@ static int gsl_derivative_wrapper(double t, const double y[], double dydt[],
   // Step 2: Convert C array y to an Eigen vector (wrap, don't copy)
   // y is a C array of doubles (state values)
   // Eigen::Map creates a vector view of this array without copying data
-  // Size is determined by the input vector size (both should match)
+  // Size is determined by the state dimension from the stepper
   Eigen::VectorXd state =
-      Eigen::Map<const Eigen::VectorXd>(y, ctx->input->size());
+      Eigen::Map<const Eigen::VectorXd>(y, ctx->state_dimension);
 
   // Step 3: Call the user's derivative function
   // Pass:
@@ -124,7 +125,7 @@ Eigen::VectorXd Stepper::step(double t, double dt, const Eigen::VectorXd &state,
   }
 
   // Step 2: Create context structure for the GSL callback
-  StepperContext ctx{&deriv_func, t, &input};
+  StepperContext ctx{&deriv_func, t, &input, state_dimension_};
 
   // Step 3: Create and configure the GSL system structure
   gsl_odeiv2_system sys = {gsl_derivative_wrapper, nullptr, state_dimension_,

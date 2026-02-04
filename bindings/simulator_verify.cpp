@@ -10,15 +10,6 @@ int main() {
   std::cout << "Simulator Verification Program\n";
   std::cout << "========================================\n\n";
 
-  // NOTE: There is currently a bug in stepper.cpp:gsl_derivative_wrapper()
-  // where it creates the state vector using ctx->input->size() instead of
-  // the actual state dimension. This causes step() to fail with an assertion
-  // in tank_model.cpp when the state size is 1 but input size is 2.
-  // 
-  // The fix required: Pass state_dimension through the StepperContext so
-  // the wrapper can use the correct size when creating the state vector.
-  // This test will pass once that bug is fixed.
-
   // Create configuration as specified in Task 8
   Simulator::ControllerConfig controller_config;
   controller_config.gains.Kc = 1.0;
@@ -60,13 +51,6 @@ int main() {
   std::cout << "  Controller: valve position based on tank level\n\n";
 
   try {
-    // Debug: print config sizes before constructing
-    std::cout << "Debug info before construction:\n";
-    std::cout << "  initialState size: " << config.initialState.size() << "\n";
-    std::cout << "  initialInputs size: " << config.initialInputs.size() << "\n";
-    std::cout << "  initialState values: " << config.initialState.transpose() << "\n";
-    std::cout << "  initialInputs values: " << config.initialInputs.transpose() << "\n\n";
-
     // Construct Simulator
     std::cout << "Constructing Simulator...\n";
     Simulator simulator(config);
@@ -75,9 +59,7 @@ int main() {
     // Get initial state
     std::cout << "Initial State:\n";
     std::cout << "  Time: " << simulator.getTime() << " s\n";
-    std::cout << "  State size: " << simulator.getState().size() << "\n";
     std::cout << "  State: " << simulator.getState().transpose() << " m\n";
-    std::cout << "  Inputs size: " << simulator.getInputs().size() << "\n";
     std::cout << "  Inputs: " << simulator.getInputs().transpose() << "\n";
     std::cout << "  Setpoint: " << simulator.getSetpoint(0) << " m\n\n";
 
