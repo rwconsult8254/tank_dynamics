@@ -1,1027 +1,1003 @@
 # Next Tasks - Tank Dynamics Simulator
 
-## Current Phase: Phase 2 - Python Bindings
+## Current Phase: Phase 3 - FastAPI Backend
 
-**Status:** Starting Phase 2 - C++ simulation core complete and tested
+**Status:** Starting Phase 3 - Python bindings complete and tested
 
-**Progress:** 0% - Phase 2 just beginning
+**Progress:** 0% - Phase 3 just beginning
 
-**Phase 1 Completion:**
-- ✅ All C++ classes implemented (TankModel, PIDController, Stepper, Simulator)
-- ✅ 42 tests passing (100% pass rate)
+**Phase 2 Completion:**
+- ✅ pybind11 module structure created
+- ✅ All C++ classes bound to Python
+- ✅ 28 Python tests passing (100% pass rate)
+- ✅ Modern Python packaging with scikit-build-core
 - ✅ Code review feedback implemented
-- ✅ Comprehensive documentation complete
-- ✅ Ready for Python bindings
+- ✅ Complete documentation and examples
+- ✅ Ready for FastAPI integration
 
 ---
 
-## Task 10: Create pybind11 Module Structure
+## Task 13: Create FastAPI Project Structure
 
-**Phase:** 2 - Python Bindings
-**Prerequisites:** Phase 1 complete (all C++ classes implemented and tested)
+**Phase:** 3 - FastAPI Backend
+**Prerequisites:** Phase 2 complete (Python bindings working)
 
 ### Files to Create
 
-- Create `/home/roger/dev/tank_dynamics/bindings/bindings.cpp`
-- Create `/home/roger/dev/tank_dynamics/pyproject.toml` (modern Python packaging with scikit-build-core)
-- Create `/home/roger/dev/tank_dynamics/tank_sim/__init__.py` (Python package initialization)
-- Update `/home/roger/dev/tank_dynamics/bindings/CMakeLists.txt` to build Python module
-- Update `/home/roger/dev/tank_dynamics/CMakeLists.txt` to fetch pybind11
+- Create `/home/roger/dev/tank_dynamics/api/__init__.py`
+- Create `/home/roger/dev/tank_dynamics/api/main.py` (FastAPI application entry point)
+- Create `/home/roger/dev/tank_dynamics/api/models.py` (Pydantic models for API)
+- Create `/home/roger/dev/tank_dynamics/api/simulation.py` (Simulation orchestration)
+- Create `/home/roger/dev/tank_dynamics/api/requirements.txt` (API dependencies)
+- Create `/home/roger/dev/tank_dynamics/api/.env.example` (Example environment configuration)
 
 ### Requirements
 
-This task sets up the infrastructure for exposing the C++ simulation library to Python using pybind11. The goal is to create a Python package called `tank_sim` that can be imported and used from Python code.
+This task establishes the FastAPI project structure and basic application setup without implementing the simulation loop or WebSocket functionality yet. The goal is to create a working FastAPI application with proper project organization and configuration.
 
-#### bindings.cpp specifications:
+#### Directory Structure:
 
-This file creates the pybind11 module that wraps the C++ classes for Python.
+The api directory should be organized as follows:
+- main.py contains the FastAPI application instance, startup/shutdown events, and route imports
+- models.py contains Pydantic models for request/response validation and type safety
+- simulation.py will contain the simulation loop and state management (minimal stub for now)
+- requirements.txt lists all Python dependencies needed for the API server
+- __init__.py makes the directory a Python package
 
-The file should include necessary headers:
-- pybind11 headers (pybind11/pybind11.h, pybind11/eigen.h, pybind11/stl.h)
-- All C++ class headers (simulator.h, tank_model.h, pid_controller.h, stepper.h)
-- Eigen headers for automatic numpy conversion
+#### api/models.py specifications:
 
-Define the Python module using the PYBIND11_MODULE macro:
-- Module name should be underscore tank_sim (the internal C++ module name)
-- Module docstring should describe the package: "Tank Dynamics Simulator - Real-time tank level control simulation with PID control"
+This file defines Pydantic models representing the data structures used in the API. These provide automatic validation, serialization, and documentation.
 
-For now, just create a minimal working module with a simple test function:
-- Add a function called "get_version" that returns a string with the version number "0.1.0"
-- Add module docstring explaining this is the Python interface to the C++ simulation core
+Create the following Pydantic models:
 
-The full class bindings will be added in subsequent tasks. This task focuses on getting the build infrastructure working.
+A model representing the simulation state snapshot:
+- time: float (simulation time in seconds)
+- tank_level: float (current tank level in meters)
+- setpoint: float (level setpoint in meters)
+- inlet_flow: float (inlet flow rate in cubic meters per second)
+- outlet_flow: float (outlet flow rate in cubic meters per second)
+- valve_position: float (valve position from 0 to 1)
+- error: float (control error: setpoint minus level)
+- controller_output: float (PID controller output, 0 to 1)
 
-#### pyproject.toml specifications:
+A model for setpoint change commands:
+- value: float (new setpoint in meters)
+- Validation: must be between 0.0 and 5.0 (maximum tank height)
 
-This file configures how the Python package is built and installed using the modern `pyproject.toml` standard with `scikit-build-core`. This approach leverages the existing CMakeLists.txt rather than duplicating build configuration.
+A model for PID tuning commands:
+- Kc: float (proportional gain, must be non-negative)
+- tau_I: float (integral time constant in seconds, 0 means no integral action)
+- tau_D: float (derivative time constant in seconds, 0 means no derivative action)
+- Validation: all values must be non-negative
 
-**Why scikit-build-core instead of setup.py:**
-- `setup.py` is deprecated; `pyproject.toml` is the modern Python packaging standard (PEP 517/518)
-- scikit-build-core integrates with CMake, reusing your existing build configuration
-- Works seamlessly with `uv` for reproducible virtual environments
-- Clean `pip install .` workflow for both development and VPS deployment
+A model for inlet flow commands:
+- value: float (new inlet flow in cubic meters per second)
+- Validation: must be between 0.0 and 2.0 (reasonable operating range)
 
-The pyproject.toml should contain:
+A model for inlet mode commands:
+- mode: string (either "constant" or "brownian")
+- min_flow: optional float (minimum flow for Brownian mode, default 0.8)
+- max_flow: optional float (maximum flow for Brownian mode, default 1.2)
+- Validation: mode must be one of the allowed values, min must be less than max
 
-```toml
-[build-system]
-requires = ["scikit-build-core>=0.8", "pybind11>=2.11"]
-build-backend = "scikit_build_core.build"
+A model for configuration response:
+- tank_height: float (maximum tank height in meters)
+- tank_area: float (cross-sectional area in square meters)
+- valve_coefficient: float (valve k_v parameter)
+- initial_level: float (starting level in meters)
+- initial_setpoint: float (starting setpoint in meters)
+- pid_gains: object containing Kc, tau_I, tau_D
+- timestep: float (simulation time step in seconds)
 
-[project]
-name = "tank-sim"
-version = "0.1.0"
-description = "Real-time tank dynamics simulator with PID control"
-readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.10"
-authors = [
-    {name = "Roger"}
-]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Education",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: C++",
-    "Topic :: Scientific/Engineering",
-]
-dependencies = [
-    "numpy>=1.20",
-]
+A model for history query parameters:
+- duration: optional integer (seconds of history to return, default 3600)
+- Validation: must be positive and not exceed 7200 (2 hours max buffer)
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-]
-api = [
-    "fastapi>=0.100",
-    "uvicorn[standard]>=0.20",
-    "websockets>=11.0",
-]
+Use Pydantic's Field function to add constraints:
+- ge for greater-than-or-equal-to constraints
+- le for less-than-or-equal-to constraints
+- description strings for API documentation
 
-[tool.scikit-build]
-cmake.minimum-version = "3.20"
-cmake.build-type = "Release"
-wheel.packages = ["tank_sim"]
+All models should have clear docstrings explaining their purpose.
 
-[tool.pytest.ini_options]
-testpaths = ["tests/python"]
-python_files = ["test_*.py"]
-addopts = "-v"
-```
+#### api/simulation.py specifications:
 
-**Key configuration notes:**
-- `requires-python = ">=3.10"` - Modern Python for better type hints and performance
-- `dependencies` includes numpy (required for array conversions)
-- `[project.optional-dependencies]` separates dev tools from production dependencies
-- `[tool.scikit-build]` tells scikit-build-core to use the existing CMakeLists.txt
-- The `wheel.packages` setting ensures the `tank_sim/` Python package is included
+This file manages the simulation state and provides an interface for the API to interact with the tank simulator. For this task, create a minimal stub that will be expanded in later tasks.
 
-#### tank_sim/__init__.py specifications:
+Create a class called SimulationManager with the following structure:
 
-This file makes tank_sim a proper Python package and provides the public API.
+The class should be designed as a singleton (only one instance exists) to manage the shared simulation state across all API requests and WebSocket connections.
 
-The file should:
-- Import the C++ extension module (from ._tank_sim import *)
-- Define package version: `__version__ = "0.1.0"`
-- Define what gets exported with `__all__` list (for now just ["get_version"])
-- Add module docstring explaining the package purpose
+For now, implement these methods as stubs:
 
-Example structure:
-```
-Tank Dynamics Simulator
-=======================
+A constructor that:
+- Accepts a configuration dictionary
+- Stores the configuration
+- Sets initialized flag to False
+- Prepares for future initialization of the tank_sim.Simulator instance
 
-A real-time tank level control simulator with PID control.
+A method called initialize that:
+- Creates the tank_sim.Simulator instance using the stored configuration
+- Sets the initialized flag to True
+- Will be called during FastAPI startup
 
-This package provides Python bindings to a high-performance C++ simulation
-engine that models:
-- Tank material balance (ODE integration using GSL RK4)
-- PID feedback control with anti-windup
-- Valve dynamics and flow calculations
+A method called get_state that:
+- Returns a dictionary with current simulation state
+- For now, return dummy data matching the StateSnapshot model structure
+- Will be implemented properly in the next task
 
-Basic usage:
-    import tank_sim
-    # Full API will be available after Task 11
-```
+A method called step that:
+- Advances the simulation by one time step
+- For now, just return without doing anything
+- Will be implemented in the next task
 
-#### bindings/CMakeLists.txt update:
+A method called reset that:
+- Resets the simulation to initial conditions
+- For now, just set a flag
+- Will be implemented in the next task
 
-Update the existing CMakeLists.txt in bindings/ to build a Python module instead of just verification executables.
+Methods for control commands (setpoint, PID, inlet flow):
+- Accept the appropriate parameters
+- For now, just store them in instance variables
+- Will be implemented to actually call simulator methods in the next task
 
-The CMakeLists should:
-- Find pybind11 using `find_package(pybind11 REQUIRED)`
-- Create a Python module target using `pybind11_add_module`
-- Module name: tank_sim (without underscore in CMake target)
-- Sources: bindings.cpp
-- Link against: tank_sim_core library (contains all C++ classes)
-- Set output name to _tank_sim (with underscore for Python import)
-- Install the module to appropriate location for Python to find it
+The purpose of this stub is to define the interface between the API and the simulation so that main.py can be written and tested without the full simulation loop running yet.
 
-The module should be installed where Python can import it. scikit-build-core handles this automatically when using `pip install`.
+#### api/main.py specifications:
 
-#### CMakeLists.txt updates (root):
+This file creates the FastAPI application, defines all endpoints, and manages the application lifecycle.
 
-Add pybind11 as a FetchContent dependency in the root CMakeLists.txt, similar to how Eigen3 and GoogleTest are handled:
+Create a FastAPI application instance with:
+- Title: "Tank Dynamics Simulator API"
+- Description: "Real-time tank level control simulation with PID control"
+- Version: "0.1.0"
 
-```cmake
-# ============================================================================
-# PYBIND11 FETCH (for Python bindings)
-# ============================================================================
-FetchContent_Declare(
-    pybind11
-    GIT_REPOSITORY https://github.com/pybind/pybind11.git
-    GIT_TAG        v2.11.1
-)
-FetchContent_MakeAvailable(pybind11)
-```
+Enable CORS middleware to allow frontend connections:
+- Allow origins from localhost ports 3000 and 5173 (Next.js and Vite dev servers)
+- Allow credentials
+- Allow all methods
+- Allow all headers
 
-This should be added after the GoogleTest fetch and before the library target definition.
+Create a global SimulationManager instance that will be shared across all requests.
 
-Also add Python detection near the top of the file:
-```cmake
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
-```
+Define a startup event handler that:
+- Initializes the SimulationManager with default configuration
+- Logs that the application has started
+- Will eventually start the simulation loop (in next task)
 
-### Build and Installation Process
+Define a shutdown event handler that:
+- Logs that the application is shutting down
+- Will eventually stop the simulation loop (in next task)
 
-After implementation, the build process uses `uv` for reproducible environments:
+Create the following REST endpoints:
 
-**Development workflow (recommended):**
-```bash
-# Create virtual environment with uv
-uv venv
-source .venv/bin/activate
+GET /api/health:
+- Returns a simple health check response with status "ok"
+- No authentication needed
+- Used for monitoring and deployment health checks
 
-# Install in editable mode with dev dependencies
-uv pip install -e ".[dev]"
+GET /api/config:
+- Returns the current simulation configuration
+- Uses the ConfigResponse Pydantic model
+- Calls SimulationManager to get configuration data
 
-# Run tests
-pytest tests/python/ -v
-```
+POST /api/reset:
+- Resets the simulation to initial steady state
+- Returns success message
+- Calls SimulationManager.reset()
 
-**Production/VPS installation:**
-```bash
-# Create virtual environment
-uv venv
-source .venv/bin/activate
+POST /api/setpoint:
+- Accepts SetpointCommand in request body
+- Updates the simulation setpoint
+- Returns success message with new setpoint value
+- Validates input using Pydantic model
 
-# Install with API dependencies for FastAPI server
-uv pip install ".[api]"
-```
+POST /api/pid:
+- Accepts PIDCommand in request body
+- Updates PID controller gains
+- Returns success message with new gains
+- Validates input using Pydantic model
 
-**CMake-only build (for C++ development/debugging):**
-```bash
-# Build with CMake as before
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+POST /api/inlet_flow:
+- Accepts InletFlowCommand in request body
+- Updates inlet flow rate
+- Returns success message with new flow
+- Validates input using Pydantic model
 
-# Python module will be in build/bindings/_tank_sim.so
-# For quick testing, add to PYTHONPATH:
-export PYTHONPATH=$PWD/build/bindings:$PWD:$PYTHONPATH
-python -c "import tank_sim; print(tank_sim.get_version())"
-```
+POST /api/inlet_mode:
+- Accepts InletModeCommand in request body
+- Switches inlet between constant and Brownian modes
+- Returns success message with mode and parameters
+- Validates input using Pydantic model
 
-**Building a wheel for distribution:**
-```bash
-uv pip install build
-python -m build --wheel
-# Output: dist/tank_sim-0.1.0-cp310-cp310-linux_x86_64.whl
-```
+GET /api/history:
+- Accepts duration query parameter (optional, default 3600 seconds)
+- Returns historical data points
+- For now, return empty list (will implement ring buffer in next task)
+- Will eventually return list of StateSnapshot objects
 
-The recommended workflow is using `uv pip install -e ".[dev]"` which handles everything automatically.
+WebSocket endpoint /ws:
+- For now, create a basic WebSocket endpoint that accepts connections
+- Log when clients connect and disconnect
+- Echo back any received messages (for testing)
+- Will be implemented with real-time state broadcasting in next task
+
+Use appropriate HTTP status codes:
+- 200 for successful GET/POST
+- 400 for validation errors (automatic via Pydantic)
+- 500 for server errors
+
+Include error handling:
+- Wrap endpoint logic in try-except blocks
+- Return appropriate error responses with details
+- Log errors for debugging
+
+#### api/requirements.txt specifications:
+
+List all dependencies needed to run the FastAPI server:
+
+- fastapi version 0.110.0 or higher (modern async support)
+- uvicorn version 0.27.0 or higher with standard extras (ASGI server)
+- pydantic version 2.6.0 or higher (data validation)
+- python-multipart (for form data, even though we use JSON)
+- websockets version 12.0 or higher (WebSocket support)
+- python-dotenv (environment variable management)
+- numpy version 1.20 or higher (array handling)
+
+For development and testing:
+- pytest version 7.0 or higher
+- pytest-asyncio version 0.23.0 or higher (async test support)
+- httpx version 0.26.0 or higher (async HTTP client for testing)
+
+Pin to specific versions using == to ensure reproducibility, or use >= with maximum known-good versions.
+
+The API will use the tank_sim package installed from the parent directory, so do not list it in requirements.txt (it will be installed separately).
+
+#### api/.env.example specifications:
+
+Create an example environment file showing configuration options:
+
+Include these variables with example values:
+- HOST: 0.0.0.0 (bind to all interfaces)
+- PORT: 8000 (default FastAPI port)
+- LOG_LEVEL: info (uvicorn logging level)
+- RELOAD: true (auto-reload during development, false for production)
+
+Add comments explaining each variable and when to change them.
 
 ### Verification Strategy
 
-After implementing this task, verify the module can be imported:
+After creating all files:
 
-Create a simple test script `test_import.py`:
-```python
-import sys
-sys.path.insert(0, 'build/bindings')  # Or wherever module was built
-import tank_sim
+Test that FastAPI application starts:
+- Run uvicorn api.main:app from the project root
+- Application should start without errors
+- Navigate to http://localhost:8000/docs to see auto-generated API documentation
+- Swagger UI should display all endpoints with proper models
 
-print(f"tank_sim version: {tank_sim.get_version()}")
-print("Module imported successfully!")
-```
+Test health endpoint:
+- curl http://localhost:8000/api/health
+- Should return JSON with status "ok"
 
-Run the script:
-```bash
-python test_import.py
-```
+Test config endpoint:
+- curl http://localhost:8000/api/config
+- Should return configuration data (even if dummy data for now)
 
-Expected output:
-```
-tank_sim version: 0.1.0
-Module imported successfully!
-```
+Test WebSocket connection:
+- Use a WebSocket client tool or simple Python script
+- Connect to ws://localhost:8000/ws
+- Send a test message
+- Should receive the message echoed back
 
-If this works, the pybind11 infrastructure is correctly set up.
+Verify API documentation:
+- Open http://localhost:8000/docs
+- Check that all endpoints are documented
+- Verify Pydantic models show up with validation rules
+- Test request/response examples in Swagger UI
+
+Check that all imports work:
+- Python should be able to import tank_sim
+- All Pydantic models should validate correctly
+- FastAPI should detect all route handlers
 
 ### Edge Cases and Potential Issues
 
-**pybind11 not found:**
-- Install via pip: `pip install pybind11`
-- Or via package manager: `sudo apt install pybind11-dev` (Ubuntu)
-- CMake should find it automatically after installation
+Import paths:
+- The api directory should be importable from the project root
+- Run the server from the project root directory, not from inside api/
+- Make sure PYTHONPATH includes the project root if needed
 
-**Import errors:**
-- Module must be in Python path
-- Check that _tank_sim.so (or .pyd) exists in expected location
-- Verify all C++ dependencies are linked (GSL, Eigen)
+Tank_sim package availability:
+- The Python bindings must be installed before running the API
+- Use pip install -e . from project root to install in development mode
+- Or use uv pip install -e . if using uv for environment management
 
-**ABI compatibility:**
-- Python module must be compiled with same Python version as runtime
-- Use `python3 -m pybind11 --includes` to get correct include paths
+CORS configuration:
+- If frontend runs on a different port, add it to allowed origins
+- Development typically uses localhost:3000 (Next.js) or localhost:5173 (Vite)
 
-**CMake FindPython issues:**
-- May need to specify Python version explicitly
-- Use `find_package(Python3 REQUIRED COMPONENTS Interpreter Development)`
+Port conflicts:
+- Default port 8000 may already be in use
+- Can override with --port flag when running uvicorn
+- Or set PORT in .env file
+
+Validation errors:
+- Pydantic will automatically validate all request bodies
+- Returns 422 Unprocessable Entity for validation failures
+- Error messages show which fields failed and why
+
+Async vs sync:
+- FastAPI works best with async/await
+- The tank_sim package is synchronous (C++ bindings)
+- For now this is fine; simulation loop will run in background task
 
 ### Acceptance Criteria
 
-- [ ] bindings/bindings.cpp created with minimal pybind11 module
-- [ ] PYBIND11_MODULE macro defines _tank_sim module
-- [ ] Module includes get_version() function returning "0.1.0"
-- [ ] pyproject.toml created with scikit-build-core configuration
-- [ ] tank_sim/__init__.py created with package initialization
-- [ ] bindings/CMakeLists.txt updated to build Python module using pybind11
-- [ ] Root CMakeLists.txt updated with pybind11 FetchContent
-- [ ] Root CMakeLists.txt updated with Python3 find_package
-- [ ] Module builds without errors via `uv pip install -e ".[dev]"`
-- [ ] Module can be imported from Python: `import tank_sim`
-- [ ] get_version() returns "0.1.0" when called from Python
-- [ ] No import errors or missing symbols
-- [ ] Virtual environment workflow documented and tested
+- [ ] All files created in api/ directory
+- [ ] FastAPI application starts without errors
+- [ ] Health endpoint returns 200 OK
+- [ ] Config endpoint returns valid configuration
+- [ ] All POST endpoints accept and validate requests
+- [ ] Pydantic models validate input correctly
+- [ ] WebSocket endpoint accepts connections
+- [ ] API documentation available at /docs
+- [ ] requirements.txt includes all dependencies
+- [ ] No import errors when running application
+- [ ] Code follows FastAPI best practices
 
 ---
 
-## Task 11: Bind Simulator Class to Python
+## Task 14: Implement Simulation Loop and WebSocket Broadcasting
 
-**Phase:** 2 - Python Bindings
-**Prerequisites:** Task 10 (pybind11 module structure must exist)
+**Phase:** 3 - FastAPI Backend
+**Prerequisites:** Task 13 complete (FastAPI structure created)
 
 ### Files to Modify
 
-- Modify `/home/roger/dev/tank_dynamics/bindings/bindings.cpp`
-- Update `/home/roger/dev/tank_dynamics/tank_sim/__init__.py`
+- Modify `/home/roger/dev/tank_dynamics/api/simulation.py`
+- Modify `/home/roger/dev/tank_dynamics/api/main.py`
 
 ### Requirements
 
-This task exposes the Simulator class to Python with all its functionality. This is the main public API that Python users will interact with.
+This task implements the real-time simulation loop that runs at 1 Hz and broadcasts state updates to all connected WebSocket clients. This is the core functionality that makes the API a live, real-time system.
 
-The Simulator class is complex with nested configuration structures, so the bindings must handle:
-- Nested structures (Config, ControllerConfig, Parameters, Gains)
-- Eigen::VectorXd conversion to/from numpy arrays
-- Method overloads and default parameters
-- Exception propagation from C++ to Python
+#### Background Task Architecture:
 
-#### bindings.cpp modifications:
+FastAPI provides background tasks that run alongside the application. The simulation loop will run as an asyncio task that:
+- Starts when the application starts (in the startup event)
+- Runs continuously in the background at 1 Hz
+- Stops when the application shuts down (in the shutdown event)
+- Broadcasts state to all connected WebSocket clients after each step
 
-Add bindings for all the nested structures and the Simulator class.
+The challenge is coordinating between:
+- The synchronous tank_sim.Simulator (C++ code)
+- The async FastAPI WebSocket handlers
+- The 1 Hz timing requirement
 
-**Bind TankModel::Parameters structure:**
-Create a Python class that mirrors the C++ structure:
-- Structure name: "TankModelParameters"
-- Fields: area (float), k_v (float), max_height (float)
-- All fields should be read-write properties
-- Add docstring explaining each field with units
+#### api/simulation.py modifications:
 
-**Bind PIDController::Gains structure:**
-Create a Python class for PID gains:
-- Structure name: "PIDGains"
-- Fields: Kc (float), tau_I (float), tau_D (float)
-- All fields should be read-write properties
-- Add docstring explaining gain meanings and units
+Replace the stub methods with full implementations.
 
-**Bind Simulator::ControllerConfig structure:**
-Create a Python class for controller configuration:
-- Structure name: "ControllerConfig"
-- Fields:
-  - gains (PIDGains)
-  - bias (float)
-  - min_output (float)
-  - max_output (float)
-  - max_integral (float)
-  - measured_index (int)
-  - output_index (int)
-  - initial_setpoint (float)
-- All fields should be read-write properties
-- Add comprehensive docstring explaining each field
+Add a connections set to track active WebSocket connections:
+- Use a Python set to store WebSocket connection objects
+- Add connections when clients connect
+- Remove connections when clients disconnect
+- Thread-safe access since multiple async tasks may modify it
 
-**Bind Simulator::Config structure:**
-Create a Python class for simulator configuration:
-- Structure name: "SimulatorConfig"
-- Fields:
-  - model_params (TankModelParameters)
-  - controllers (list of ControllerConfig)
-  - initial_state (numpy array, converted from Eigen::VectorXd)
-  - initial_inputs (numpy array, converted from Eigen::VectorXd)
-  - dt (float)
-- Add docstring with example usage
+Implement the initialize method properly:
+- Import tank_sim
+- Call tank_sim.create_default_config() to get base configuration
+- Create a tank_sim.Simulator instance
+- Store it as an instance variable
+- Set initialized flag to True
 
-**Bind Simulator class:**
-Expose all public methods:
-- Constructor: accepts SimulatorConfig
-- step() method: advances simulation by one timestep
-- getTime() method: returns current time
-- getState() method: returns state as numpy array
-- getInputs() method: returns inputs as numpy array
-- getSetpoint(index) method: returns setpoint for controller
-- getControllerOutput(index) method: returns controller output
-- getError(index) method: returns control error
-- setInput(index, value) method: set an input value
-- setSetpoint(index, value) method: change controller setpoint
-- setControllerGains(index, gains) method: retune controller
-- reset() method: return to initial conditions
+Implement the get_state method:
+- Check that simulator is initialized
+- Call appropriate methods on the simulator to get current state:
+  - getTime() for simulation time
+  - getState() returns numpy array - extract tank level (index 0)
+  - getInputs() returns numpy array - extract inlet flow and valve position
+  - getSetpoint() for the level setpoint
+  - getError() for control error
+- Calculate outlet flow using valve equation: q_out = k_v * valve_position * sqrt(tank_level)
+- Return a dictionary matching the StateSnapshot Pydantic model
+- Handle any exceptions and return safe default values
 
-Add comprehensive docstrings to the class and each method explaining:
-- Purpose and behavior
-- Parameters and return types
-- Units where applicable
-- Usage examples
+Implement the step method:
+- Call simulator.step() to advance simulation by one time step
+- This is a synchronous call to C++ code
+- Will be called from the simulation loop at 1 Hz
 
-**Handle Eigen::VectorXd conversion:**
-- Use pybind11/eigen.h for automatic numpy array conversion
-- Include proper header: `#include <pybind11/eigen.h>`
-- Eigen vectors automatically become numpy arrays in Python
-- Numpy arrays automatically become Eigen vectors in C++
+Implement control command methods:
+- set_setpoint: call simulator.setSetpoint(0, value) - 0 is the controller index
+- set_pid_gains: call simulator.setControllerGains(0, gains) with a gains dictionary
+- set_inlet_flow: call simulator.setInput(0, value) - 0 is the inlet flow input index
+- set_inlet_mode: store mode and parameters for Brownian implementation (future task)
 
-**Handle std::vector conversion:**
-- Use pybind11/stl.h for automatic list conversion
-- Include proper header: `#include <pybind11/stl.h>`
-- std::vector becomes Python list automatically
+Implement the reset method:
+- Call simulator.reset() to restore initial conditions
+- Reset any internal state variables
 
-**Exception handling:**
-- C++ exceptions automatically propagate to Python
-- std::invalid_argument becomes ValueError
-- std::out_of_range becomes IndexError
-- std::runtime_error becomes RuntimeError
-- No special handling needed, pybind11 does this automatically
+Add a broadcast method:
+- Accepts a message dictionary
+- Iterates through all connected WebSockets
+- Sends the message to each connection
+- Removes connections that fail (client disconnected)
+- Use asyncio to send messages concurrently
+- Handle WebSocket errors gracefully
 
-#### tank_sim/__init__.py modifications:
+Add a simulation_loop coroutine:
+- Runs forever in a while True loop
+- Uses asyncio.sleep(1.0) to maintain 1 Hz timing
+- Calls self.step() to advance simulation
+- Calls self.get_state() to get current state
+- Formats state as JSON message: {"type": "state", "data": {...}}
+- Calls self.broadcast() to send to all clients
+- Handles exceptions without crashing the loop
+- Logs each iteration for debugging
 
-Update the package initialization to export the bound classes:
+#### api/main.py modifications:
 
-- Import all classes from _tank_sim module
-- Update `__all__` list to include:
-  - "Simulator"
-  - "SimulatorConfig"
-  - "ControllerConfig"
-  - "TankModelParameters"
-  - "PIDGains"
-  - "get_version"
+Add a module-level variable to store the background task:
+- simulation_task: asyncio.Task or None
+- Used to track and cancel the task on shutdown
 
-Add a convenience function to create a default configuration:
-- Function name: create_default_config()
-- Returns SimulatorConfig with standard steady-state values
-- Uses constants from plan.md:
-  - Tank: area=120.0, k_v=1.2649, max_height=5.0
-  - Initial state: [2.5] (50% level)
-  - Initial inputs: [1.0, 0.5] (inlet flow, valve position)
-  - PID gains: Kc=-1.0, tau_I=10.0, tau_D=1.0 (negative Kc for reverse-acting)
-  - dt=1.0 second
+Modify the startup event handler:
+- After initializing SimulationManager, create the simulation loop task
+- Use asyncio.create_task(simulation_manager.simulation_loop())
+- Store the task reference in simulation_task
+- Log that the simulation loop has started
 
-This provides an easy way for users to get started without manually configuring everything.
+Modify the shutdown event handler:
+- Cancel the simulation_task if it exists
+- Use task.cancel() and await it
+- Log that the simulation loop has stopped
 
-### Python API Example
+Implement the WebSocket endpoint /ws properly:
+- Accept the WebSocket connection with await websocket.accept()
+- Add the connection to simulation_manager.connections
+- Start a receive loop to handle incoming client messages
+- Parse JSON messages from clients
+- Route messages based on "type" field:
+  - "setpoint": extract value and call set_setpoint
+  - "pid": extract Kc, tau_I, tau_D and call set_pid_gains
+  - "inlet_flow": extract value and call set_inlet_flow
+  - "inlet_mode": extract mode and parameters, call set_inlet_mode
+- Handle WebSocketDisconnect exception when client disconnects
+- Remove connection from simulation_manager.connections in finally block
+- Log all connections and disconnections
 
-After implementation, users should be able to write:
+Add error handling:
+- Catch and log any exceptions in message parsing
+- Send error messages back to client on invalid commands
+- Don't crash the WebSocket connection on errors
 
-```python
-import tank_sim
-import numpy as np
+### Timing Considerations
 
-# Create configuration
-config = tank_sim.create_default_config()
+The 1 Hz simulation loop must be accurate and consistent:
 
-# Or manually:
-config = tank_sim.SimulatorConfig()
-config.model_params = tank_sim.TankModelParameters(
-    area=120.0,
-    k_v=1.2649,
-    max_height=5.0
-)
-config.controllers = [
-    tank_sim.ControllerConfig(
-        gains=tank_sim.PIDGains(Kc=-1.0, tau_I=10.0, tau_D=1.0),
-        bias=0.5,
-        min_output=0.0,
-        max_output=1.0,
-        max_integral=10.0,
-        measured_index=0,
-        output_index=1,
-        initial_setpoint=2.5
-    )
-]
-config.initial_state = np.array([2.5])
-config.initial_inputs = np.array([1.0, 0.5])
-config.dt = 1.0
+Use asyncio.sleep(1.0) for timing:
+- This is sufficient for 1 Hz and won't accumulate drift
+- More sophisticated timing could use time.time() to measure actual elapsed time
+- For this application, simple sleep is acceptable
 
-# Create simulator
-sim = tank_sim.Simulator(config)
+The simulator.step() call is synchronous (C++):
+- It should complete in well under 1 second (likely microseconds)
+- Running it in the async event loop is fine for this use case
+- If it becomes a bottleneck, could use run_in_executor to run in thread pool
 
-# Run simulation
-for i in range(100):
-    sim.step()
-    state = sim.get_state()
-    time = sim.get_time()
-    print(f"t={time:.1f}, level={state[0]:.3f}")
+Broadcasting to WebSocket clients is async:
+- Send to all clients concurrently using asyncio.gather or similar
+- Don't wait for slow clients - drop messages if send fails
 
-# Change setpoint
-sim.set_setpoint(0, 3.0)
+### WebSocket Message Format
 
-# Continue simulation
-for i in range(100):
-    sim.step()
+Messages from server to clients (broadcast):
+```json
+{
+  "type": "state",
+  "data": {
+    "time": 125.0,
+    "tank_level": 2.5,
+    "setpoint": 2.5,
+    "inlet_flow": 1.0,
+    "outlet_flow": 1.0,
+    "valve_position": 0.5,
+    "error": 0.0,
+    "controller_output": 0.5
+  }
+}
+```
+
+Messages from clients to server:
+```json
+{"type": "setpoint", "value": 3.0}
+{"type": "pid", "Kc": 1.5, "tau_I": 10.0, "tau_D": 0.0}
+{"type": "inlet_flow", "value": 1.2}
+{"type": "inlet_mode", "mode": "brownian", "min": 0.8, "max": 1.2}
+```
+
+Error messages from server to clients:
+```json
+{"type": "error", "message": "Invalid command format"}
 ```
 
 ### Verification Strategy
 
-Create a Python test script `test_bindings.py`:
+Test simulation loop startup:
+- Start the FastAPI server
+- Check logs for "Simulation loop started" message
+- Verify no errors in startup
 
-Test 1: Configuration creation
-- Create SimulatorConfig with all parameters
-- Verify all fields are accessible
-- Verify types are correct (numpy arrays, not lists)
+Test WebSocket connection and broadcasting:
+- Use a WebSocket client (wscat, websocat, or Python script)
+- Connect to ws://localhost:8000/ws
+- Should immediately start receiving state messages every second
+- Verify time field increments by 1 each message
+- Verify state values are reasonable (level around 2.5, flows around 1.0)
 
-Test 2: Simulator construction
-- Create Simulator with valid config
-- Should succeed without exceptions
+Test setpoint command:
+- Send setpoint change: {"type": "setpoint", "value": 3.0}
+- Watch state messages - level should start increasing
+- Error should change from ~0 to negative
+- Valve position should change as PID responds
 
-Test 3: Steady state
-- Create Simulator at steady state
-- Run 100 steps
-- Verify state doesn't change significantly
+Test PID tuning:
+- Send new PID gains: {"type": "pid", "Kc": 2.0, "tau_I": 5.0, "tau_D": 0.0}
+- Make a setpoint change
+- Observe different response (faster, potentially more oscillation)
 
-Test 4: Setpoint change
-- Start at steady state
-- Change setpoint
-- Verify level moves toward new setpoint
+Test inlet flow change:
+- Send inlet flow change: {"type": "inlet_flow", "value": 0.8}
+- Level should start decreasing (outlet > inlet)
+- PID should open valve to compensate
 
-Test 5: Exception handling
-- Try to create Simulator with invalid config
-- Should raise ValueError (from std::invalid_argument)
-- Try to access invalid controller index
-- Should raise IndexError (from std::out_of_range)
+Test multiple WebSocket clients:
+- Connect 2-3 clients simultaneously
+- All should receive the same state updates
+- Commands from one client should affect state seen by all
+
+Test client disconnect:
+- Connect a client and disconnect
+- Server should remove from connections list
+- No errors should be logged
+
+Test reset endpoint:
+- POST to /api/reset
+- Simulation should return to initial state
+- Level should go back to 2.5 m
+- Time should reset to 0
 
 ### Edge Cases
 
-**Numpy array type conversion:**
-- Numpy arrays might be float32 or float64
-- pybind11/eigen.h handles this automatically
-- Prefer float64 for numerical accuracy
+WebSocket connection failures:
+- Client disconnects unexpectedly - should be caught by WebSocketDisconnect
+- Network errors during send - should catch and remove connection
+- Invalid JSON from client - should send error message, not crash
 
-**Python list vs numpy array:**
-- Users might pass Python lists instead of numpy arrays
-- pybind11 can convert lists to Eigen vectors automatically
-- Document that numpy arrays are preferred
+Simulation errors:
+- If simulator.step() raises exception - log and continue loop
+- If get_state() fails - send last known good state or default values
 
-**Object lifetime:**
-- Simulator owns all internal data
-- Python garbage collection will clean up properly
-- No manual memory management needed
+Concurrent access:
+- Multiple WebSocket handlers may call set_setpoint etc. simultaneously
+- For now this is acceptable - last command wins
+- Could add locking if needed, but 1 Hz is slow enough it's unlikely to matter
 
-**Thread safety:**
-- Simulator is not thread-safe (document this)
-- Each thread should have its own Simulator instance
+Startup timing:
+- Ensure simulator is initialized before first loop iteration
+- Handle case where no clients are connected (don't error)
+
+Memory management:
+- Ring buffer not implemented yet (next task)
+- State is only current snapshot, no history stored yet
 
 ### Acceptance Criteria
 
-- [ ] TankModelParameters bound to Python with all fields
-- [ ] PIDGains bound to Python with all fields
-- [ ] ControllerConfig bound to Python with all fields
-- [ ] SimulatorConfig bound to Python with all fields
-- [ ] Simulator class bound with all methods
-- [ ] All methods have comprehensive docstrings
-- [ ] pybind11/eigen.h included for numpy conversion
-- [ ] pybind11/stl.h included for vector conversion
-- [ ] tank_sim/__init__.py updated to export all classes
-- [ ] create_default_config() convenience function added
-- [ ] Module builds without errors
-- [ ] test_bindings.py script created and runs successfully
-- [ ] Configuration can be created from Python
-- [ ] Simulator can be instantiated from Python
-- [ ] All getter methods return correct types (numpy arrays)
-- [ ] All setter methods accept correct types
-- [ ] Exceptions propagate correctly to Python
-- [ ] Steady state test passes
-- [ ] Setpoint change test passes
-- [ ] Documentation includes Python usage examples
+- [ ] Simulation loop runs at 1 Hz continuously
+- [ ] WebSocket clients receive state updates every second
+- [ ] Time field in state updates increments correctly
+- [ ] Setpoint changes propagate to simulator
+- [ ] PID gain changes work correctly
+- [ ] Inlet flow changes work correctly
+- [ ] Multiple clients can connect simultaneously
+- [ ] Client disconnects handled gracefully
+- [ ] Reset endpoint works correctly
+- [ ] No errors in simulation loop during normal operation
+- [ ] State values are physically reasonable
 
 ---
 
-## Task 12: Write Python Tests Using pytest
+## Task 15: Implement History Ring Buffer and REST Endpoints
 
-**Phase:** 2 - Python Bindings
-**Prerequisites:** Task 11 (Simulator must be bound to Python)
+**Phase:** 3 - FastAPI Backend
+**Prerequisites:** Task 14 complete (simulation loop and WebSocket working)
 
-### Files to Create
+### Files to Modify
 
-- Create `/home/roger/dev/tank_dynamics/tests/python/test_simulator_bindings.py`
-- Create `/home/roger/dev/tank_dynamics/tests/python/__init__.py` (empty, makes it a package)
-- Create `/home/roger/dev/tank_dynamics/tests/python/conftest.py` (pytest fixtures)
-
-**Note:** pytest configuration is already included in `pyproject.toml` (see Task 10), so no separate `pytest.ini` is needed.
+- Modify `/home/roger/dev/tank_dynamics/api/simulation.py`
+- Modify `/home/roger/dev/tank_dynamics/api/main.py`
 
 ### Requirements
 
-This task creates comprehensive Python tests that verify the bindings work correctly. These tests are similar to the C++ tests but written in Python using pytest.
+This task implements the historical data storage and retrieval system. The API needs to maintain a ring buffer of the last 2 hours of simulation data (approximately 7200 data points at 1 Hz) and provide REST endpoints to query this history.
 
-The tests serve two purposes:
-1. Verify the Python bindings expose all C++ functionality correctly
-2. Provide usage examples for Python users
+#### Ring Buffer Architecture:
 
-#### conftest.py specifications:
+A ring buffer (circular buffer) is a fixed-size data structure that overwrites the oldest data when full. This is perfect for maintaining a sliding window of recent history without unbounded memory growth.
 
-This file provides pytest fixtures (reusable test components).
+Key characteristics:
+- Fixed capacity: 7200 entries (2 hours at 1 Hz)
+- FIFO behavior: oldest data is automatically discarded
+- Efficient: O(1) insertion, no memory allocation after initialization
+- Thread-safe: needs to handle concurrent reads (from REST endpoint) and writes (from simulation loop)
 
-Create fixtures:
+Python implementation options:
+- collections.deque with maxlen parameter (built-in, thread-safe for our use case)
+- Custom circular buffer implementation (more control but unnecessary complexity)
+- Simple list with manual wraparound (error-prone)
 
-**default_config fixture:**
-- Returns a standard SimulatorConfig at steady state
-- Uses the same parameters as C++ tests
-- Can be reused across multiple test functions
+Recommendation: Use collections.deque with maxlen=7200 for simplicity and correctness.
 
-**steady_state_simulator fixture:**
-- Creates a Simulator instance with default_config
-- Returns the initialized simulator
-- Fixture scope: function (new instance per test)
+#### api/simulation.py modifications:
 
-Example structure:
-```python
-import pytest
-import tank_sim
-import numpy as np
+Add ring buffer initialization:
+- Import collections.deque
+- In __init__ or initialize method, create a deque with maxlen=7200
+- Store as instance variable: self.history
+- Each entry should be a complete state snapshot (dictionary matching StateSnapshot model)
 
-@pytest.fixture
-def default_config():
-    """Standard steady-state configuration"""
-    config = tank_sim.create_default_config()
-    return config
+Modify the simulation_loop coroutine:
+- After calling get_state(), store the result in the ring buffer
+- Use self.history.append(state_dict)
+- The deque will automatically discard oldest entry when at max capacity
+- This happens after broadcasting to WebSocket clients
 
-@pytest.fixture
-def steady_state_simulator(default_config):
-    """Simulator initialized at steady state"""
-    return tank_sim.Simulator(default_config)
+Add a get_history method:
+- Accepts duration parameter (seconds of history to return)
+- Default to 3600 (1 hour)
+- Validate that duration is between 1 and 7200
+- Calculate number of entries to return: min(duration, len(history))
+- Return the last N entries from the deque as a list
+- Convert deque to list using list(self.history)[-N:]
+- Return in chronological order (oldest first)
+
+Add thread safety if needed:
+- For this application, deque operations are atomic enough
+- If issues arise, could add a threading.Lock around append and read operations
+- For 1 Hz update rate, this is unlikely to be necessary
+
+#### api/main.py modifications:
+
+Implement the GET /api/history endpoint properly:
+- Currently returns empty list - replace with actual history query
+- Extract duration query parameter (default 3600)
+- Validate duration is positive and <= 7200
+- Call simulation_manager.get_history(duration)
+- Return the list of state snapshots
+- FastAPI will automatically serialize using StateSnapshot model
+
+The history endpoint should return JSON array of state snapshots:
+```json
+[
+  {
+    "time": 0.0,
+    "tank_level": 2.5,
+    "setpoint": 2.5,
+    ...
+  },
+  {
+    "time": 1.0,
+    "tank_level": 2.501,
+    "setpoint": 2.5,
+    ...
+  },
+  ...
+]
 ```
 
-#### test_simulator_bindings.py specifications:
+Add query parameter validation:
+- Use FastAPI's Query with constraints
+- duration: int = Query(default=3600, ge=1, le=7200)
+- This provides automatic validation and documentation
 
-Create comprehensive test cases covering all functionality.
+Handle edge cases:
+- If history is empty (just started): return empty list
+- If requested duration exceeds available history: return all available
+- If duration is invalid: FastAPI automatically returns 422 error
 
-**Test: Configuration Creation**
-- Test name: test_configuration_creation
-- Create TankModelParameters, PIDGains, ControllerConfig, SimulatorConfig
-- Verify all fields can be set and retrieved
-- Verify types are correct
-- Assert that numpy arrays are used (not lists)
+Update the config endpoint if needed:
+- Should return actual configuration from simulation_manager
+- Include ring buffer capacity: "history_capacity": 7200
+- Include current history size: "history_size": len(simulation_manager.history)
 
-**Test: Simulator Construction**
-- Test name: test_simulator_construction
-- Use steady_state_simulator fixture
-- Verify simulator is created without errors
-- Verify initial time is 0.0
-- Verify initial state matches config.initial_state
+### Verification Strategy
 
-**Test: Steady State Stability**
-- Test name: test_steady_state_stability
-- Use steady_state_simulator fixture
-- Run 100 steps
-- At each step, verify level remains near 2.5 m (within 0.01 tolerance)
-- Verify time advances correctly (should reach 100.0 seconds)
-- This mirrors the C++ steady state test
+Test ring buffer accumulation:
+- Start the server and let it run for 10+ seconds
+- Query /api/history?duration=10
+- Should return approximately 10 data points
+- Verify time field increases monotonically
+- Verify timestamps are accurate (first entry around time=0 if just started)
 
-**Test: Step Response Increase**
-- Test name: test_step_response_increase
-- Start at steady state (level 2.5 m)
-- Change setpoint to 3.0 m using set_setpoint method
-- Run 200 steps
-- Verify level increases toward 3.0 m
-- After 200 steps, level should be within 0.1 m of setpoint
-- Verify valve closes (controller output decreases) to reduce outlet flow
+Test maximum history:
+- Let server run for several minutes
+- Query /api/history?duration=7200
+- Should return all available data up to 7200 points
+- If not running for 2 hours, returns whatever is available
 
-**Test: Step Response Decrease**
-- Test name: test_step_response_decrease
-- Start at steady state (level 2.5 m)
-- Change setpoint to 2.0 m
-- Run 200 steps
-- Verify level decreases toward 2.0 m
-- After 200 steps, level should be close to setpoint
-- Verify valve opens (controller output increases)
+Test duration parameter:
+- Query with duration=60: should return ~60 points
+- Query with duration=1: should return ~1 point
+- Query with duration=0: should return validation error (422)
+- Query with duration=10000: should return validation error (422)
+- Query with no duration: should default to 3600 and return up to 1 hour
 
-**Test: Disturbance Rejection**
-- Test name: test_disturbance_rejection
-- Start at steady state
-- Run 50 steps to establish baseline
-- Change inlet flow from 1.0 to 1.2 using set_input method
-- Run 200 more steps
-- Verify level returns to setpoint despite disturbance
-- Controller should compensate by adjusting valve
+Test data consistency:
+- Each entry in history should match StateSnapshot structure
+- All required fields should be present
+- Values should be physically reasonable
+- Time values should be sequential
 
-**Test: Reset Functionality**
-- Test name: test_reset
-- Create simulator at steady state
-- Run 50 steps
-- Change setpoint to 3.5 m
-- Run 50 more steps (system now in transient)
-- Record current state
-- Call reset()
-- Verify time is 0.0
-- Verify state is back to initial values
-- Verify setpoint is back to initial value
-- Run again and verify behavior is reproducible
+Test concurrent access:
+- Make history requests while simulation is running
+- Should not cause errors or inconsistent data
+- Simulation loop continues unaffected
 
-**Test: Invalid Configuration**
-- Test name: test_invalid_configuration
-- Attempt to create simulator with invalid config (empty state vector)
-- Use pytest.raises to expect ValueError
-- Verify exception message is descriptive
+Test reset behavior:
+- Call POST /api/reset
+- History buffer should clear
+- New data should accumulate from time=0
+- Query history after reset should return only post-reset data
 
-**Test: Invalid Controller Index**
-- Test name: test_invalid_controller_index
-- Create valid simulator
-- Attempt to call get_setpoint with index 999 (out of bounds)
-- Use pytest.raises to expect IndexError
+Test memory stability:
+- Let server run for 3+ hours (exceeding ring buffer capacity)
+- Memory usage should stabilize (not grow indefinitely)
+- Buffer should contain exactly 7200 entries
+- Oldest data should be discarded automatically
 
-**Test: Numpy Array Conversion**
-- Test name: test_numpy_array_types
-- Create simulator
-- Call get_state() and verify return type is numpy.ndarray
-- Call get_inputs() and verify return type is numpy.ndarray
-- Verify arrays are float64 (double precision)
-- Verify arrays have correct shape
+### Ring Buffer Memory Calculation
 
-**Test: Dynamic Retuning**
-- Test name: test_dynamic_retuning
-- Create simulator
-- Run 50 steps
-- Create new PIDGains with different values
-- Call set_controller_gains method
-- Change setpoint
-- Continue running
-- Verify system responds with new dynamics
+Each state snapshot contains approximately:
+- 8 floats × 8 bytes = 64 bytes of numeric data
+- Dictionary overhead: ~200 bytes
+- Total per entry: ~300 bytes
 
-### Test Execution
+Ring buffer capacity:
+- 7200 entries × 300 bytes = 2.16 MB
+- Negligible memory usage for modern systems
 
-After implementation, run tests with:
+This confirms the ring buffer approach is appropriate - memory usage is bounded and small.
 
-```bash
-# Run all Python tests
-pytest tests/python/ -v
+### Edge Cases
 
-# Run with coverage
-pytest tests/python/ --cov=tank_sim --cov-report=html
+Empty history:
+- Server just started, no data yet
+- Return empty list, not an error
 
-# Run specific test
-pytest tests/python/test_simulator_bindings.py::test_steady_state_stability -v
-```
+Partial history:
+- Requested duration exceeds available history
+- Return all available data, not an error
+- Client can check length of returned array
 
-All tests should pass.
+Time discontinuity after reset:
+- History contains data from before reset (old time) and after (restarted from 0)
+- Option 1: Clear history on reset (recommended)
+- Option 2: Keep old data, client deals with time jump
+- Recommendation: Clear history in reset() method for consistency
 
-### Test Documentation
-
-Each test should include:
-- Docstring explaining what is being tested
-- Comments explaining expected behavior
-- Clear assertion messages
-
-Example:
-```python
-def test_steady_state_stability(steady_state_simulator):
-    """Verify that steady state remains stable over time.
-    
-    At steady state, all derivatives should be zero, so the system
-    should not drift. This tests both numerical stability and
-    correct initialization.
-    """
-    sim = steady_state_simulator
-    
-    for i in range(100):
-        sim.step()
-        state = sim.get_state()
-        level = state[0]
-        
-        # Level should remain at initial setpoint
-        assert abs(level - 2.5) < 0.01, \
-            f"Level drifted to {level} after {i+1} steps"
-    
-    # Time should have advanced correctly
-    assert abs(sim.get_time() - 100.0) < 1e-6, \
-        "Time tracking is incorrect"
-```
-
-### Comparison with C++ Tests
-
-These Python tests should verify the same behavior as C++ tests:
-- Steady state stability
-- Step response
-- Disturbance rejection
-- Reset functionality
-- Exception handling
-
-If Python tests pass but C++ tests fail (or vice versa), there's a problem with the bindings or the underlying implementation.
+Very slow clients:
+- If HTTP request to /api/history takes longer than 1 second
+- Ring buffer continues updating in background
+- Client gets a consistent snapshot at time of request
+- No locking needed due to Python GIL and atomic deque operations
 
 ### Acceptance Criteria
 
-- [ ] tests/python/__init__.py created (empty)
-- [ ] tests/python/conftest.py created with fixtures
-- [ ] default_config fixture provides standard configuration
-- [ ] steady_state_simulator fixture provides initialized simulator
-- [ ] test_simulator_bindings.py created with all test cases
-- [ ] Configuration creation test implemented
-- [ ] Simulator construction test implemented
-- [ ] Steady state stability test implemented
-- [ ] Step response increase test implemented
-- [ ] Step response decrease test implemented
-- [ ] Disturbance rejection test implemented
-- [ ] Reset functionality test implemented
-- [ ] Invalid configuration test implemented
-- [ ] Invalid controller index test implemented
-- [ ] Numpy array conversion test implemented
-- [ ] Dynamic retuning test implemented
-- [ ] All tests have clear docstrings and comments
-- [ ] Tests use pytest fixtures for setup
-- [ ] pytest runs without errors: `pytest tests/python/ -v`
-- [ ] All tests pass
-- [ ] Coverage report shows good coverage of bindings
-- [ ] Tests provide usage examples for Python users
+- [ ] Ring buffer accumulates state snapshots at 1 Hz
+- [ ] Buffer capacity limited to 7200 entries
+- [ ] Oldest data automatically discarded when buffer full
+- [ ] GET /api/history returns correct number of entries
+- [ ] Duration parameter validated correctly
+- [ ] History data matches StateSnapshot model structure
+- [ ] History can be queried while simulation running
+- [ ] Reset clears history buffer
+- [ ] Memory usage bounded after long runtime
+- [ ] All history entries have sequential time values
+- [ ] Default duration (3600) works correctly
 
 ---
 
-## Development Environment Setup
+## Upcoming Work (After Task 15)
 
-This section covers setting up a reproducible development environment using `uv`, the modern Python package manager. This same workflow applies to both local development and VPS deployment.
+After completing the three core FastAPI tasks, the following work remains:
 
-### Prerequisites
+### Task 16: API Testing Suite (pytest)
+- Write comprehensive tests for all REST endpoints
+- Test WebSocket connection and message handling
+- Test simulation loop timing accuracy
+- Test ring buffer behavior
+- Test concurrent client scenarios
+- Mock the tank_sim module for testing without C++ dependencies
 
-#### System Dependencies (Ubuntu 22.04/24.04 - typical VPS)
+### Task 17: Brownian Inlet Flow Mode (Enhancement)
+- Implement random walk for inlet flow
+- Add variance and bounds to Brownian parameters
+- Test that Brownian mode generates realistic disturbances
+- Ensure PID controller can reject Brownian disturbances
 
-```bash
-# Update package lists
-sudo apt update
+### Task 18: API Documentation and Deployment Guide
+- Document all endpoints with examples
+- Create API client examples in Python and JavaScript
+- Write deployment guide for production (systemd, nginx, etc.)
+- Document environment variables and configuration options
 
-# Install build essentials and CMake
-sudo apt install -y build-essential cmake
-
-# Install GSL (GNU Scientific Library) - required for ODE integration
-sudo apt install -y libgsl-dev
-
-# Install Python development headers
-sudo apt install -y python3-dev python3-pip
-
-# Verify installations
-cmake --version    # Should be >= 3.20
-gsl-config --version  # Should show GSL version
-python3 --version  # Should be >= 3.10
-```
-
-#### System Dependencies (Arch Linux)
-
-```bash
-# Install build tools and GSL
-sudo pacman -S base-devel cmake gsl python
-
-# Verify
-cmake --version
-python --version
-```
-
-### Installing uv
-
-`uv` is a fast Python package manager that provides reproducible environments:
-
-```bash
-# Install uv (works on Linux and macOS)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Add to PATH (add to ~/.bashrc or ~/.zshrc for persistence)
-source $HOME/.local/bin/env
-
-# Verify installation
-uv --version
-```
-
-### Development Workflow
-
-```bash
-# Clone the repository (if not already done)
-git clone <repository-url>
-cd tank_dynamics
-
-# Create virtual environment
-uv venv
-
-# Activate the virtual environment
-source .venv/bin/activate
-
-# Install in development mode with dev dependencies
-uv pip install -e ".[dev]"
-
-# Verify the installation
-python -c "import tank_sim; print(f'tank_sim {tank_sim.__version__}')"
-
-# Run C++ tests
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-ctest --test-dir build --output-on-failure
-
-# Run Python tests
-pytest tests/python/ -v
-```
-
-### VPS Deployment Workflow
-
-For deploying the FastAPI backend on a VPS:
-
-```bash
-# SSH into your VPS
-ssh user@your-vps.example.com
-
-# Install system dependencies (see Prerequisites above)
-
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env
-
-# Clone/update the repository
-git clone <repository-url> tank_dynamics
-cd tank_dynamics
-
-# Create production virtual environment
-uv venv
-
-# Activate
-source .venv/bin/activate
-
-# Install with API dependencies (FastAPI, uvicorn, etc.)
-uv pip install ".[api]"
-
-# Verify
-python -c "import tank_sim; import fastapi; print('Ready!')"
-
-# Run the API server (Phase 3)
-# uvicorn api.main:app --host 0.0.0.0 --port 8000
-```
-
-### Troubleshooting
-
-**CMake can't find GSL:**
-```bash
-# Verify GSL is installed
-pkg-config --modversion gsl
-
-# If not found, install it
-sudo apt install libgsl-dev  # Ubuntu
-sudo pacman -S gsl           # Arch
-```
-
-**Python version mismatch:**
-```bash
-# Check Python version
-python3 --version
-
-# If < 3.10, install a newer version
-sudo apt install python3.11 python3.11-dev python3.11-venv
-
-# Create venv with specific Python
-uv venv --python python3.11
-```
-
-**pybind11 compilation errors:**
-```bash
-# Ensure Python dev headers match your Python version
-sudo apt install python3-dev
-
-# Clear build cache and rebuild
-rm -rf build/ .venv/
-uv venv
-uv pip install -e ".[dev]"
-```
-
-**Import errors after installation:**
-```bash
-# Verify the module was installed
-python -c "import tank_sim; print(tank_sim.__file__)"
-
-# Check for missing shared libraries
-ldd $(python -c "import tank_sim._tank_sim as m; print(m.__file__)")
-```
-
----
-
-## Upcoming Work (After Task 12)
-
-Once Python bindings are tested, Phase 2 will be complete. The next phase will be:
-
-**Phase 3: FastAPI Backend**
-
-Tasks will include:
-13. Create FastAPI application structure
-14. Implement WebSocket endpoint for real-time data streaming
-15. Implement REST endpoints for control actions
-16. Create ring buffer for historical data storage
-17. Write API integration tests
-
-The FastAPI backend will use the Python bindings to orchestrate the simulation and provide a web API for the frontend.
+### Phase 4: Next.js Frontend
+Once the API is complete and tested, proceed to Phase 4 to build the web UI.
 
 ---
 
 ## Notes
 
-**Phase 2 Philosophy:**
+### Running the FastAPI Server
 
-The Python bindings should feel natural to Python users while exposing the full power of the C++ simulation. Key principles:
-
-- Use numpy arrays (not lists) for numerical data
-- Follow Python naming conventions (snake_case for functions, PascalCase for classes)
-- Provide convenience functions (like create_default_config)
-- Comprehensive docstrings in Python style
-- Proper exception handling
-
-**Testing Philosophy:**
-
-Python tests serve multiple purposes:
-- Verify bindings correctness
-- Provide usage documentation
-- Catch regression errors
-- Validate numpy conversion
-
-**Performance Note:**
-
-The Python bindings have minimal overhead. Most time is spent in C++ code (ODE integration, PID calculations). Python-side object creation and method calls add negligible latency for 1 Hz updates.
-
-**Next Phase Preview:**
-
-The FastAPI backend will look like:
-
-```python
-from fastapi import FastAPI, WebSocket
-import tank_sim
-
-app = FastAPI()
-simulator = tank_sim.Simulator(tank_sim.create_default_config())
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    while True:
-        simulator.step()
-        state = {
-            "time": simulator.get_time(),
-            "level": simulator.get_state()[0],
-            "setpoint": simulator.get_setpoint(0)
-        }
-        await websocket.send_json(state)
-        await asyncio.sleep(1.0)
+Development mode:
+```bash
+cd /home/roger/dev/tank_dynamics
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
----
+Production mode:
+```bash
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 1
+```
 
-*Generated: 2026-02-04*
-*Senior Engineer: Claude (Sonnet)*
+**Important:** Use only 1 worker. Multiple workers would create multiple simulation instances, which is incorrect. The simulation state must be singular.
+
+### Testing WebSocket Connection
+
+Using Python:
+```python
+import asyncio
+import websockets
+import json
+
+async def test_ws():
+    uri = "ws://localhost:8000/ws"
+    async with websockets.connect(uri) as websocket:
+        # Receive state updates
+        for _ in range(10):
+            message = await websocket.recv()
+            data = json.loads(message)
+            print(f"Time: {data['data']['time']}, Level: {data['data']['tank_level']}")
+        
+        # Send command
+        await websocket.send(json.dumps({"type": "setpoint", "value": 3.0}))
+        
+        # Continue receiving
+        for _ in range(10):
+            message = await websocket.recv()
+            data = json.loads(message)
+            print(f"Time: {data['data']['time']}, Level: {data['data']['tank_level']}")
+
+asyncio.run(test_ws())
+```
+
+Using wscat (command line tool):
+```bash
+npm install -g wscat
+wscat -c ws://localhost:8000/ws
+# Will print state updates every second
+# Type: {"type": "setpoint", "value": 3.0}
+# Press enter to send
+```
+
+### Understanding the 1 Hz Timing
+
+Why 1 Hz?
+- SCADA systems typically update at 0.1 to 10 Hz
+- 1 Hz is sufficient for tank level control (slow process)
+- Comfortable for human operators to observe
+- Low bandwidth for WebSocket
+- Easy to achieve without real-time OS
+
+The simulation timestep (dt in C++) is separate from the broadcast rate:
+- C++ simulation may use dt = 0.1s for numerical accuracy
+- API calls simulator.step() which may advance by 1.0s (or 10 × 0.1s steps internally)
+- Broadcast happens after each step, at 1 Hz
+- Clients receive updates at 1 Hz regardless of internal timestep
+
+### CORS Configuration
+
+The CORS middleware allows browser-based frontends to connect:
+- Browsers enforce same-origin policy by default
+- CORS headers tell browser it's safe to allow cross-origin requests
+- Development: allow localhost:3000 (Next.js)
+- Production: update allowed origins to actual frontend domain
+
+### Project Root vs API Directory
+
+Always run the server from the project root, not from inside the api directory:
+
+Correct:
+```bash
+cd /home/roger/dev/tank_dynamics
+uvicorn api.main:app --reload
+```
+
+Incorrect:
+```bash
+cd /home/roger/dev/tank_dynamics/api
+uvicorn main:app --reload  # Won't find tank_sim package!
+```
+
+The tank_sim package is installed relative to the project root, so PYTHONPATH must include that directory.
+
+### Environment Variables
+
+Create a `.env` file in the api directory (copy from .env.example):
+```bash
+cp api/.env.example api/.env
+```
+
+FastAPI with python-dotenv will automatically load these variables.
+
+For production, set environment variables via systemd service file or docker-compose.
+
+### Dependencies Installation
+
+The API depends on the tank_sim package being installed:
+
+```bash
+cd /home/roger/dev/tank_dynamics
+
+# Install tank_sim in development mode
+pip install -e .
+
+# Install API dependencies
+pip install -r api/requirements.txt
+
+# Or using uv:
+uv pip install -e .
+uv pip install -r api/requirements.txt
+```
+
+### Logging
+
+FastAPI uses uvicorn's logging:
+- Info level: shows each request
+- Debug level: shows detailed information
+- Set via --log-level flag or LOG_LEVEL env var
+
+For simulation-specific logging, add Python logging:
+```python
+import logging
+logger = logging.getLogger(__name__)
+logger.info("Simulation loop started")
+```
+
+### Common Issues
+
+**ImportError: tank_sim not found**
+- Make sure tank_sim is installed: `pip install -e .`
+- Make sure running from project root, not api directory
+
+**WebSocket connection refused**
+- Server not running: start with uvicorn
+- CORS issue: check allowed origins
+- Firewall blocking port 8000
+
+**Simulation loop not running**
+- Check startup event fired: look for log message
+- Check for exceptions in background task
+- Use `asyncio.create_task()` not `asyncio.run()` in startup event
+
+**Memory leak**
+- Ring buffer should be fixed size (7200 entries)
+- Check that WebSocket connections are properly removed on disconnect
+- Monitor with `ps aux | grep uvicorn`
+
+**Timing drift**
+- asyncio.sleep(1.0) should be sufficient
+- If drift occurs, measure actual elapsed time and adjust sleep
+- For 1 Hz, drift should be negligible over hours
