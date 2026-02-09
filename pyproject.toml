@@ -52,3 +52,8 @@ wheel.packages = ["tank_sim"]
 testpaths = ["tests/python", "api/tests"]
 python_files = ["test_*.py"]
 addopts = "-v"
+
+[dependency-groups]
+dev = [
+    "pytest-randomly>=4.0.1",
+]
