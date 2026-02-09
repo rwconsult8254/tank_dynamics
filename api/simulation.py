@@ -106,14 +106,15 @@ class SimulationManager:
             logger.error(f"Error during simulation step: {e}")
 
     def reset(self):
-        """Reset simulation to initial conditions."""
+        """Reset simulation to initial conditions and clear history buffer."""
         if self.simulator is None or not self.initialized:
             logger.warning("reset called but simulator not initialized")
             return
 
         try:
             self.simulator.reset()
-            logger.info("Simulation reset to initial conditions")
+            self.history.clear()
+            logger.info("Simulation reset to initial conditions and history cleared")
         except Exception as e:
             logger.error(f"Error resetting simulation: {e}")
 
