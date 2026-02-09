@@ -13,17 +13,77 @@ import pytest
 from starlette.testclient import TestClient
 
 
-# Mock tank_sim module before any imports
-# This fixture must run before API modules are imported
-@pytest.fixture(scope="session", autouse=True)
-def mock_tank_sim():
-    """
-    Mock the tank_sim C++ module to allow testing without compilation.
+# Mock Simulator class that will be used by all tests
+class MockSimulator:
+    def __init__(self, config):
+        self.config = config
+        self.state = [2.5]  # tank_level
+        self.setpoint = [2.5]  # per controller
+        self.inputs = [1.0, 0.5]  # inlet_flow, valve_position
+        self.error = [0.0]  # per controller
+        self.controller_output = [0.5]  # per controller
+        self.time = 0.0
+        self.step_count = 0
 
-    This fixture must be session-scoped and autouse to ensure the mock
-    is applied before the api.main and api.simulation modules are imported.
-    """
-    # Create mock module
+    def step(self):
+        """Simulate one step forward."""
+        self.time += 1.0
+        self.step_count += 1
+        # Simple simulation: inlet - outlet
+        outlet = 0.15 * self.inputs[1] * (self.state[0] ** 0.5)
+        net_flow = self.inputs[0] - outlet
+        self.state[0] = max(0, self.state[0] + net_flow * 1.0)
+        self.error[0] = self.setpoint[0] - self.state[0]
+
+    def get_state(self):
+        """Get tank level."""
+        return self.state
+
+    def get_setpoint(self, controller_idx):
+        """Get controller setpoint."""
+        return self.setpoint[controller_idx]
+
+    def get_inputs(self):
+        """Get input values."""
+        return self.inputs
+
+    def get_error(self, controller_idx):
+        """Get control error."""
+        return self.error[controller_idx]
+
+    def get_controller_output(self, controller_idx):
+        """Get controller output."""
+        return self.controller_output[controller_idx]
+
+    def get_time(self):
+        """Get simulation time."""
+        return self.time
+
+    def set_setpoint(self, controller_idx, value):
+        """Set controller setpoint."""
+        self.setpoint[controller_idx] = value
+
+    def set_controller_gains(self, controller_idx, gains):
+        """Set PID gains."""
+        pass
+
+    def set_input(self, input_idx, value):
+        """Set input value."""
+        self.inputs[input_idx] = value
+
+    def reset(self):
+        """Reset to initial conditions."""
+        self.state = [2.5]
+        self.setpoint = [2.5]
+        self.inputs = [1.0, 0.5]
+        self.error = [0.0]
+        self.controller_output = [0.5]
+        self.time = 0.0
+        self.step_count = 0
+
+
+# Install mock BEFORE any imports - this runs at module import time
+if "tank_sim" not in sys.modules:
     mock_module = MagicMock()
 
     # Mock SimulatorConfig
@@ -43,75 +103,6 @@ def mock_tank_sim():
 
     mock_module.SimulatorConfig = MagicMock(return_value=mock_config)
     mock_module.create_default_config = MagicMock(return_value=mock_config)
-
-    # Mock Simulator class
-    class MockSimulator:
-        def __init__(self, config):
-            self.config = config
-            self.state = [2.5]  # tank_level
-            self.setpoint = [2.5]  # per controller
-            self.inputs = [1.0, 0.5]  # inlet_flow, valve_position
-            self.error = [0.0]  # per controller
-            self.controller_output = [0.5]  # per controller
-            self.time = 0.0
-            self.step_count = 0
-
-        def step(self):
-            """Simulate one step forward."""
-            self.time += 1.0
-            self.step_count += 1
-            # Simple simulation: inlet - outlet
-            outlet = 0.15 * self.inputs[1] * (self.state[0] ** 0.5)
-            net_flow = self.inputs[0] - outlet
-            self.state[0] = max(0, self.state[0] + net_flow * 1.0)
-            self.error[0] = self.setpoint[0] - self.state[0]
-
-        def get_state(self):
-            """Get tank level."""
-            return self.state
-
-        def get_setpoint(self, controller_idx):
-            """Get controller setpoint."""
-            return self.setpoint[controller_idx]
-
-        def get_inputs(self):
-            """Get input values."""
-            return self.inputs
-
-        def get_error(self, controller_idx):
-            """Get control error."""
-            return self.error[controller_idx]
-
-        def get_controller_output(self, controller_idx):
-            """Get controller output."""
-            return self.controller_output[controller_idx]
-
-        def get_time(self):
-            """Get simulation time."""
-            return self.time
-
-        def set_setpoint(self, controller_idx, value):
-            """Set controller setpoint."""
-            self.setpoint[controller_idx] = value
-
-        def set_controller_gains(self, controller_idx, gains):
-            """Set PID gains."""
-            pass
-
-        def set_input(self, input_idx, value):
-            """Set input value."""
-            self.inputs[input_idx] = value
-
-        def reset(self):
-            """Reset to initial conditions."""
-            self.state = [2.5]
-            self.setpoint = [2.5]
-            self.inputs = [1.0, 0.5]
-            self.error = [0.0]
-            self.controller_output = [0.5]
-            self.time = 0.0
-            self.step_count = 0
-
     mock_module.Simulator = MockSimulator
 
     # Mock PIDGains
@@ -127,11 +118,17 @@ def mock_tank_sim():
     # Install mock in sys.modules
     sys.modules["tank_sim"] = mock_module
 
-    yield mock_module
 
-    # Cleanup (though not strictly necessary for session scope)
-    if "tank_sim" in sys.modules:
-        del sys.modules["tank_sim"]
+# Keep the fixture for compatibility but it's now just a reference
+@pytest.fixture(scope="session", autouse=True)
+def mock_tank_sim():
+    """
+    Mock the tank_sim C++ module to allow testing without compilation.
+
+    The actual mock is installed at module import time above.
+    This fixture just provides a reference for tests that need it.
+    """
+    yield sys.modules.get("tank_sim")
 
 
 @pytest.fixture

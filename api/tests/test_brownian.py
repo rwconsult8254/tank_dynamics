@@ -13,7 +13,9 @@ from api.simulation import SimulationManager
 @pytest.fixture
 def mock_config():
     """Create a mock tank_sim configuration."""
-    config = MagicMock(spec=tank_sim.SimulatorConfig)
+    # Note: tank_sim.SimulatorConfig is already a MagicMock from conftest.py
+    # so we can't use spec= here. Just create a plain MagicMock.
+    config = MagicMock()
     config.model_params = MagicMock()
     config.model_params.k_v = 1.0
     config.model_params.max_height = 5.0
@@ -35,7 +37,9 @@ def sim_manager(mock_config):
     with patch("tank_sim.Simulator"):
         manager = SimulationManager(mock_config)
         manager.initialized = True
-        manager.simulator = MagicMock(spec=tank_sim.Simulator)
+        # Note: tank_sim.Simulator is already a class from conftest.py MockSimulator
+        # so we can't use spec= here. Just create a plain MagicMock.
+        manager.simulator = MagicMock()
         manager.simulator.get_state.return_value = [2.0]
         manager.simulator.get_setpoint.return_value = 3.0
 
