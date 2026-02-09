@@ -622,10 +622,10 @@ Python Tests → Require FastAPI → Requires tank_sim → Requires C++ compilat
    ```yaml
    # .github/workflows/test.yml
    - name: Install from wheel
-     run: pip install tank_sim-0.1.0-cp311-cp311-linux_x86_64.whl
+     run: uv pip install tank_sim-0.1.0-cp311-cp311-linux_x86_64.whl
    
    - name: Run API tests  # No compilation needed!
-     run: pytest api/tests/
+     run: uv run pytest api/tests/
    ```
 
 ### Specific Recommendations for Larger Systems
