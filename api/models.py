@@ -108,6 +108,12 @@ class ConfigResponse(BaseModel):
     initial_setpoint: float = Field(..., description="Starting setpoint in meters")
     pid_gains: PIDTuningCommand = Field(..., description="PID gains (Kc, tau_I, tau_D)")
     timestep: float = Field(..., gt=0.0, description="Simulation time step in seconds")
+    history_capacity: int = Field(
+        ..., description="Maximum number of history entries (ring buffer size)"
+    )
+    history_size: int = Field(
+        ..., ge=0, description="Current number of history entries stored"
+    )
 
 
 class HistoryQueryParams(BaseModel):

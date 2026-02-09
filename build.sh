@@ -20,6 +20,7 @@ CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Debug}"
 CLEAN_BUILD=false
 RUN_TESTS=false
 RUN_SIMULATOR_VERIFY=false
+RUN_API_VERIFY=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -39,6 +40,10 @@ while [[ $# -gt 0 ]]; do
             RUN_SIMULATOR_VERIFY=true
             shift
             ;;
+        --verify-api)
+            RUN_API_VERIFY=true
+            shift
+            ;;
         --release)
             CMAKE_BUILD_TYPE="Release"
             shift
@@ -55,6 +60,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --test               Run tests after building"
             echo "  --verify             Run verification programs after building"
             echo "  --verify-simulator   Run simulator verification after building"
+            echo "  --verify-api         Start API server and run runtime verification tests"
             echo "  --debug              Build with debug symbols (default)"
             echo "  --release            Build with optimizations"
             echo "  -h, --help           Show this help message"
@@ -158,6 +164,62 @@ if [ "$RUN_SIMULATOR_VERIFY" = true ]; then
         echo -e "${RED}✗ simulator_verify not built${NC}"
         exit 1
     fi
+fi
+
+# API runtime verification (if requested)
+if [ "$RUN_API_VERIFY" = true ]; then
+    echo ""
+    echo -e "${YELLOW}Running API runtime verification...${NC}"
+
+    # Return to project root
+    cd ..
+
+    API_PORT=8000
+    API_PID=""
+
+    # Check if server is already running
+    if lsof -ti :$API_PORT > /dev/null 2>&1; then
+        echo -e "${YELLOW}Server already running on port $API_PORT, using existing instance${NC}"
+    else
+        echo -e "${YELLOW}Starting API server on port $API_PORT...${NC}"
+        .venv/bin/python -m uvicorn api.main:app --host 127.0.0.1 --port $API_PORT > /tmp/tank_api_verify.log 2>&1 &
+        API_PID=$!
+
+        # Wait for server to be ready
+        for i in $(seq 1 10); do
+            if curl -s http://localhost:$API_PORT/api/health > /dev/null 2>&1; then
+                break
+            fi
+            if [ "$i" -eq 10 ]; then
+                echo -e "${RED}✗ Server failed to start${NC}"
+                cat /tmp/tank_api_verify.log
+                kill $API_PID 2>/dev/null
+                exit 1
+            fi
+            sleep 1
+        done
+        echo -e "${GREEN}✓ Server started (PID $API_PID)${NC}"
+    fi
+
+    # Run the verification tests
+    .venv/bin/python api/test_runtime.py
+    TEST_EXIT=$?
+
+    # Stop server if we started it
+    if [ -n "$API_PID" ]; then
+        kill $API_PID 2>/dev/null
+        wait $API_PID 2>/dev/null
+        echo -e "${GREEN}✓ Server stopped${NC}"
+    fi
+
+    if [ $TEST_EXIT -eq 0 ]; then
+        echo -e "${GREEN}✓ API verification passed${NC}"
+    else
+        echo -e "${RED}✗ API verification failed${NC}"
+        exit 1
+    fi
+
+    cd "$BUILD_DIR"
 fi
 
 echo ""

@@ -54,19 +54,17 @@ class SimulationManager:
             }
 
         try:
-            state = self.simulator.getState()
+            state = self.simulator.get_state()
             tank_level = state[0]
-            setpoint = self.simulator.getSetpoint()
-            inlet_flow = self.simulator.getInputs()[0]
-            valve_position = self.simulator.getInputs()[1]
-            error = self.simulator.getError()
-            controller_output = self.simulator.getInputs()[
-                1
-            ]  # valve position is controller output
-            time = self.simulator.getTime()
+            setpoint = self.simulator.get_setpoint(0)  # 0 is controller index
+            inlet_flow = self.simulator.get_inputs()[0]
+            valve_position = self.simulator.get_inputs()[1]
+            error = self.simulator.get_error(0)  # 0 is controller index
+            controller_output = self.simulator.get_controller_output(0)
+            time = self.simulator.get_time()
 
             # Calculate outlet flow using valve equation: q_out = k_v * valve_position * sqrt(tank_level)
-            k_v = self.config.valve_coefficient
+            k_v = self.config.model_params.k_v
             outlet_flow = (
                 k_v * valve_position * (tank_level**0.5) if tank_level > 0 else 0.0
             )
@@ -125,7 +123,7 @@ class SimulationManager:
             return
 
         try:
-            self.simulator.setSetpoint(0, value)  # 0 is controller index
+            self.simulator.set_setpoint(0, value)  # 0 is controller index
             logger.info(f"Setpoint set to {value}")
         except Exception as e:
             logger.error(f"Error setting setpoint: {e}")
@@ -137,7 +135,7 @@ class SimulationManager:
             return
 
         try:
-            self.simulator.setControllerGains(0, gains)  # 0 is controller index
+            self.simulator.set_controller_gains(0, gains)  # 0 is controller index
             logger.info(
                 f"PID gains set: Kc={gains.Kc}, tau_I={gains.tau_I}, tau_D={gains.tau_D}"
             )
@@ -151,7 +149,7 @@ class SimulationManager:
             return
 
         try:
-            self.simulator.setInput(0, value)  # 0 is inlet flow input index
+            self.simulator.set_input(0, value)  # 0 is inlet flow input index
             logger.info(f"Inlet flow set to {value}")
         except Exception as e:
             logger.error(f"Error setting inlet flow: {e}")
