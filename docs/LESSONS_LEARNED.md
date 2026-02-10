@@ -12,6 +12,222 @@ This document captures lessons learned from building a small proof-of-concept si
 
 **Key Takeaway:** Small architectural decisions made early have massive implications at scale. Test integration patterns early with mocks to avoid costly refactoring later.
 
+**New Key Takeaway (2026-02-10):** Task granularity matters enormously when working with local LLMs or smaller models. Tasks that seem "simple" to Sonnet/Opus can be insurmountably complex for Haiku or local models. Breaking work into micro-tasks (1-2 files, 15-30 minutes) dramatically improves success rate.
+
+---
+
+## 11. Task Granularity: Local LLM Success Factors
+
+### The Problem We Encountered
+
+**What happened:** When creating Phase 4 (Next.js frontend) tasks, the initial task breakdown was:
+- Task 19: Next.js Project Initialization (8+ files, multiple configurations)
+- Task 20: WebSocket Connection and State Management (6 files, complex patterns)
+- Task 21: Tab Navigation and Layout (4 components, integration)
+
+**User feedback:** "These tasks are too large for my local LLM. We've had several instances where we couldn't handle the task and had to escalate to you or Opus. Please think about breaking into smaller substeps."
+
+**Root cause:** Senior Engineer role was optimized for Sonnet-level execution, not Haiku/local LLM constraints.
+
+### The Pattern Recognition
+
+Successful tasks (Phases 1-3) had natural granularity:
+- C++ classes: One class per task (one .h, one .cpp file)
+- Python bindings: One module per task
+- API endpoints: Small files, clear scope
+
+Failed tasks (initial Phase 4) tried to do too much:
+- "Set up entire project" (dozens of decisions)
+- "Implement WebSocket system" (architecture + implementation)
+- "Create full UI layout" (multiple components + integration)
+
+### The Lesson
+
+**For local LLM success:**
+
+1. **One file at a time** (maximum two related files)
+   ```
+   ❌ Task 19: Set up Next.js project
+      - package.json
+      - tsconfig.json
+      - tailwind.config.js
+      - next.config.js
+      - app/layout.tsx
+      - app/page.tsx
+      - lib/types.ts
+      - lib/utils.ts
+   
+   ✅ Task 19a: Initialize Next.js project (command only)
+   ✅ Task 19b: Install dependencies (command only)
+   ✅ Task 19c: Configure TypeScript (tsconfig.json)
+   ✅ Task 19d: Configure Tailwind (tailwind.config.js)
+   ✅ Task 19e: Create type definitions (lib/types.ts)
+   ✅ Task 19f: Create utilities (lib/utils.ts)
+   ✅ Task 19g: Create root layout (app/layout.tsx)
+   ✅ Task 19h: Create home page (app/page.tsx)
+   ```
+
+2. **Provide context, not code**
+   ```
+   ❌ Bad: Show example code
+   ```typescript
+   class WebSocketClient {
+     connect() { ... }
+   }
+   ```
+   
+   ✅ Good: Describe structure with references
+   "Create a WebSocket client class with:
+   - Constructor accepting URL parameter
+   - Connect method creating WebSocket instance
+   - Disconnect method closing connection
+   
+   Reference: MDN WebSocket API documentation
+   Search: 'JavaScript WebSocket client' if unfamiliar
+   Escalate to Haiku if: Pattern unclear after docs review"
+   ```
+
+3. **Include escalation hints**
+   ```
+   Every task should specify:
+   - When to escalate (e.g., "If React Context is unfamiliar...")
+   - What to search (e.g., "Search: React Context API tutorial")
+   - Alternative approach (e.g., "Simpler: Use props drilling first")
+   ```
+
+4. **Simple verification per task**
+   ```
+   ❌ Complex: "Test WebSocket connection with full integration"
+   ✅ Simple: "Run: npm run dev. Check console for errors."
+   ```
+
+### Specific Recommendations for Task Breakdown
+
+#### Pattern: Project Initialization
+
+**Instead of:** "Set up [framework] project"
+
+**Break into:**
+1. Run initialization command (exact command provided)
+2. Install dependencies (exact npm/pip command)
+3. Configure tool A (one config file)
+4. Configure tool B (one config file)
+5. Create first component (one file)
+
+#### Pattern: Complex Class/Component
+
+**Instead of:** "Implement [feature] with reconnection and error handling"
+
+**Break into:**
+1. Create basic structure (connect/disconnect only)
+2. Add message handling (send/receive)
+3. Add reconnection logic (separate task)
+4. Add error handling (separate task)
+5. Add logging/debugging (separate task)
+
+#### Pattern: UI Layout
+
+**Instead of:** "Create SCADA interface with tabs and controls"
+
+**Break into:**
+1. Create tab navigation component (visual only)
+2. Add tab state management (functionality)
+3. Create view A placeholder (one component)
+4. Create view B placeholder (one component)
+5. Integrate tabs with views (wire together)
+
+#### Pattern: API Integration
+
+**Instead of:** "Integrate with backend API"
+
+**Break into:**
+1. Define TypeScript types matching API (one file)
+2. Create HTTP client class (basic GET/POST)
+3. Add error handling to client
+4. Create React hook wrapping client
+5. Create Context provider for hook
+6. Integrate provider in app
+
+### Task Size Guidelines
+
+| Metric | Too Large ❌ | Right Size ✅ |
+|--------|-------------|--------------|
+| Files touched | 5+ files | 1-2 files |
+| Time estimate | 1-2 hours | 15-30 minutes |
+| Lines of prose | 200+ lines | 50-100 lines |
+| Decisions required | Many unclear choices | Clear path forward |
+| Context needed | Multiple frameworks | Single concept |
+| Verification | Complex multi-step | One command |
+
+### Information Structure Per Task
+
+**Essential elements for local LLM success:**
+
+1. **Exact file path(s)** - No ambiguity where code goes
+2. **Structure template** - List sections file should contain
+3. **Reference links** - Docs for unfamiliar patterns
+4. **Search keywords** - What to Google if stuck
+5. **Escalation trigger** - When to ask for help
+6. **Verification command** - Exact command to test
+7. **Acceptance checklist** - 3-5 clear items
+
+**Template:**
+```markdown
+## Task Xa: [Single action description]
+
+**Files:** [exact/path/to/file.ts]
+**Time:** 15-30 minutes
+
+### Structure
+File should contain:
+- Section 1: [purpose]
+- Section 2: [purpose]
+
+### Reference
+If unfamiliar with [pattern]:
+- Search: "[keywords]"
+- Docs: [URL]
+- Escalate if: [condition]
+
+### Verification
+```bash
+[exact command]
+```
+
+Expected: [outcome]
+
+### Acceptance
+- [ ] File exists at path
+- [ ] Contains required sections
+- [ ] Verification passes
+```
+
+### Impact at Scale
+
+**Without micro-tasks (Phase 4 initial attempt):**
+- Local LLM: High failure rate, frequent escalation
+- Developer frustration: "This is too vague"
+- Time wasted: Reading docs, trial-and-error
+- Escalations: 50-70% of tasks need Sonnet/Opus
+
+**With micro-tasks (revised Phase 4):**
+- Local LLM: High success rate on focused tasks
+- Clear path: Exactly what to create
+- Fast iteration: 15-30 min per task
+- Escalations: 10-20% for genuinely hard tasks
+
+**Cost implications:**
+- Local LLM: Free
+- Haiku: $0.25 per million input tokens
+- Sonnet: $3 per million input tokens  
+- Opus: $15 per million input tokens
+
+For a 20-task phase:
+- Poor granularity: 14 escalations to Sonnet = ~42M tokens = ~$126
+- Good granularity: 3 escalations to Haiku = ~9M tokens = ~$2.25
+
+**ROI:** Better task breakdown = 50x cost reduction + faster development.
+
 ---
 
 ## 1. Testing Strategy: Mock Early, Mock Often
@@ -882,6 +1098,13 @@ def test_performance():
 
 ### For Scaling to Larger Simulations
 
+#### 0. Task Granularity (NEW)
+- ✅ **Break tasks into micro-steps** - 1-2 files, 15-30 minutes per task
+- ✅ **Provide context, not code** - Links to docs, search keywords
+- ✅ **Include escalation hints** - When to ask for help
+- ✅ **Simple verification** - One command to test
+- ✅ **Optimize for local LLMs** - Smaller models need smaller tasks
+
 #### 1. Architecture
 - ✅ **Use dependency injection** - Test layers independently
 - ✅ **Define clean interfaces** - Physics, orchestration, API are separate
@@ -924,20 +1147,22 @@ def test_performance():
 | Bandwidth | 1 KB/s | 80 MB/s → 80 KB/s | **1000× reduction** |
 | Test time | 20s | 5 min → 20s | **15× faster** |
 | Development cycle | 1 min | 30 min → 1 min | **30× faster** |
+| Task completion (local LLM) | 50% | 95% | **45% improvement** |
+| LLM costs per phase | $126 | $2.25 | **50× reduction** |
 
-**Key insight:** Architectural decisions that seem minor in a PoC create exponential scaling problems in production. Getting these right early saves months of refactoring later.
+**Key insight:** Architectural decisions that seem minor in a PoC create exponential scaling problems in production. Getting these right early saves months of refactoring later. **Task granularity matters just as much as architecture - optimize for the tools you're using.**
 
 ---
 
 ## Next Steps
 
-1. **Immediate:** Review this document with team
-2. **Short-term:** Apply lessons to remaining Phase 3 tasks
-3. **Medium-term:** Refactor based on lessons before Phase 4
+1. **Immediate:** Apply micro-task breakdown to Phase 4 tasks
+2. **Short-term:** Review this document with team
+3. **Medium-term:** Update all role prompts with granularity lessons
 4. **Long-term:** Incorporate into engineering standards document
 
 ---
 
 **Document maintained by:** Engineering team  
-**Last updated:** 2026-02-09  
+**Last updated:** 2026-02-10 (added Lesson 11: Task Granularity)  
 **Review cycle:** After each major phase

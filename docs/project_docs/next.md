@@ -1,392 +1,1367 @@
 # Next Tasks - Tank Dynamics Simulator
 
-## Current Phase: Phase 4 - Next.js Frontend (Initial Setup)
+## Current Phase: Phase 4 - Next.js Frontend (Micro-Task Breakdown)
 
-**Phase Status:** Starting Phase 4
+**Phase Status:** Starting Phase 4 with detailed micro-task breakdown
 **Branch:** phase4-initial
 
 **Context:** Phases 1-3 are complete with all tests passing. The C++ simulation core, Python bindings, and FastAPI backend are fully operational with comprehensive test coverage. Phase 3 delivered a production-ready API with WebSocket real-time updates at 1 Hz, REST endpoints, Brownian inlet flow mode, and complete documentation.
 
 **Phase 4 Goals:** Build a modern SCADA-style web interface using Next.js 14 with App Router, Tailwind CSS, and Recharts. The interface will provide real-time process visualization, control inputs, and historical trend plotting.
 
+**Micro-Task Strategy:** This phase is broken into 1-2 file tasks taking 15-30 minutes each. Each task is independently testable and suitable for local LLMs or Haiku. See LESSONS_LEARNED.md for the rationale behind this approach.
+
 ---
 
-## Task 19: Next.js Project Initialization and Basic Structure
+## Task 19a: Initialize Next.js Project with App Router
 
 **Phase:** 4 - Next.js Frontend
-**Prerequisites:** Phase 3 complete (FastAPI backend operational)
+**Prerequisites:** None - Phase 3 backend operational
+**Estimated Time:** 15-30 minutes
+**Files:** Command execution only
 
-### Files to Create
+### Context and References
 
-Create a new Next.js project in the `frontend/` directory:
-
-```
-frontend/
-├── package.json
-├── tsconfig.json
-├── next.config.js
-├── tailwind.config.js
-├── postcss.config.js
-├── app/
-│   ├── layout.tsx
-│   ├── page.tsx
-│   ├── globals.css
-│   └── providers.tsx
-├── components/
-│   └── ui/
-│       └── (shadcn/ui components will go here)
-├── hooks/
-│   └── useWebSocket.ts
-├── lib/
-│   ├── utils.ts
-│   └── types.ts
-└── public/
-    └── (static assets)
-```
+If unfamiliar with Next.js initialization:
+- Reference: https://nextjs.org/docs/getting-started/installation
+- Search keywords: "Next.js create-next-app setup" or "Next.js 14 quickstart"
+- Escalation: Not needed for this task (straightforward command)
 
 ### Requirements
 
-#### Project Initialization
-
-Initialize a new Next.js 14 project with TypeScript support in the frontend directory. Use the App Router (not Pages Router). The project should be configured with modern tooling and best practices.
+Initialize a new Next.js project in the `frontend/` directory at the root of the repository using the official create-next-app command.
 
 The initialization should:
-- Use Next.js 14 or later with App Router
-- Enable TypeScript with strict mode
-- Configure ESLint for code quality
-- Set up the `src/` directory structure is optional (we'll use the app directory at root level)
+- Create a directory called `frontend` at `/home/roger/dev/tank_dynamics/frontend/`
+- Use Next.js 14 or later with the App Router (not Pages Router)
+- Enable TypeScript support with strict mode
+- Include ESLint configuration for code quality
+- Enable Tailwind CSS for styling
+- Keep the app directory at root level (not in src/)
+- Skip the example app directory (use manual structure)
 
-#### Package Dependencies
+### Exact Command to Execute
 
-Install and configure these core dependencies:
+From the tank_dynamics directory, run:
 
-**Framework and Build Tools:**
-- next (version 14.x or later)
-- react (version 18.x)
-- react-dom (version 18.x)
-- typescript (version 5.x)
+```bash
+npx create-next-app@latest frontend --typescript --tailwind --app --no-src-dir --eslint --skip-install
+```
 
-**Styling:**
-- tailwindcss (version 3.x)
-- postcss
-- autoprefixer
-- @tailwindcss/forms (for better form styling)
+This creates the project structure without installing dependencies (we'll handle that in the next task).
 
-**Charting Library:**
-- recharts (version 2.x) for time-series plotting
+### Verification
 
-**WebSocket and Data:**
-- No additional WebSocket library needed (use native WebSocket API)
+Run this command to verify the project structure:
 
-**Development Dependencies:**
-- @types/node
-- @types/react
-- @types/react-dom
-- eslint
-- eslint-config-next
+```bash
+ls -la /home/roger/dev/tank_dynamics/frontend/
+```
 
-#### Tailwind CSS Configuration
+Expected output should show:
+- `app/` directory (for App Router)
+- `public/` directory (for static assets)
+- `package.json` (project manifest)
+- `tsconfig.json` (TypeScript configuration)
+- `next.config.js` (Next.js configuration)
+- `tailwind.config.ts` (Tailwind configuration)
+- `postcss.config.js` (PostCSS configuration)
+- `eslintrc.json` (ESLint configuration)
 
-Configure Tailwind CSS to support the SCADA-style dark theme that will be the primary interface theme. The configuration file should:
+### Escalation Hints
 
-- Extend the default theme with custom colors for process states (normal, warning, alarm)
-- Define custom colors for tank visualization (liquid, empty space, borders)
-- Include spacing values appropriate for industrial UI layouts
-- Support dark mode as the default theme
-- Configure content paths to scan all TypeScript and TSX files in app and components directories
+**Escalate to Haiku if:**
+- The create-next-app command fails due to Node version incompatibility
+- The project structure looks significantly different than expected
 
-Custom color palette should include:
-- Process normal state (green tones)
-- Process warning state (yellow/amber tones)
-- Process alarm state (red tones)
-- Tank liquid color (blue tones)
-- Background colors (dark grays for SCADA aesthetic)
-- Text colors (light grays and white for readability on dark)
-- Border and separator colors (medium grays)
-
-#### TypeScript Configuration
-
-Configure TypeScript with strict mode enabled for type safety. The configuration should:
-- Enable strict type checking
-- Set module resolution to bundler
-- Configure path aliases (e.g., @/components, @/lib, @/hooks)
-- Enable JSX support with React 18
-- Include appropriate lib files for DOM and ES2022 features
-- Set target to ES2022 or later
-
-#### Root Layout (app/layout.tsx)
-
-Create the root layout component that wraps all pages. This layout should:
-- Define the HTML structure with proper doctype and lang attribute
-- Include metadata for the application title and description
-- Set up the dark theme as default using Tailwind dark mode classes
-- Apply base font styles (system font stack or custom font)
-- Include any global providers that will be needed
-- Set viewport configuration for responsive design
-
-The layout should establish the visual foundation of the SCADA interface with dark backgrounds and appropriate text contrast.
-
-#### Home Page (app/page.tsx)
-
-Create the main page component that will serve as the container for the simulation interface. For now, this should be a placeholder that:
-- Displays the application title "Tank Dynamics Simulator"
-- Shows a subtitle describing it as a "Real-time SCADA Interface"
-- Includes a simple connection status indicator (placeholder)
-- Uses Tailwind classes to demonstrate the dark theme is working
-- Applies proper spacing and typography for an industrial interface look
-
-The actual tab navigation and views will be added in subsequent tasks.
-
-#### Global Styles (app/globals.css)
-
-Create the global stylesheet that imports Tailwind and defines any custom CSS. This should:
-- Import Tailwind base, components, and utilities layers
-- Define CSS custom properties for colors if needed
-- Include any base element styling (scrollbars, focus rings, etc.)
-- Set smooth scrolling behavior
-- Define any animation keyframes needed for process indicators
-
-Consider SCADA interface conventions:
-- Low visual noise
-- High contrast for readability
-- Clear focus indicators for keyboard navigation
-- Smooth but not distracting animations
-
-#### Type Definitions (lib/types.ts)
-
-Create TypeScript interfaces that mirror the API data structures. These types should match the Pydantic models from the FastAPI backend to ensure type safety across the stack.
-
-Define interfaces for:
-
-**SimulationState:** The complete state snapshot sent via WebSocket every second, containing:
-- time (number in seconds)
-- level (current tank level in meters)
-- setpoint (target level in meters)
-- error (difference between setpoint and level)
-- inlet_flow (current inlet flow rate in m³/s)
-- outlet_flow (current outlet flow rate in m³/s)
-- valve_position (current valve opening fraction, 0 to 1)
-- inlet_mode (string: "constant" or "brownian")
-- inlet_config (object with min, max, variance if brownian mode)
-
-**ConfigResponse:** The simulation configuration returned by GET /api/config, containing:
-- tank_height (maximum tank height in meters)
-- tank_area (cross-sectional area in m²)
-- valve_coefficient (k_v value)
-- initial_level (starting level)
-- initial_setpoint (starting setpoint)
-- pid_gains (object with Kc, tau_I, tau_D)
-- timestep (simulation dt)
-- history_capacity (maximum history size)
-- history_size (current history entries)
-
-**HistoryPoint:** A single historical data point, same structure as SimulationState
-
-**WebSocketMessage:** Union type for messages sent from client to server:
-- type: "setpoint" | "pid" | "inlet_flow" | "inlet_mode"
-- plus type-specific payload fields
-
-Export all types for use across components.
-
-#### Utility Functions (lib/utils.ts)
-
-Create utility helper functions for the frontend. Include:
-
-A utility function for conditionally joining Tailwind class names (commonly called `cn`). This is useful for component variants and conditional styling. It should handle string concatenation, filter falsy values, and optionally integrate with clsx or a similar library.
-
-A utility function to format numbers for display with appropriate precision:
-- Tank level: 2 decimal places
-- Flow rates: 3 decimal places
-- Valve position: 1 decimal place (as percentage)
-- PID gains: variable precision based on magnitude
-
-A utility function to format timestamps for trend charts. This should convert simulation time (seconds) to human-readable format like "MM:SS" or "HH:MM:SS" depending on duration.
-
-A utility function to clamp values to valid ranges. Used for input validation before sending to API.
-
-#### Next.js Configuration (next.config.js)
-
-Configure Next.js build settings. The configuration should:
-- Enable React strict mode
-- Configure image domains if needed (none required initially)
-- Set environment variables if needed
-- Configure rewrites or redirects if needed to proxy API requests during development
-- Enable experimental features if required (unlikely for this project)
-
-For development, consider adding a rewrite rule to proxy API requests from `/api/*` to `http://localhost:8000/api/*` to avoid CORS issues, though the FastAPI backend already has CORS configured.
-
-### Verification Strategy
-
-After completing this task, verify:
-
-**Project Structure:**
-- Run `npm install` in the frontend directory - should complete without errors
-- Verify all configuration files are present and valid
-- Check that TypeScript compilation works without errors
-
-**Development Server:**
-- Start the Next.js dev server with `npm run dev`
-- Server should start on port 3000 without errors
-- Navigate to http://localhost:3000 in browser
-- Verify the placeholder page renders with dark theme
-- Check browser console for any errors
-- Verify hot reload works by editing page.tsx
-
-**Build Process:**
-- Run `npm run build` to verify production build works
-- No TypeScript errors should be present
-- Build should complete successfully
-
-**Code Quality:**
-- Run `npm run lint` - should pass with no errors
-- TypeScript strict mode should be catching type errors
-- All imports should resolve correctly
-
-### Edge Cases
-
-**Port Conflicts:**
-If port 3000 is already in use, Next.js will prompt to use an alternative port. This is acceptable for development. Document the actual port in use.
-
-**Node Version Compatibility:**
-Next.js 14 requires Node.js 18.17 or later. If an older version is detected during npm install, the task should note this requirement clearly.
-
-**Path Resolution:**
-If TypeScript path aliases don't resolve correctly in the IDE, verify that tsconfig.json includes the correct `baseUrl` and `paths` configuration, and that the IDE has reloaded the configuration.
-
-**Tailwind IntelliSense:**
-For optimal development experience, ensure the Tailwind CSS IntelliSense extension is installed in the code editor. This provides autocompletion for Tailwind classes.
+**Search for these terms if stuck:**
+- "Next.js Node version requirements"
+- "npm create-next-app troubleshooting"
 
 ### Acceptance Criteria
-
-- [ ] Next.js project initialized in `frontend/` directory with App Router
-- [ ] TypeScript configured with strict mode enabled
-- [ ] Tailwind CSS configured with custom SCADA dark theme colors
-- [ ] All required dependencies installed and listed in package.json
-- [ ] Root layout (layout.tsx) created with dark theme and proper HTML structure
-- [ ] Placeholder home page (page.tsx) created and renders successfully
-- [ ] Global styles (globals.css) created with Tailwind imports
-- [ ] Type definitions (lib/types.ts) created matching API models
-- [ ] Utility functions (lib/utils.ts) created with helpers for formatting and styling
-- [ ] Next.js config (next.config.js) created with appropriate settings
-- [ ] Development server starts without errors on `npm run dev`
-- [ ] Build process completes successfully on `npm run build`
-- [ ] ESLint runs without errors on `npm run lint`
-- [ ] Page displays in browser with dark theme at http://localhost:3000
-- [ ] Hot reload works when editing files
-- [ ] No TypeScript compilation errors
-- [ ] All imports resolve correctly
+- [ ] Next.js project initialized in `frontend/` directory
+- [ ] App Router is configured (not Pages Router)
+- [ ] TypeScript support is enabled
+- [ ] Tailwind CSS is included
+- [ ] Project structure contains app/, public/, and config files
 
 ---
 
-## Task 20: WebSocket Connection Hook and State Management
+## Task 19b: Install Frontend Dependencies
 
 **Phase:** 4 - Next.js Frontend
-**Prerequisites:** Task 19 (Next.js project structure)
+**Prerequisites:** Task 19a (Next.js project initialized)
+**Estimated Time:** 15-30 minutes
+**Files:** frontend/package.json (no modification, installation only)
 
-### Files to Create/Modify
+### Context and References
 
-```
-frontend/
-├── hooks/
-│   ├── useWebSocket.ts        (create)
-│   └── useSimulationState.ts  (create)
-├── lib/
-│   └── websocket.ts           (create - WebSocket client class)
-└── app/
-    └── providers.tsx          (create - Context providers)
-```
+This project uses `uv` for package management, NOT npm or pip.
+- Reference: `/home/roger/dev/tank_dynamics/docs/general_notes/uv-guide.md`
+- Search keywords: "uv package manager" if unfamiliar with uv
+- Escalation: Not needed (straightforward command)
 
 ### Requirements
 
-#### WebSocket Client Class (lib/websocket.ts)
+Install all dependencies for the Next.js frontend project using uv. The dependencies include:
 
-Create a WebSocket client class that manages the connection to the FastAPI backend at `ws://localhost:8000/ws`. This class should encapsulate all WebSocket logic and provide a clean interface for components.
+**Framework and Build Tools (already in package.json from create-next-app):**
+- next (14.x)
+- react (18.x)
+- react-dom (18.x)
+- typescript (5.x)
 
-The class should handle:
+**Additional UI Dependencies to Install:**
+- recharts (2.x) for time-series charting
+- @tailwindcss/forms (optional, for better form styling)
 
-**Connection Management:**
-- Connect to the WebSocket endpoint on instantiation
-- Track connection state (connecting, connected, disconnected, error)
-- Emit connection state changes via callbacks or events
-- Support manual connect and disconnect methods
+**Development Dependencies (mostly pre-installed):**
+- eslint, eslint-config-next, @types/* packages
 
-**Reconnection Logic:**
-- Automatically reconnect on disconnection (not on manual close)
-- Use exponential backoff for reconnection attempts starting at 1 second
-- Maximum backoff delay of 30 seconds
-- Maximum reconnection attempts: unlimited (keep trying)
-- Reset backoff timer on successful connection
-- Do not reconnect if disconnect was intentional (user action or component unmount)
+Note: Do NOT use npm or pip. Use uv exclusively.
 
-**Message Handling:**
-- Parse incoming JSON messages from server
-- Validate message structure (should have "type" and "data" fields)
-- Emit parsed messages to registered callbacks
-- Handle malformed messages gracefully (log error, don't crash)
-- Queue outgoing messages if connection is not ready (optional enhancement)
+### Exact Commands to Execute
 
-**Sending Commands:**
-- Provide methods to send each command type to the server
-- Setpoint command: accepts value (number)
-- PID tuning command: accepts Kc, tau_I, tau_D (numbers)
-- Inlet flow command: accepts value (number)
-- Inlet mode command: accepts mode (string), min, max, variance (numbers)
-- Serialize commands to JSON format expected by server
-- Validate input ranges before sending (raise error on invalid input)
+Navigate to the frontend directory and install dependencies:
 
-**Error Handling:**
-- Catch and log WebSocket errors
-- Emit error events to consumers
-- Gracefully handle connection failures
-- Distinguish between network errors and protocol errors
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+uv venv
+uv sync
+uv add recharts
+```
 
-**Cleanup:**
-- Provide a method to close connection and clean up resources
-- Cancel any pending reconnection timers on cleanup
-- Remove event listeners on cleanup
+The first command creates a virtual environment, the second installs all dependencies from package.json lock file, and the third adds Recharts.
 
-The class should not use React hooks internally - it should be a plain TypeScript class that can be used anywhere. The React integration will be in the custom hooks.
+### Verification
 
-#### useWebSocket Hook (hooks/useWebSocket.ts)
+Verify installation success:
 
-Create a React hook that integrates the WebSocket client class with React component lifecycle. This hook manages the WebSocket instance and provides a clean interface to components.
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+uv run npm list
+```
 
-The hook should:
+Expected output should show installed packages including:
+- next
+- react
+- react-dom
+- recharts
+- tailwindcss
 
-**Instance Management:**
-- Create a WebSocket client instance on mount (or lazily)
-- Store instance in a ref to persist across renders
-- Initialize connection automatically on mount
-- Clean up connection on unmount
+Or simpler verification:
 
-**State Exposure:**
-- Return connection state (connecting, connected, disconnected, error)
-- Return the most recent simulation state received
-- Return error information if connection fails
-- Use React state hooks to trigger re-renders on updates
+```bash
+ls -la /home/roger/dev/tank_dynamics/frontend/node_modules | head -20
+```
 
-**Command Functions:**
-- Return stable callback functions (use useCallback) for sending commands
-- Provide: setSetpoint(value)
-- Provide: setPIDGains(Kc, tau_I, tau_D)
-- Provide: setInletFlow(value)
-- Provide: setInletMode(mode, min, max, variance)
-- Each callback should handle errors and provide user feedback mechanism
+Should show node_modules directory with many packages installed.
 
-**Message Processing:**
-- Subscribe to incoming messages from WebSocket client
-- Update React state when new simulation state arrives
-- Handle state updates efficiently (only re-render when data changes)
-- Parse and validate incoming message structure
+### Escalation Hints
 
-**Effect Management:**
-- Use useEffect to set up and tear down WebSocket connection
-- Use useEffect to subscribe to WebSocket events
-- Properly clean up all subscriptions and timers on unmount
-- Handle strict mode double-mounting in development (connection should be resilient)
+**Escalate to Haiku if:**
+- uv command not found (uv not installed in system)
+- Build errors during dependency installation
+- Version conflicts preventing installation
 
-The hook signature should be:
-```typescript
+**Search for these terms if stuck:**
+- "uv package manager installation"
+- "uv sync troubleshooting"
+
+### Acceptance Criteria
+- [ ] Virtual environment created in frontend directory
+- [ ] All dependencies installed successfully via uv
+- [ ] recharts package installed
+- [ ] node_modules directory populated
+- [ ] No error messages during installation
+
+---
+
+## Task 19c: Configure TypeScript with Strict Mode
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 19a (Next.js project initialized)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/tsconfig.json` (modify)
+
+### Context and References
+
+TypeScript is a programming language that adds type safety to JavaScript. If unfamiliar:
+- Reference: https://www.typescriptlang.org/docs/handbook/
+- Search keywords: "TypeScript strict mode setup" or "tsconfig.json guide"
+- Escalation: Not needed for this task (straightforward configuration)
+
+### Requirements
+
+Modify the TypeScript configuration file to enable strict type checking and configure path aliases for cleaner imports.
+
+The tsconfig.json file should have:
+
+**Compiler Options Section:**
+- `strict: true` - Enable strict type checking mode
+- `module: "esnext"` - Use ES modules
+- `lib: ["ES2022", "DOM", "DOM.Iterable"]` - Include ES2022 and DOM APIs
+- `moduleResolution: "bundler"` - Use bundler resolution (recommended for Next.js)
+- `target: "ES2022"` - Compile to ES2022 JavaScript
+- `jsx: "preserve"` - Let Next.js handle JSX (important for App Router)
+- `jsxImportSource: "react"` - Import React for JSX
+
+**Path Aliases Section (under compilerOptions.paths):**
+Configure these aliases for convenience:
+- `@/*` maps to `./` (import from @/components, @/lib, @/hooks, etc.)
+
+**Include and Exclude Sections:**
+- include: `["next-env.d.ts", "**/*.ts", "**/*.tsx"]`
+- exclude: `["node_modules"]`
+
+The result should allow imports like `import { SimulationState } from '@/lib/types'` instead of relative paths.
+
+### Verification
+
+Verify the TypeScript configuration by running the TypeScript compiler check:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit
+```
+
+Expected result: No errors (output should be empty or only show compilation success).
+
+Check that strict mode is enabled:
+
+```bash
+grep '"strict"' /home/roger/dev/tank_dynamics/frontend/tsconfig.json
+```
+
+Should output: `"strict": true`
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- TypeScript compilation fails with unclear errors
+- Path aliases don't resolve in your editor
+
+**Search for these terms if stuck:**
+- "TypeScript path aliases configuration"
+- "Next.js tsconfig.json strict mode"
+
+### Acceptance Criteria
+- [ ] `strict: true` enabled in compiler options
+- [ ] Path aliases configured (@/* maps to ./)
+- [ ] moduleResolution set to "bundler"
+- [ ] target set to "ES2022"
+- [ ] TypeScript compilation passes without errors
+- [ ] Path alias imports would work (verified by configuration)
+
+---
+
+## Task 19d: Configure Tailwind CSS for SCADA Dark Theme
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 19a (Next.js project initialized)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/tailwind.config.ts` or `frontend/tailwind.config.js` (modify)
+
+### Context and References
+
+Tailwind CSS provides utility classes for rapid UI development. If unfamiliar:
+- Reference: https://tailwindcss.com/docs/configuration
+- Search keywords: "Tailwind CSS dark mode theme" or "Tailwind custom colors"
+- Escalation: If color scheme seems unclear, escalate to Haiku
+
+### Requirements
+
+Modify the Tailwind configuration to extend the default theme with custom colors and enable dark mode as the default.
+
+**Content Paths:**
+Configure the content array to scan these files for Tailwind class usage:
+- `./app/**/*.{js,ts,jsx,tsx}`
+- `./components/**/*.{js,ts,jsx,tsx}`
+- `./hooks/**/*.{js,ts,jsx,tsx}`
+
+**Theme Extensions (extend the default theme):**
+
+Add custom colors for SCADA process visualization:
+
+**Process State Colors:**
+- `process-normal`: A green color (e.g., #10b981) for normal operation
+- `process-warning`: An amber/yellow color (e.g., #f59e0b) for warning state
+- `process-alarm`: A red color (e.g., #ef4444) for alarm state
+
+**Tank Visualization Colors:**
+- `tank-liquid`: A blue color (e.g., #3b82f6) for liquid fill
+- `tank-empty`: A dark gray (e.g., #374151) for empty space
+- `tank-border`: A medium gray (e.g., #6b7280) for container borders
+
+**Background Colors (extend existing):**
+- `bg-scada-dark`: A very dark gray (e.g., #111827) for main background
+- `bg-scada-card`: A dark gray (e.g., #1f2937) for cards/panels
+
+**Text Colors (extend existing):**
+- `text-scada-primary`: White (e.g., #ffffff) for primary text
+- `text-scada-secondary`: Light gray (e.g., #d1d5db) for secondary text
+- `text-scada-muted`: Medium gray (e.g., #9ca3af) for muted text
+
+**Dark Mode:**
+Set `darkMode: 'class'` to enable dark mode as a class-based system. This allows toggling dark mode by adding/removing classes.
+
+Alternatively, use `darkMode: ['class', 'media']` to respect system preference as fallback.
+
+### Structure of tailwind.config.ts
+
+The file should contain:
+- `content` array with file paths to scan
+- `theme` object with `extend` section containing custom colors
+- `darkMode` setting for dark mode behavior
+- `plugins` array (initially empty)
+
+### Verification
+
+Verify the Tailwind configuration is valid by building the styles:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npm run build
+```
+
+Should complete without errors. Look for the `.next/static/css/` directory to be created with compiled CSS.
+
+Or simpler, check the configuration syntax:
+
+```bash
+grep -A 5 "theme" /home/roger/dev/tank_dynamics/frontend/tailwind.config.ts
+```
+
+Should show the theme object structure.
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Unsure about specific color hex values for SCADA theme
+- Want recommendations on color psychology for industrial UI
+
+**Search for these terms if stuck:**
+- "Tailwind CSS custom colors extend"
+- "SCADA interface color scheme best practices"
+
+### Acceptance Criteria
+- [ ] Content paths configured to scan app/, components/, hooks/ directories
+- [ ] Custom colors added to theme.extend (process states, tank colors, backgrounds)
+- [ ] darkMode setting configured
+- [ ] Tailwind configuration file is syntactically valid
+- [ ] Build completes without CSS errors
+
+---
+
+## Task 19e: Create Type Definitions Matching API Models
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 19a (TypeScript configured)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/lib/types.ts` (create new)
+
+### Context and References
+
+TypeScript interfaces define the shape of objects. If unfamiliar:
+- Reference: https://www.typescriptlang.org/docs/handbook/interfaces.html
+- Search keywords: "TypeScript interface tutorial" or "TypeScript types guide"
+- Escalation: If unsure about field mappings, check `/home/roger/dev/tank_dynamics/docs/project_docs/FASTAPI_API_REFERENCE.md`
+
+### Requirements
+
+Create a new file `frontend/lib/types.ts` containing TypeScript interfaces that match the Pydantic models from the FastAPI backend. This ensures type safety when receiving WebSocket messages and API responses.
+
+**Interface 1: SimulationState**
+This represents the real-time simulation snapshot sent via WebSocket every second.
+
+Fields should include:
+- `time`: number (simulation time in seconds)
+- `level`: number (current tank level in meters)
+- `setpoint`: number (target level in meters)
+- `error`: number (difference between setpoint and level)
+- `inlet_flow`: number (current inlet flow rate in m³/s)
+- `outlet_flow`: number (current outlet flow rate in m³/s)
+- `valve_position`: number (valve opening fraction, 0 to 1)
+- `inlet_mode`: string (either "constant" or "brownian")
+- `inlet_config`: optional object with min, max, variance fields
+
+**Interface 2: ConfigResponse**
+This represents the simulation configuration returned by GET /api/config.
+
+Fields should include:
+- `tank_height`: number (maximum tank height in meters)
+- `tank_area`: number (cross-sectional area in m²)
+- `valve_coefficient`: number (k_v value)
+- `initial_level`: number (starting level)
+- `initial_setpoint`: number (starting setpoint)
+- `pid_gains`: object with properties Kc, tau_I, tau_D (all numbers)
+- `timestep`: number (simulation dt)
+- `history_capacity`: number (maximum history size)
+- `history_size`: number (current history entries)
+
+**Interface 3: HistoryPoint**
+A single historical data point, with same fields as SimulationState.
+
+**Interface 4: WebSocketMessage**
+Union type for messages sent from client to server. Should support multiple message types with different payloads:
+- setpoint: with value field (number)
+- pid: with Kc, tau_I, tau_D fields (numbers)
+- inlet_flow: with value field (number)
+- inlet_mode: with mode field (string), plus min, max, variance for brownian mode
+
+Use TypeScript union types or a discriminated union pattern for type safety.
+
+### Structure Guidance
+
+The file should have:
+- Import statements at top (if using any types from external libraries)
+- Interface definitions in logical order (data types first, then API response types)
+- Export each interface for use in other files
+- Brief comments describing the purpose of each interface
+
+### Verification
+
+Verify TypeScript compilation:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit lib/types.ts
+```
+
+Should complete without errors.
+
+Check that the file exists and is syntactically valid:
+
+```bash
+grep "interface\|type" /home/roger/dev/tank_dynamics/frontend/lib/types.ts
+```
+
+Should show multiple interface/type definitions.
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Unsure about exact field names or types from the backend API
+- Need clarification on optional vs required fields
+
+**Search for these terms if stuck:**
+- "TypeScript interface optional properties"
+- Check `/home/roger/dev/tank_dynamics/docs/project_docs/FASTAPI_API_REFERENCE.md` for exact API field names
+
+### Acceptance Criteria
+- [ ] File created at `frontend/lib/types.ts`
+- [ ] SimulationState interface defined with all required fields
+- [ ] ConfigResponse interface defined with all required fields
+- [ ] HistoryPoint interface defined
+- [ ] WebSocketMessage union type defined with all message types
+- [ ] All interfaces are exported
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 19f: Create Utility Helper Functions
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 19e (types.ts created)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/lib/utils.ts` (create new)
+
+### Context and References
+
+Utility functions are reusable helper functions used throughout the application.
+- Reference: https://tailwindcss.com/docs/adding-custom-styles#using-css-and-tailwind-together
+- Search keywords: "JavaScript utility functions" or "clsx classname merging"
+- Escalation: If unsure about specific formatting requirements, escalate to Haiku
+
+### Requirements
+
+Create a new file `frontend/lib/utils.ts` containing utility helper functions for the frontend.
+
+**Function 1: cn() - Class Name Merger**
+Purpose: Conditionally combine Tailwind CSS class names for component styling.
+
+Behavior:
+- Accept variable number of class name arguments (strings, arrays, objects, or undefined)
+- Filter out falsy values (undefined, null, false, empty strings)
+- Concatenate remaining class names with spaces
+- Return a single string of class names
+
+Implementation hint: Use the `clsx` library or implement simple concatenation with filtering.
+
+**Function 2: formatLevel(value: number) -> string**
+Purpose: Format tank level values for display.
+
+Behavior:
+- Accept a number representing tank level in meters
+- Return formatted string with 2 decimal places
+- Example: 1.234 becomes "1.23"
+- Handle null/undefined by returning "N/A"
+
+**Function 3: formatFlowRate(value: number) -> string**
+Purpose: Format flow rate values for display.
+
+Behavior:
+- Accept a number representing flow rate in m³/s
+- Return formatted string with 3 decimal places
+- Example: 0.00456 becomes "0.005"
+- Handle null/undefined by returning "N/A"
+
+**Function 4: formatValvePosition(value: number) -> string**
+Purpose: Format valve position as percentage.
+
+Behavior:
+- Accept a number between 0 and 1 representing valve opening
+- Return formatted string as percentage with 1 decimal place
+- Example: 0.75 becomes "75.0%"
+- Handle null/undefined by returning "N/A"
+
+**Function 5: formatTime(seconds: number) -> string**
+Purpose: Format simulation time in seconds to human-readable format.
+
+Behavior:
+- Accept a number of seconds
+- Return formatted time string in MM:SS format for times under 60 minutes
+- Return HH:MM:SS format for times 60 minutes or longer
+- Example: 125 seconds becomes "02:05", 3661 seconds becomes "01:01:01"
+- Handle null/undefined by returning "N/A"
+
+**Function 6: clampValue(value: number, min: number, max: number) -> number**
+Purpose: Constrain a value within a valid range.
+
+Behavior:
+- Accept a value and minimum/maximum bounds
+- Return the value if within bounds
+- Return min if value is below min
+- Return max if value is above max
+- Used for input validation before sending commands to backend
+
+### Verification
+
+Verify TypeScript compilation:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit lib/utils.ts
+```
+
+Should complete without errors.
+
+Test a few functions manually in a Node REPL or check syntax:
+
+```bash
+grep "export function\|export const" /home/roger/dev/tank_dynamics/frontend/lib/utils.ts
+```
+
+Should show multiple exported functions.
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Unsure about formatting precision for specific values
+- Need clarification on rounding behavior
+
+**Search for these terms if stuck:**
+- "JavaScript number formatting"
+- "TypeScript utility function patterns"
+
+### Acceptance Criteria
+- [ ] File created at `frontend/lib/utils.ts`
+- [ ] cn() function exports (class name merger)
+- [ ] formatLevel() function exports
+- [ ] formatFlowRate() function exports
+- [ ] formatValvePosition() function exports
+- [ ] formatTime() function exports
+- [ ] clampValue() function exports
+- [ ] All functions are exported
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 19g: Create Global CSS Styles
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 19d (Tailwind configured)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/app/globals.css` (modify or create)
+
+### Context and References
+
+CSS is the styling language for web pages. Tailwind CSS provides utilities but we also need base styles.
+- Reference: https://tailwindcss.com/docs/adding-custom-styles
+- Search keywords: "CSS custom properties" or "Tailwind @apply"
+- Escalation: Not needed for this task (straightforward CSS)
+
+### Requirements
+
+Create or modify the global CSS file that applies Tailwind and defines base styling for the entire application.
+
+**Sections in globals.css:**
+
+**Section 1: Tailwind Directives**
+Import Tailwind's base, components, and utilities layers:
+- `@tailwind base;` - Base element styles
+- `@tailwind components;` - Reusable component styles
+- `@tailwind utilities;` - Utility classes
+
+**Section 2: CSS Custom Properties (Optional)**
+Define CSS variables for colors and values that might be reused:
+- `--color-process-normal: #10b981` (process normal state)
+- `--color-tank-liquid: #3b82f6` (tank liquid color)
+- Similar variables for other theme colors
+
+**Section 3: Base Element Styling**
+Define default styles for HTML elements:
+- Body: dark background, light text color, use system font stack
+- Headings: appropriate font sizes and weights
+- Links: underline on hover
+- Scrollbars: dark theme scrollbar styling (WebKit only)
+
+**Section 4: Smooth Scrolling**
+Add `scroll-behavior: smooth;` to html element for smooth page scrolling.
+
+**Section 5: Focus Ring Styling (for accessibility)**
+Define focus ring appearance for keyboard navigation:
+- Visible outline for interactive elements
+- Use high-contrast color
+
+**Section 6: Animation Keyframes (if needed)**
+Define custom animations for:
+- Subtle pulse for "connecting" status indicator
+- Smooth fade for view transitions (if implemented)
+
+### Verification
+
+Verify CSS syntax is valid:
+
+```bash
+head -20 /home/roger/dev/tank_dynamics/frontend/app/globals.css
+```
+
+Should show Tailwind directives at the top.
+
+Check that file exists:
+
+```bash
+ls -la /home/roger/dev/tank_dynamics/frontend/app/globals.css
+```
+
+Should show the file exists.
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Unsure about specific CSS syntax
+- Want recommendations on SCADA-appropriate styling
+
+**Search for these terms if stuck:**
+- "CSS custom properties tutorial"
+- "Tailwind CSS base styles"
+
+### Acceptance Criteria
+- [ ] File `frontend/app/globals.css` exists
+- [ ] Tailwind directives imported (@tailwind base, components, utilities)
+- [ ] Base element styling defined (body, headings, links)
+- [ ] Dark theme colors applied
+- [ ] Smooth scrolling enabled
+- [ ] Focus ring styling for accessibility defined
+- [ ] CSS syntax is valid
+
+---
+
+## Task 19h: Create Root Layout Component
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 19d (Tailwind), Task 19g (global CSS)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/app/layout.tsx` (create/modify)
+
+### Context and References
+
+Layout components in Next.js wrap all pages. If unfamiliar:
+- Reference: https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates
+- Search keywords: "Next.js App Router layout" or "Next.js RootLayout"
+- Escalation: If React JSX syntax unclear, escalate to Haiku
+
+### Requirements
+
+Create the root layout component that wraps the entire application and establishes the HTML structure.
+
+**Structure of layout.tsx:**
+
+**Section 1: Import Statements**
+- Import React types (ReactNode)
+- Import metadata (Metadata type from Next.js)
+- Import global CSS file
+
+**Section 2: Metadata Export**
+Define metadata for the page:
+- title: "Tank Dynamics Simulator"
+- description: "Real-time SCADA interface for tank level control"
+
+**Section 3: RootLayout Component**
+This is an async server component that accepts `children` prop.
+
+Implement:
+- HTML doctype and lang attribute (lang="en")
+- Head section (auto-managed by Next.js, but can include metadata)
+- Body element with:
+  - `dark` class for dark theme (Tailwind dark mode)
+  - `bg-gray-950` class for very dark background
+  - `text-gray-100` class for light text
+  - `overflow-x-hidden` to prevent horizontal scrolling
+  - Children rendered inside body
+
+**Section 4: Font Configuration (Optional but Recommended)**
+If using custom fonts, import them here. For now, using system fonts is acceptable:
+- Font stack: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`
+
+### Verification
+
+Verify TypeScript syntax and component structure:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit app/layout.tsx
+```
+
+Should complete without errors.
+
+Check that file contains RootLayout export:
+
+```bash
+grep "export.*RootLayout\|function RootLayout" /home/roger/dev/tank_dynamics/frontend/app/layout.tsx
+```
+
+Should show the RootLayout component definition.
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- React JSX syntax is unclear
+- Need help understanding Next.js layout component pattern
+
+**Search for these terms if stuck:**
+- "Next.js App Router RootLayout example"
+- "React component JSX syntax"
+
+### Acceptance Criteria
+- [ ] File `frontend/app/layout.tsx` exists
+- [ ] RootLayout component exported as default
+- [ ] HTML structure with proper doctype and lang attribute
+- [ ] Dark theme class applied to body
+- [ ] Metadata export with title and description
+- [ ] Global CSS imported
+- [ ] Children rendered in body
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 19i: Create Home Page Placeholder
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 19h (layout.tsx created)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/app/page.tsx` (create/modify)
+
+### Context and References
+
+Page components render specific routes in Next.js App Router.
+- Reference: https://nextjs.org/docs/app/building-your-application/routing/pages
+- Search keywords: "Next.js App Router page component"
+- Escalation: If React component syntax unclear, escalate to Haiku
+
+### Requirements
+
+Create the home page component that serves as the root page (/) of the application.
+
+For now, this is a placeholder that demonstrates the dark theme is working and provides a foundation for tabs and views (which will be added in Task 21).
+
+**Content of page.tsx:**
+
+**Section 1: Imports**
+- Import React types if needed
+- No external dependencies required yet
+
+**Section 2: Page Component**
+A React client component that renders:
+- A main container with full viewport height and dark background
+- Heading section with:
+  - Application title: "Tank Dynamics Simulator"
+  - Subtitle: "Real-time SCADA Interface"
+- Content section with:
+  - Brief description text
+  - Status text that says "Status: Waiting for connection setup in next tasks"
+  - Tailwind classes for spacing, typography, and colors
+
+**Section 3: Styling with Tailwind**
+Use Tailwind utility classes for:
+- Full viewport height: `h-screen`
+- Flexbox centering: `flex flex-col items-center justify-center`
+- Dark background: `bg-gray-900` or `bg-gray-950`
+- Light text: `text-white` or `text-gray-100`
+- Padding: `p-8` or `p-10`
+- Font sizes: `text-4xl` for title, `text-xl` for subtitle
+- Spacing between elements: `gap-4` or `mb-6`
+
+### Structure
+
+The page should have a simple, centered layout:
+```
+┌─────────────────────────────────┐
+│                                 │
+│      Tank Dynamics Simulator    │
+│     Real-time SCADA Interface   │
+│                                 │
+│   Description of the system     │
+│   Status: Waiting for setup     │
+│                                 │
+└─────────────────────────────────┘
+```
+
+### Verification
+
+Verify TypeScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit app/page.tsx
+```
+
+Should complete without errors.
+
+Check file exists:
+
+```bash
+ls -la /home/roger/dev/tank_dynamics/frontend/app/page.tsx
+```
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- React component syntax is unclear
+- Need help with Tailwind class combinations
+
+**Search for these terms if stuck:**
+- "React functional component tutorial"
+- "Tailwind CSS flexbox centering"
+
+### Acceptance Criteria
+- [ ] File `frontend/app/page.tsx` exists
+- [ ] Exports default React component
+- [ ] Page renders title, subtitle, and description
+- [ ] Uses Tailwind classes for dark theme styling
+- [ ] Centered layout with appropriate spacing
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 19j: Configure Next.js Build Settings
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 19a (Next.js project initialized)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/next.config.js` (modify)
+
+### Context and References
+
+Next.js configuration controls build behavior and optimization.
+- Reference: https://nextjs.org/docs/app/api-reference/next-config-js
+- Search keywords: "next.config.js configuration" or "Next.js build settings"
+- Escalation: Not needed for basic configuration
+
+### Requirements
+
+Modify the Next.js configuration file to set up build and development settings.
+
+**Configuration Settings:**
+
+**Section 1: React Strict Mode**
+Enable React strict mode to catch potential bugs:
+- `reactStrictMode: true`
+
+This enables additional development checks (like double-mounting in development).
+
+**Section 2: Dev Server Rewrites (Optional)**
+Add rewrites to proxy API requests during development to avoid CORS issues:
+
+Although the FastAPI backend already has CORS configured, this is good practice for future flexibility:
+- Configure a rewrite rule that forwards `/api/*` requests to `http://localhost:8000/api/*` during development
+- This allows frontend to call `fetch('/api/config')` instead of full URL
+
+**Section 3: Experimental Features (Not Required)**
+Leave experimental features disabled for stability unless specifically needed.
+
+**Section 4: Environment Variables (Optional)**
+The WebSocket URL will be configurable via `NEXT_PUBLIC_WS_URL` environment variable in .env.local file (created separately).
+
+### Verification
+
+Verify JavaScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+node -c next.config.js
+```
+
+Should complete without syntax errors.
+
+Check file exists:
+
+```bash
+ls -la /home/roger/dev/tank_dynamics/frontend/next.config.js
+```
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Unsure about specific configuration options needed
+
+**Search for these terms if stuck:**
+- "Next.js next.config.js examples"
+
+### Acceptance Criteria
+- [ ] File `frontend/next.config.js` exists
+- [ ] React strict mode enabled
+- [ ] Rewrites configured for API proxy (optional)
+- [ ] No syntax errors in configuration
+- [ ] Configuration is valid JavaScript
+
+---
+
+## Task 19k: Test Project Initialization with Dev Server
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Tasks 19a-19j (all project setup complete)
+**Estimated Time:** 15-30 minutes
+**Files:** None - testing only
+
+### Context and References
+
+This task verifies that the entire project setup is working correctly before moving to component development.
+
+### Requirements
+
+Test that the Next.js development server can start and the application renders correctly.
+
+**Steps to Execute:**
+
+1. Navigate to frontend directory:
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+```
+
+2. Start the development server:
+```bash
+npm run dev
+```
+
+The server should start on http://localhost:3000 (or next available port if 3000 is in use).
+
+3. Open browser to http://localhost:3000 and verify:
+   - Page loads without errors
+   - Dark theme is applied (dark background)
+   - Title "Tank Dynamics Simulator" is visible
+   - Subtitle "Real-time SCADA Interface" is visible
+   - No console errors in browser DevTools
+
+4. Test hot reload:
+   - Edit `app/page.tsx` to change a text string
+   - Save file
+   - Browser should auto-refresh (or hot-reload) with updated content
+
+5. Test TypeScript checking:
+   - Run `npm run lint` in another terminal
+   - Should complete without errors
+
+6. Stop the dev server:
+   - Press Ctrl+C in the terminal
+
+### Verification
+
+Expected outcomes:
+- Dev server starts without errors
+- Page renders with dark theme
+- All content visible and readable
+- Browser DevTools console has no errors
+- Hot reload works (changes appear without manual refresh)
+- Linting passes
+
+### Troubleshooting
+
+If the development server fails to start:
+- Verify Node.js version is 18.17 or later: `node --version`
+- Check if port 3000 is in use: `lsof -i :3000`
+- Delete `node_modules` and `package-lock.json`, then reinstall: `uv sync`
+
+If styling doesn't work:
+- Verify Tailwind config scans the right files
+- Check that `globals.css` is imported in layout.tsx
+- Verify `dark` class is applied to body element
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Dev server fails to start with unclear error
+- Port 3000 issues that can't be resolved
+- Styling completely broken (no colors applied)
+
+**Search for these terms if stuck:**
+- "Next.js dev server troubleshooting"
+- "Tailwind CSS not working Next.js"
+
+### Acceptance Criteria
+- [ ] Dev server starts without errors
+- [ ] Application renders at http://localhost:3000
+- [ ] Dark theme is visually applied
+- [ ] Title and subtitle are visible
+- [ ] Browser console shows no errors
+- [ ] Hot reload works (file changes appear immediately)
+- [ ] ESLint passing (`npm run lint`)
+- [ ] TypeScript compilation passing (`npx tsc --noEmit`)
+
+---
+
+## Task 20a: Create WebSocket Client Class - Basic Connection
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 19 complete (project structure)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/lib/websocket.ts` (create)
+
+### Context and References
+
+WebSocket is a browser API for real-time bidirectional communication.
+- Reference: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
+- Search keywords: "JavaScript WebSocket client" or "WebSocket event handling"
+- Escalation: If WebSocket API is unfamiliar, escalate to Haiku
+
+### Requirements
+
+Create a WebSocket client class that handles connection to the FastAPI backend at `ws://localhost:8000/ws`.
+
+This task focuses on basic connection/disconnection logic. Reconnection logic will be added in Task 20b.
+
+**Class Structure:**
+
+Create a class called `WebSocketClient` with:
+
+**Constructor:**
+- Accept a URL parameter (string) for the WebSocket endpoint
+- Store URL for later use
+- Initialize a `connectionStatus` property (tracking: "connecting", "connected", "disconnected", "error")
+- Initialize a `websocket` property to store the WebSocket instance (can be null)
+- Initialize a callbacks object to store registered message handlers
+- Set initial status to "disconnected"
+
+**Public Methods:**
+
+**connect() method:**
+- Create a new WebSocket instance with the stored URL
+- Set status to "connecting"
+- Add event listeners:
+  - `open` event: Set status to "connected", call any registered "connect" callbacks
+  - `message` event: Parse JSON, call any registered "message" callbacks
+  - `close` event: Set status to "disconnected", call any registered "disconnect" callbacks
+  - `error` event: Set status to "error", log error, call any registered "error" callbacks
+- Handle errors during initialization gracefully
+
+**disconnect() method:**
+- If WebSocket exists and is open, close it with code 1000 (normal closure)
+- Set status to "disconnected"
+- Clear event listeners
+- Set websocket property to null
+
+**on(event: string, callback: function) method:**
+- Register callback for events: "connect", "message", "disconnect", "error"
+- Store in callbacks object
+- Return callback (or provide unsubscribe method) for cleanup
+
+**Status Getter:**
+- Property or method to get current connection status
+- Return current status without modification
+
+### Implementation Notes
+
+- Do NOT include reconnection logic yet (that's Task 20b)
+- Use native browser WebSocket API (no external libraries needed)
+- Error handling: Log errors but don't throw (let component handle error state)
+- Event handlers: Store callbacks in a way that allows multiple handlers per event
+- TypeScript: Use proper types for callbacks (function types with parameters)
+
+### Verification
+
+Verify TypeScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit lib/websocket.ts
+```
+
+Should complete without errors.
+
+Check that class exists:
+
+```bash
+grep "class WebSocketClient\|constructor(" /home/roger/dev/tank_dynamics/frontend/lib/websocket.ts
+```
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- WebSocket event handling seems unclear
+- Need help with callback registration pattern
+
+**Search for these terms if stuck:**
+- "WebSocket event listeners JavaScript"
+- "WebSocket connection example MDN"
+
+### Acceptance Criteria
+- [ ] File `frontend/lib/websocket.ts` created
+- [ ] WebSocketClient class defined
+- [ ] Constructor accepts URL parameter
+- [ ] connect() method creates WebSocket and adds event listeners
+- [ ] disconnect() method closes WebSocket
+- [ ] on() method allows registering callbacks
+- [ ] Status tracking property/getter exists
+- [ ] TypeScript compilation passes without errors
+- [ ] No reconnection logic yet (added in next task)
+
+---
+
+## Task 20b: Add Message Sending Methods to WebSocket Class
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 20a (WebSocket class basic structure)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/lib/websocket.ts` (modify)
+
+### Context and References
+
+This task adds methods to send commands to the WebSocket server.
+- Reference: Task 19e (types.ts) defines WebSocketMessage type
+- Search keywords: "WebSocket send JSON" or "JSON serialization JavaScript"
+- Escalation: Not needed (straightforward method additions)
+
+### Requirements
+
+Add public methods to the WebSocket client class for sending different command types to the server.
+
+**Public Methods to Add:**
+
+**sendSetpoint(value: number) method:**
+- Accept a number representing desired tank level (setpoint)
+- Validate: value should be between 0 and tank_height (use clampValue from utils)
+- Create message object with:
+  - type: "setpoint"
+  - value: the validated value
+- Serialize to JSON and send via WebSocket
+- Handle if WebSocket not connected: log warning, don't crash
+
+**sendPIDGains(Kc: number, tau_I: number, tau_D: number) method:**
+- Accept three numbers for PID parameters
+- Validate: all should be positive numbers
+- Create message object with:
+  - type: "pid"
+  - Kc, tau_I, tau_D fields
+- Serialize to JSON and send via WebSocket
+
+**sendInletFlow(value: number) method:**
+- Accept a number for inlet flow rate
+- Validate: should be positive
+- Create message object with:
+  - type: "inlet_flow"
+  - value: the validated value
+- Serialize to JSON and send
+
+**sendInletMode(mode: string, min: number, max: number, variance: number) method:**
+- Accept mode ("constant" or "brownian") and parameters
+- Validate: mode should be "constant" or "brownian"
+- If "constant", only send type and mode (ignore other params)
+- If "brownian", include min, max, variance params
+- Create message object with type: "inlet_mode" plus appropriate fields
+- Serialize to JSON and send
+
+**Private Helper: sendMessage(data: object) method:**
+- Helper method that all send methods use
+- Check if WebSocket is connected: if not, log warning and return
+- Serialize data to JSON
+- Call `websocket.send(jsonString)`
+- Handle errors gracefully (don't throw)
+
+**Input Validation Helper:**
+- Use clampValue utility from lib/utils.ts
+- Or implement simple min/max checking
+- Log warnings if input is outside expected range
+
+### Implementation Notes
+
+- All send methods should be defensive (handle disconnected state gracefully)
+- Don't throw errors - log warnings and return
+- Use TypeScript types from lib/types.ts for WebSocketMessage
+- Each method should check connection status before sending
+- Consider adding optional logging for debugging
+
+### Verification
+
+Verify TypeScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit lib/websocket.ts
+```
+
+Should complete without errors.
+
+Check that send methods exist:
+
+```bash
+grep "send[A-Z]" /home/roger/dev/tank_dynamics/frontend/lib/websocket.ts
+```
+
+Should show multiple send methods.
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Unsure about validation ranges for specific parameters
+
+**Search for these terms if stuck:**
+- "JavaScript JSON.stringify"
+- "TypeScript method parameters and types"
+
+### Acceptance Criteria
+- [ ] sendSetpoint() method added
+- [ ] sendPIDGains() method added
+- [ ] sendInletFlow() method added
+- [ ] sendInletMode() method added
+- [ ] All send methods validate input ranges
+- [ ] All send methods check connection status
+- [ ] All send methods serialize to JSON and send via WebSocket
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 20c: Add Reconnection Logic to WebSocket Class
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 20b (send methods added)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/lib/websocket.ts` (modify)
+
+### Context and References
+
+Reconnection logic provides resilience when connections drop.
+- Search keywords: "exponential backoff algorithm" or "automatic reconnection pattern"
+- Escalation: If exponential backoff math seems unclear, escalate to Haiku
+
+### Requirements
+
+Add automatic reconnection logic to the WebSocket class.
+
+**Reconnection Behavior:**
+
+**Exponential Backoff:**
+- First reconnection attempt: 1 second delay
+- Second attempt: 2 seconds delay
+- Third attempt: 4 seconds delay
+- Fourth attempt: 8 seconds delay
+- Continue doubling until reaching maximum
+- Maximum backoff delay: 30 seconds
+- After reaching max, continue retrying at 30-second intervals
+
+**Reconnection Conditions:**
+- Only reconnect if the disconnect was unintentional (not from manual disconnect)
+- Add a flag to track if disconnect was intentional
+- Don't reconnect if user called disconnect() manually
+- Do reconnect if connection drops unexpectedly (network issue)
+
+**Implementation:**
+
+Add to WebSocket class:
+
+**Private Fields:**
+- `reconnectAttempts`: counter for number of reconnection attempts
+- `reconnectDelay`: current delay between reconnection attempts
+- `reconnectTimer`: ID of pending reconnection timeout
+- `intentionalDisconnect`: flag to track if disconnect was intentional
+
+**Private Methods:**
+
+**scheduleReconnect() method:**
+- Calculate current backoff delay based on attempt count
+- Set a timeout to call connect() after the delay
+- Update reconnectDelay for next attempt
+- Call "reconnecting" callback with delay information
+
+**resetReconnect() method:**
+- Called when connection succeeds
+- Reset attempts to 0
+- Reset delay to 1 second
+- Clear any pending reconnect timeout
+
+**Modify disconnect() method:**
+- Accept optional parameter `intentional: boolean = true`
+- If intentional, set flag to prevent reconnection
+- Clear any pending reconnect timeout
+
+**Modify close event handler:**
+- Check if disconnect was intentional
+- If not intentional, call scheduleReconnect()
+- If intentional, don't schedule reconnection
+
+### Verification
+
+Verify TypeScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit lib/websocket.ts
+```
+
+Should complete without errors.
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Exponential backoff calculation seems unclear
+- Need help understanding the reconnection state machine
+
+**Search for these terms if stuck:**
+- "exponential backoff implementation"
+- "JavaScript setTimeout/clearTimeout"
+
+### Acceptance Criteria
+- [ ] Exponential backoff logic implemented (1s, 2s, 4s, 8s, max 30s)
+- [ ] Reconnection attempts counter working
+- [ ] Only reconnects on unintentional disconnects
+- [ ] Reconnection timeout properly scheduled
+- [ ] Backoff resets on successful connection
+- [ ] Manual disconnect prevents reconnection
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 20d: Create useWebSocket React Hook
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 20c (WebSocket class complete), Task 19e (types.ts)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/hooks/useWebSocket.ts` (create)
+
+### Context and References
+
+React hooks integrate functionality with component lifecycle.
+- Reference: https://react.dev/reference/react/useEffect and https://react.dev/reference/react/useState
+- Search keywords: "React custom hooks" or "useEffect cleanup pattern"
+- Escalation: If React hooks are unfamiliar, escalate to Haiku
+
+### Requirements
+
+Create a custom React hook that wraps the WebSocket client class and integrates with React lifecycle.
+
+**Hook Signature:**
+
+```
 function useWebSocket(): {
   state: SimulationState | null;
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -399,704 +1374,1121 @@ function useWebSocket(): {
 }
 ```
 
-#### Simulation State Context (app/providers.tsx)
+**Implementation Requirements:**
 
-Create a React Context provider that wraps the useWebSocket hook and makes simulation state available to all components in the tree. This centralizes WebSocket management and prevents multiple connections.
+**"use client" Directive:**
+- Add `"use client"` at top of file (this is a client-side hook)
 
-The provider should:
+**Import Statements:**
+- Import React hooks: useState, useEffect, useRef, useCallback
+- Import WebSocketClient class
+- Import types from lib/types.ts
+- Import SimulationState type
 
-**Context Creation:**
-- Create a SimulationContext using React.createContext
-- Define context value type matching useWebSocket return type
-- Provide default values (null state, disconnected status, no-op functions)
+**State Management:**
+- Use useState for simulation state (initial value: null)
+- Use useState for connection status (initial: "disconnected")
+- Use useState for error (initial: null)
 
-**Provider Component:**
-- Create a SimulationProvider component that accepts children
-- Call useWebSocket hook internally (single instance for entire app)
-- Pass hook return value to context provider value
-- Wrap children with the context provider
+**Instance Management:**
+- Use useRef to store WebSocket instance (persists across renders)
+- Initialize lazily on first render (inside useEffect)
 
-**Consumer Hook:**
-- Export a useSimulation hook that calls useContext(SimulationContext)
-- Throw error if used outside provider (helps catch usage errors)
-- Return the full context value for components to consume
+**Effect Hooks:**
 
-**Integration:**
-- Update app/layout.tsx to wrap the app with SimulationProvider
-- Ensure provider is inside the body element but wraps page content
-- This makes simulation state available to all page components
+**Effect 1: Initialize Connection**
+- Run on mount only (empty dependency array)
+- Create WebSocket instance with URL from environment: `process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws'`
+- Register callbacks for connect, message, disconnect, error
+- Return cleanup function that disconnects on unmount
 
-The provider pattern ensures:
-- Single WebSocket connection for entire application
-- Centralized state management
-- Easy access from any component via useSimulation hook
-- Proper cleanup when app unmounts
+**Effect 2: Handle Messages**
+- Register callback for "message" events
+- When message received:
+  - Validate it matches SimulationState type
+  - Update state using setState callback
+- This effect might be part of the same useEffect as connection setup
 
-#### useSimulationState Hook (hooks/useSimulationState.ts)
+**Callback Functions:**
 
-Create a derived hook that provides convenient access to specific parts of simulation state. This hook should use useSimulation internally and return computed values.
+Use useCallback to create stable functions:
 
-The hook should:
+**setSetpoint callback:**
+- Accept value: number
+- Call websocket.sendSetpoint(value)
+- Catch any errors and update error state
 
-**Consume Context:**
-- Call useSimulation to get the full context
-- Extract simulation state and connection status
-- Return null-safe accessors for state fields
+**setPIDGains callback:**
+- Accept Kc, tau_I, tau_D numbers
+- Call websocket.sendPIDGains(Kc, tau_I, tau_D)
 
-**Computed Values:**
-- Calculate derived metrics if needed (e.g., tank fill percentage)
-- Format values for display (apply proper decimal precision)
-- Provide boolean flags for state checks (isConnected, hasData, isStable)
+**setInletFlow callback:**
+- Accept value: number
+- Call websocket.sendInletFlow(value)
 
-**Convenience Accessors:**
-- Provide individual state field getters (level, setpoint, flows, valve)
-- Return undefined or null for missing data (don't throw errors)
-- Type guard to ensure consumers handle missing data gracefully
+**setInletMode callback:**
+- Accept mode, min, max, variance
+- Call websocket.sendInletMode(mode, min, max, variance)
 
-This hook is optional but improves component ergonomics by handling null checks and providing computed values in one place.
+**reconnect callback:**
+- Call websocket.connect()
 
-### Implementation Notes
+**Return Value:**
+- Return object with all state and callback functions
 
-**WebSocket URL Configuration:**
-The WebSocket URL should be configurable via environment variable. Use `NEXT_PUBLIC_WS_URL` environment variable with fallback to `ws://localhost:8000/ws`. Next.js environment variables prefixed with `NEXT_PUBLIC_` are embedded in the browser bundle.
+### Verification
 
-**Connection Timing:**
-The WebSocket connection should be established when the component tree mounts, not during SSR (server-side rendering). Use `useEffect` to ensure connection happens client-side only.
+Verify TypeScript syntax:
 
-**Type Safety:**
-All message payloads should be validated against the TypeScript interfaces defined in lib/types.ts. Consider using a runtime validation library like Zod if needed.
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit hooks/useWebSocket.ts
+```
 
-**Performance:**
-The simulation sends updates at 1 Hz (once per second). This is a low update rate and should not cause performance issues. No throttling or debouncing is needed.
+Should complete without errors.
 
-**State Updates:**
-React state updates from WebSocket messages should use functional updates if they depend on previous state. For simple replacement (like simulation state), direct updates are fine.
+Check that hook is exported:
 
-### Verification Strategy
+```bash
+grep "export.*useWebSocket" /home/roger/dev/tank_dynamics/frontend/hooks/useWebSocket.ts
+```
 
-After completing this task:
+### Escalation Hints
 
-**Unit Testing (manual for now):**
-- Create a test page component that uses useSimulation hook
-- Display connection status on screen
-- Display all simulation state fields when connected
-- Add buttons to trigger each command function
-- Verify WebSocket connection establishes automatically
+**Escalate to Haiku if:**
+- React useEffect cleanup is unclear
+- Need help understanding hook dependencies
+- useCallback vs useState seems confusing
 
-**Integration with Backend:**
-- Ensure FastAPI backend is running on port 8000
-- Start Next.js dev server
-- Open browser to http://localhost:3000
-- Check browser DevTools network tab for WebSocket connection
-- Verify WebSocket shows "connected" status in network panel
-- Verify messages are flowing (one per second)
-
-**Command Testing:**
-- Add temporary controls to test page
-- Click setpoint button - verify command sends via WebSocket
-- Check backend logs - command should be received and processed
-- Verify simulation state updates reflect the command
-- Test all four command types (setpoint, PID, inlet flow, inlet mode)
-
-**Reconnection Testing:**
-- With frontend and backend running, stop the backend server
-- Verify frontend shows "disconnected" status
-- Restart backend server
-- Verify frontend automatically reconnects within a few seconds
-- Verify simulation state resumes updating
-
-**Cleanup Testing:**
-- Navigate away from page
-- Verify WebSocket connection closes (check network panel)
-- Navigate back to page
-- Verify new WebSocket connection establishes
-
-### Edge Cases
-
-**Initial Connection Failure:**
-If backend is not running when frontend starts, the WebSocket should show "connecting" status and keep retrying. When backend starts, connection should succeed automatically.
-
-**Mid-Stream Disconnection:**
-If connection drops during usage (network issue, backend restart), the frontend should show "disconnected" and attempt to reconnect. No user action should be required.
-
-**Malformed Messages:**
-If the backend sends a message that doesn't match expected format, log an error to console but don't crash. The application should remain usable with stale data.
-
-**Multiple Tabs:**
-If multiple browser tabs open to the application, each will create its own WebSocket connection. This is acceptable behavior. Each connection sends commands independently and receives the same state updates.
-
-**React Strict Mode:**
-In development, React 18 strict mode mounts components twice. The WebSocket hook should handle this gracefully by cleaning up the first connection before creating the second.
-
-**SSR Considerations:**
-WebSocket connections must only be created in the browser, never during server-side rendering. Use `useEffect` to ensure client-side only execution. The connection state should be "disconnected" during SSR.
+**Search for these terms if stuck:**
+- "React useEffect cleanup"
+- "React custom hooks tutorial"
 
 ### Acceptance Criteria
-
-- [ ] WebSocket client class (lib/websocket.ts) created with all features
-- [ ] Connection management with automatic reconnection implemented
-- [ ] Exponential backoff reconnection logic working correctly
-- [ ] Message parsing and validation implemented
-- [ ] Command sending methods for all four command types
-- [ ] Error handling and logging in place
-- [ ] useWebSocket hook (hooks/useWebSocket.ts) created
-- [ ] Hook manages WebSocket lifecycle correctly (mount/unmount)
-- [ ] Hook returns connection status and simulation state
-- [ ] Hook provides stable callback functions for commands
-- [ ] SimulationProvider context created in app/providers.tsx
-- [ ] Context makes simulation state available to all components
-- [ ] useSimulation hook exports context consumer with error checking
-- [ ] Root layout wraps app with SimulationProvider
-- [ ] Test page can consume simulation state via useSimulation hook
-- [ ] WebSocket connection establishes automatically when page loads
-- [ ] Incoming simulation state updates trigger React re-renders
-- [ ] Command functions send correctly formatted messages to backend
-- [ ] Reconnection works automatically after disconnection
-- [ ] Connection cleans up properly on component unmount
-- [ ] No TypeScript errors
-- [ ] Connection status visible in browser DevTools network panel
-- [ ] Backend logs show received commands when triggered from frontend
+- [ ] File `frontend/hooks/useWebSocket.ts` created
+- [ ] "use client" directive at top
+- [ ] Hook uses useState for connection state, error, simulation state
+- [ ] Hook uses useRef for WebSocket instance
+- [ ] useEffect handles mount/unmount lifecycle
+- [ ] Message callbacks update simulation state
+- [ ] All send methods wrapped as useCallback functions
+- [ ] Hook returns correct shape with all required properties
+- [ ] TypeScript compilation passes without errors
 
 ---
 
-## Task 21: Tab Navigation and Layout Structure
+## Task 20e: Create SimulationProvider Context
 
 **Phase:** 4 - Next.js Frontend
-**Prerequisites:** Task 20 (WebSocket connection functional)
+**Prerequisites:** Task 20d (useWebSocket hook), Task 19 (project structure)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/app/providers.tsx` (create)
 
-### Files to Create/Modify
+### Context and References
 
-```
-frontend/
-├── components/
-│   ├── TabNavigation.tsx      (create)
-│   ├── ProcessView.tsx        (create - placeholder)
-│   ├── TrendsView.tsx         (create - placeholder)
-│   └── ConnectionStatus.tsx   (create)
-└── app/
-    └── page.tsx               (modify - add tabs)
-```
+React Context provides a way to pass data through the component tree without props.
+- Reference: https://react.dev/reference/react/createContext
+- Search keywords: "React Context provider pattern" or "useContext hook"
+- Escalation: If Context pattern is unclear, escalate to Haiku
 
 ### Requirements
 
-#### Tab Navigation Component (components/TabNavigation.tsx)
+Create a Context provider that makes simulation state available to all components in the app.
 
-Create a tab navigation component that allows switching between Process View and Trends View. This should follow SCADA interface conventions with clear, high-contrast styling.
+**File Structure:**
 
-The component should:
+**Part 1: Create SimulationContext**
+- Use `React.createContext()` to create context
+- Context value type matches useWebSocket return type (all state and callbacks)
+- Provide default values (null state, disconnected, no-op functions)
 
-**Visual Design:**
-- Display two tabs: "Process" and "Trends"
-- Active tab should be visually distinct (different background, border, or underline)
-- Inactive tabs should have hover state for interactivity feedback
-- Use dark theme colors consistent with SCADA aesthetic
-- Tab labels should be clearly readable (good contrast ratio)
-- Consider using a subtle border or shadow to separate tabs from content
+**Part 2: Create SimulationProvider Component**
+- Accepts children prop (React.ReactNode)
+- Calls useWebSocket hook internally (single instance for entire app)
+- Wraps children with context provider, passing hook return as value
 
-**State Management:**
-- Accept activeTab and onTabChange props
-- activeTab: string ("process" or "trends")
-- onTabChange: callback function that receives new tab name
-- Parent component manages which tab is active
-- Component is controlled (doesn't manage its own state)
-
-**Interaction:**
-- Click on tab to activate it
-- Keyboard navigation support (arrow keys to move between tabs)
-- Enter or Space to activate focused tab
-- Proper ARIA attributes for accessibility (role="tablist", role="tab")
-- Focus indicators for keyboard users
-
-**Responsive Design:**
-- Tabs should work on both desktop and mobile screens
-- On narrow screens, tabs might stack or use full width
-- Font size and padding should be appropriate for touch targets
-
-The component should be purely presentational and not depend on any simulation state. It simply provides navigation UI.
-
-#### Connection Status Component (components/ConnectionStatus.tsx)
-
-Create a small indicator component that shows the WebSocket connection status. This should be visible at all times so users know if they're seeing live data.
-
-The component should:
-
-**Consume Simulation Context:**
-- Use the useSimulation hook to get connection status
-- Display different states: connecting, connected, disconnected, error
-
-**Visual Indicators:**
-- Show a colored dot or icon indicating status
-- Green dot: connected
-- Yellow dot: connecting
-- Red dot: disconnected or error
-- Include text label next to indicator (e.g., "Connected", "Reconnecting...")
-- Update in real-time as connection state changes
-
-**Visual Design:**
-- Small, unobtrusive component (top-right corner or near tabs)
-- High contrast against dark background
-- Use semantic colors (green = good, red = bad)
-- Optional: show connection uptime or last update timestamp
-- Optional: show reconnection attempt count when reconnecting
-
-**Error Details:**
-- If connection status is "error", display error message
-- Show error in a tooltip or expandable section
-- Don't overwhelm the UI with error details in normal view
-
-**Positioning:**
-- Component should be absolutely or fixed positioned
-- Common locations: top-right corner, bottom-right corner, near tabs
-- Should not interfere with main content area
-
-This component provides crucial feedback about data freshness and system health.
-
-#### Process View Placeholder (components/ProcessView.tsx)
-
-Create a placeholder component for the Process view that will later contain the tank visualization and controls. For now, this should display:
-
-**Placeholder Content:**
-- Heading: "Process View"
-- Brief description: "Tank visualization and real-time controls"
-- Connection status (using ConnectionStatus component)
-- Current simulation time (if connected)
-- Current tank level (if connected)
-- Current setpoint (if connected)
-- Display values formatted with appropriate precision
-
-**Consume Simulation State:**
-- Use useSimulation hook to access simulation state
-- Display "Waiting for data..." if state is null
-- Display actual values when data is available
-- Update in real-time as state changes (1 Hz)
-
-**Layout:**
-- Center content in the view
-- Use card or panel styling for information display
-- Apply SCADA dark theme colors
-- Good spacing and typography
-
-This placeholder demonstrates that the WebSocket integration is working and data is flowing. The actual tank graphic and controls will be added in Task 22.
-
-#### Trends View Placeholder (components/TrendsView.tsx)
-
-Create a placeholder component for the Trends view that will later contain historical trend charts. For now, this should display:
-
-**Placeholder Content:**
-- Heading: "Trends View"
-- Brief description: "Historical process trends and analytics"
-- Message: "Charts will be implemented in next phase"
-- Optional: show last 10 state updates as a simple list or table
-- Display timestamp, level, setpoint, flows for each update
-
-**Consume Simulation State:**
-- Use useSimulation hook (will need to maintain short history in state)
-- Store last N state updates in component state
-- Display in reverse chronological order (newest first)
-
-**Layout:**
-- Similar styling to Process View for consistency
-- Use monospace font for numeric data display
-- Table or list layout for historical data
-- Scrollable if data exceeds viewport height
-
-This placeholder shows that tab switching works and prepares the structure for the actual charts.
-
-#### Home Page Update (app/page.tsx)
-
-Modify the home page to integrate the tab navigation and view components.
-
-The page should:
-
-**State Management:**
-- Maintain activeTab state using useState hook
-- Default to "process" tab
-- Persist tab selection across WebSocket reconnections
-
-**Layout Structure:**
-```
-- Page wrapper (full height, dark background)
-  - Header section
-    - Application title
-    - Subtitle
-    - ConnectionStatus component (top-right)
-  - TabNavigation component
-    - Pass activeTab and onTabChange
-  - Main content area
-    - Conditionally render ProcessView or TrendsView based on activeTab
-  - Optional: Footer with version or credits
-```
-
-**Styling:**
-- Full viewport height layout
-- Header with padding and border-bottom
-- Tab navigation just below header
-- Main content area fills remaining vertical space
-- Use Tailwind classes for dark theme
-- Smooth transitions when switching tabs (optional)
-
-**Data Flow:**
-- SimulationProvider wraps the entire app (in layout.tsx from Task 20)
-- Page component doesn't directly use useSimulation
-- Child components (views) consume simulation state independently
-- Tab state is local to the page component
-
-The page orchestrates the overall layout but delegates specific functionality to child components.
+**Part 3: Create useSimulation Hook**
+- Calls useContext(SimulationContext)
+- Checks if context is used inside provider
+- Throw error if used outside provider: "useSimulation must be used within SimulationProvider"
+- Return context value
 
 ### Implementation Notes
 
-**Tab Switching Performance:**
-Both views should remain mounted when switching tabs (just hide with CSS). This preserves state and avoids re-initializing WebSocket connections. Use CSS display:none or Tailwind hidden class to hide inactive view.
+- SimulationProvider should be marked with "use client" (uses hooks)
+- Provider should wrap entire app (in layout.tsx)
+- useSimulation hook makes context available to child components
+- Default context values allow IDE intellisense even outside provider
+- Error check prevents silent bugs from using hook outside provider
 
-Alternatively, unmount inactive view if you want to reset its state. For this application, keeping both mounted is simpler.
+### Integration Step (Not Required for This Task)
 
-**ARIA Attributes:**
-For accessibility, use proper ARIA roles:
-- TabNavigation: role="tablist"
-- Each tab button: role="tab", aria-selected (true/false), aria-controls (ID of panel)
-- Each view: role="tabpanel", aria-labelledby (ID of corresponding tab)
+Later (Task 21), we'll update app/layout.tsx to wrap the app with SimulationProvider.
 
-This enables screen readers to announce tab structure correctly.
+### Verification
 
-**Styling Approach:**
-Use Tailwind utility classes for all styling. Avoid writing custom CSS unless absolutely necessary. Define custom colors in tailwind.config.js from Task 19.
+Verify TypeScript syntax:
 
-**Component Organization:**
-All components should be in the `components/` directory. Use PascalCase naming. Export as default from each file.
-
-### Verification Strategy
-
-After completing this task:
-
-**Visual Verification:**
-- Start both backend (port 8000) and frontend (port 3000)
-- Open http://localhost:3000 in browser
-- Verify page shows header with title
-- Verify connection status indicator appears (should show "Connected" with green dot)
-- Verify tab navigation shows "Process" and "Trends" tabs
-- Verify Process tab is active by default
-
-**Tab Switching:**
-- Click on "Trends" tab
-- Verify tab switches (visual change)
-- Verify Trends view content appears
-- Click back to "Process" tab
-- Verify Process view content appears
-- Repeat several times - should be smooth and instant
-
-**Data Display:**
-- In Process view, verify current simulation values are displayed
-- Verify values update approximately once per second
-- Verify formatting is correct (2 decimals for level, 3 for flows)
-- Watch connection status - should remain "Connected"
-
-**Reconnection Handling:**
-- Stop the backend server
-- Verify connection status changes to "Disconnected" or "Reconnecting"
-- Verify Process view still shows last received data (or "Waiting for data...")
-- Restart backend
-- Verify connection status returns to "Connected"
-- Verify data updates resume
-
-**Keyboard Navigation:**
-- Tab through the interface with keyboard
-- Verify tabs can be focused and activated with keyboard
-- Verify focus indicators are visible
-- Test arrow keys on tab navigation (if implemented)
-
-**Responsive Behavior:**
-- Resize browser window to mobile size
-- Verify tabs still work and are readable
-- Verify content doesn't overflow
-- Verify on narrow screens layout remains usable
-
-### Edge Cases
-
-**No Backend Connection:**
-If backend is not running, connection status should show "Connecting" or "Disconnected", and both views should handle null state gracefully by showing "Waiting for data..." message.
-
-**Fast Tab Switching:**
-Clicking rapidly between tabs should not cause any errors or visual glitches. Each tab should render correctly regardless of switching speed.
-
-**Stale Data Display:**
-When disconnected, views should display the last received data with a clear indication that it's stale (connection status shows disconnected). Don't show empty state if data was previously received.
-
-**Long Tab Labels:**
-If in the future tab labels get longer, ensure they don't wrap awkwardly. Use appropriate text sizing and truncation if needed.
-
-### Acceptance Criteria
-
-- [ ] TabNavigation component created with two tabs (Process, Trends)
-- [ ] Tab switching works via click interaction
-- [ ] Active tab is visually distinct from inactive tabs
-- [ ] Keyboard navigation works (tab focus, enter/space activation)
-- [ ] ARIA attributes present for accessibility
-- [ ] ConnectionStatus component created and displays correct status
-- [ ] Connection status updates in real-time based on WebSocket state
-- [ ] Visual indicators (colored dots) clearly show connection health
-- [ ] ProcessView placeholder component created
-- [ ] ProcessView displays current simulation values when connected
-- [ ] ProcessView handles null state gracefully (shows waiting message)
-- [ ] TrendsView placeholder component created
-- [ ] TrendsView displays placeholder content
-- [ ] Home page (app/page.tsx) updated with full layout
-- [ ] Page includes header with title and connection status
-- [ ] Page includes tab navigation
-- [ ] Page conditionally renders correct view based on active tab
-- [ ] Switching tabs updates the displayed view immediately
-- [ ] Both views can access simulation state via useSimulation hook
-- [ ] Dark theme styling applied throughout
-- [ ] All components use Tailwind classes for styling
-- [ ] No TypeScript errors
-- [ ] Layout is responsive and works on mobile sizes
-- [ ] Browser DevTools console shows no errors
-- [ ] Visual appearance matches SCADA interface aesthetic
-
----
-
-## Upcoming Work (After Task 21)
-
-### Task 22: Process View - Tank Visualization and Basic Controls
-
-**Scope:** Build the tank SVG graphic with animated fill level, flow indicators, valve indicator, and basic control inputs for setpoint and inlet flow.
-
-**Key Deliverables:**
-- SVG tank graphic component with responsive sizing
-- Animated liquid fill level reflecting real-time state
-- Flow rate indicators for inlet and outlet (with arrows and values)
-- Valve position indicator
-- Setpoint input control with validation
-- Inlet flow input control with validation
-- Integration with WebSocket commands
-
-### Task 23: Process View - PID Control Panel
-
-**Scope:** Add PID tuning controls and display PID state information.
-
-**Key Deliverables:**
-- PID gains input controls (Kc, tau_I, tau_D)
-- Current PID state display (error, integral term)
-- Preset tuning configurations (conservative, moderate, aggressive)
-- Live tuning capability (update while running)
-- Input validation and range checking
-
-### Task 24: Process View - Inlet Mode Controls
-
-**Scope:** Add controls for switching between constant and Brownian inlet modes.
-
-**Key Deliverables:**
-- Mode selector (constant vs. Brownian)
-- Brownian parameters inputs (min, max, variance)
-- Current mode indicator
-- Mode-specific help text
-- Integration with WebSocket inlet_mode command
-
-### Task 25: Trends View - Recharts Integration
-
-**Scope:** Implement historical trend plotting using Recharts library.
-
-**Key Deliverables:**
-- Fetch historical data from REST API on mount
-- Plot level vs setpoint on first chart
-- Plot inlet flow vs outlet flow on second chart
-- Plot valve position on third chart
-- Time axis formatting
-- Responsive chart sizing
-- Auto-scrolling with live data
-- Zoom and pan controls (if needed)
-
-### Task 26: Trends View - Time Range Selector
-
-**Scope:** Add controls to adjust the time range displayed in trends.
-
-**Key Deliverables:**
-- Time range dropdown or slider
-- Options: 5 min, 15 min, 30 min, 1 hour, 2 hours
-- Fetch appropriate historical data on selection change
-- Chart updates smoothly when range changes
-- Display current selection clearly
-
-### Task 27: UI Polish and Production Ready
-
-**Scope:** Final refinements, error handling, loading states, and production build.
-
-**Key Deliverables:**
-- Loading spinners for async operations
-- Error boundaries for graceful error handling
-- Toast notifications for user actions
-- Confirmation dialogs for destructive actions (reset simulation)
-- Production build optimization
-- Environment variable configuration
-- Docker container for frontend (optional)
-- Deployment documentation
-
-### Phase 5: Integration and Testing (Future)
-
-After Phase 4 frontend is complete, Phase 5 will focus on:
-- End-to-end testing with Playwright
-- Integration testing of full stack
-- Performance testing and optimization
-- Security review
-- Documentation updates
-- User acceptance testing
-
----
-
-## Notes on Phase 4 Development
-
-### Development Workflow
-
-1. **Start Backend First:** Always ensure the FastAPI backend is running before developing frontend features that depend on it. This allows real-time testing of WebSocket and REST integrations.
-
-2. **Hot Reload:** Next.js dev server provides hot module replacement. Changes to components will reflect immediately in the browser without full page reload.
-
-3. **Type Safety:** Leverage TypeScript strict mode throughout. The types in lib/types.ts should match the FastAPI Pydantic models exactly to catch integration issues at compile time.
-
-4. **Component Testing:** Create small test pages to verify each component in isolation before integrating into the main application.
-
-### Styling Guidelines
-
-**SCADA Aesthetic Principles:**
-- **High Contrast:** Text and indicators should have high contrast against dark backgrounds for readability
-- **Minimal Decoration:** Avoid unnecessary visual flourishes; focus on functionality
-- **Semantic Colors:** Use colors consistently (green = normal, yellow = warning, red = alarm)
-- **Clear Hierarchy:** Important information should be larger or more prominent
-- **Monospace for Numbers:** Use monospace font for numeric displays to prevent layout shift
-
-**Tailwind Dark Theme:**
-- Use `bg-gray-900` or `bg-gray-950` for main backgrounds
-- Use `bg-gray-800` for cards and panels
-- Use `text-gray-100` or `text-white` for primary text
-- Use `text-gray-400` for secondary text
-- Use `border-gray-700` for borders and dividers
-
-### WebSocket Considerations
-
-**Update Frequency:**
-The simulation sends updates at 1 Hz (once per second). This is intentionally slow for:
-- Easier debugging and observation of control behavior
-- Reduced network traffic
-- More realistic SCADA update rates
-
-Components should not expect updates faster than 1 Hz. Don't implement animations that assume 60 FPS data.
-
-**Command Throttling:**
-User input controls (sliders, inputs) should throttle or debounce commands to avoid overwhelming the WebSocket with messages. A reasonable approach:
-- Debounce text inputs (wait 300ms after user stops typing)
-- Throttle sliders (send at most once per 200ms during drag)
-- Send button clicks immediately (no throttling needed)
-
-### Next.js App Router Patterns
-
-**Server vs Client Components:**
-- All components in this project will be Client Components (use "use client" directive)
-- Server Components can't use hooks, event handlers, or browser APIs
-- Since we need WebSocket connections, everything must be client-side
-
-**File Conventions:**
-- `layout.tsx`: Shared layout for routes
-- `page.tsx`: Page component for a route
-- `loading.tsx`: Loading UI (optional)
-- `error.tsx`: Error boundary (optional)
-
-**Data Fetching:**
-For the initial config fetch (GET /api/config), use useEffect in a client component. Server Components are not beneficial for this real-time application since everything depends on client-side WebSocket state.
-
-### TypeScript Best Practices
-
-**Type Everything:**
-- All props interfaces should be explicitly defined
-- Use `type` or `interface` for prop definitions
-- Avoid `any` type - use `unknown` if type is truly unknown
-- Enable strict mode in tsconfig.json
-
-**Import Organization:**
-- React imports first
-- Third-party imports next
-- Local imports last
-- Use absolute imports with @ alias for local modules
-
-**Component Typing:**
-```typescript
-interface ComponentProps {
-  // prop definitions
-}
-
-export default function Component({ prop1, prop2 }: ComponentProps) {
-  // component implementation
-}
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit app/providers.tsx
 ```
 
-### Performance Considerations
+Should complete without errors.
 
-**Rendering Optimization:**
-- Use React.memo for expensive components that receive the same props often
-- Use useCallback for callback props to prevent unnecessary re-renders
-- Use useMemo for expensive computations
-- For this application, these are likely not needed initially - optimize if performance issues arise
+Check that exports exist:
 
-**State Updates:**
-- Simulation state updates (1 Hz) should not cause performance issues
-- Recharts can handle 7200 data points (2 hours of history) without problems
-- If chart performance becomes an issue, consider data downsampling for longer time ranges
+```bash
+grep "export.*SimulationProvider\|export.*useSimulation" /home/roger/dev/tank_dynamics/frontend/app/providers.tsx
+```
 
-**Bundle Size:**
-- Next.js automatically code-splits by route
-- Recharts is a relatively heavy library - it will only load when Trends view is rendered
-- No additional bundle optimization needed initially
+Should show both exports.
 
-### Accessibility Requirements
+### Escalation Hints
 
-**Minimum Standards:**
-- All interactive elements must be keyboard accessible
-- All images and icons must have alt text or aria-labels
-- Color should not be the only indicator of state (use text labels too)
-- Form inputs must have associated labels
-- Tab navigation should follow logical order
+**Escalate to Haiku if:**
+- React Context pattern is confusing
+- TypeScript types for context value seem unclear
 
-**ARIA Attributes:**
-- Use semantic HTML elements when possible (button, input, label)
-- Add ARIA roles only when semantic HTML is insufficient
-- Use aria-label for icon-only buttons
-- Use aria-live for dynamic content updates (connection status, simulation values)
+**Search for these terms if stuck:**
+- "React Context example"
+- "useContext hook tutorial"
+
+### Acceptance Criteria
+- [ ] File `frontend/app/providers.tsx` created
+- [ ] "use client" directive at top
+- [ ] SimulationContext created with createContext
+- [ ] SimulationProvider component wraps children with provider
+- [ ] useSimulation hook exports context consumer
+- [ ] Error thrown if useSimulation used outside provider
+- [ ] Context value type matches useWebSocket return
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 20f: Update Root Layout to Use SimulationProvider
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 20e (SimulationProvider created), Task 19h (layout.tsx exists)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/app/layout.tsx` (modify)
+
+### Context and References
+
+This task integrates the Context provider into the app root layout.
+- Reference: Task 20e for provider structure
+- Search keywords: "React component composition" or "Next.js layout structure"
+- Escalation: Not needed (straightforward integration)
+
+### Requirements
+
+Modify the root layout component to wrap the app content with SimulationProvider.
+
+**Changes to layout.tsx:**
+
+**Add Import:**
+- Import SimulationProvider from `./providers`
+
+**Update RootLayout Component Body:**
+- Wrap the children element with `<SimulationProvider>`
+- Keep other elements (html, body, etc.) unchanged
+- Structure should be:
+  ```
+  <html lang="en">
+    <body className="...">
+      <SimulationProvider>
+        {children}
+      </SimulationProvider>
+    </body>
+  </html>
+  ```
+
+**Effect:**
+- Now all child components can call `useSimulation()` hook
+- Single WebSocket connection for entire app
+- Context provides state and callbacks to all components
+
+### Verification
+
+Verify TypeScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit app/layout.tsx
+```
+
+Should complete without errors.
+
+Check that import exists:
+
+```bash
+grep "SimulationProvider" /home/roger/dev/tank_dynamics/frontend/app/layout.tsx
+```
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Unsure about component composition order
+- Need clarification on how provider wraps children
+
+**Search for these terms if stuck:**
+- "React component composition patterns"
+- "Next.js layout.tsx provider"
+
+### Acceptance Criteria
+- [ ] Layout.tsx imports SimulationProvider
+- [ ] Children wrapped with SimulationProvider in JSX
+- [ ] Provider is inside body element
+- [ ] Other layout structure unchanged
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 21a: Create TabNavigation Component
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 19 (Tailwind configured), Task 20 (WebSocket working)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/components/TabNavigation.tsx` (create)
+
+### Context and References
+
+Tab navigation is a common UI pattern for switching views.
+- Reference: https://www.w3.org/WAI/ARIA/apg/patterns/tabs/
+- Search keywords: "React tab component" or "accessible tabs ARIA"
+- Escalation: If accessibility attributes seem unclear, escalate to Haiku
+
+### Requirements
+
+Create a tab navigation component that switches between views.
+
+**Props Interface:**
+
+The component accepts:
+- `activeTab`: string ("process" or "trends")
+- `onTabChange`: callback function receiving tab name string
+
+**Tabs:**
+- Tab 1: label "Process"
+- Tab 2: label "Trends"
+
+**Visual Design:**
+
+Using Tailwind classes:
+- Container with flex layout, horizontal direction
+- Each tab button with padding (px-6, py-3)
+- Active tab: different background color (e.g., bg-blue-600)
+- Inactive tabs: lighter color (e.g., bg-gray-800)
+- Hover state on inactive tabs
+- Border-bottom on active tab (optional, for visual clarity)
+- Smooth transition animation on tab click
+
+**Keyboard Navigation:**
+
+Add accessibility attributes:
+- Container: `role="tablist"`
+- Each tab button: `role="tab"`, `aria-selected={true/false}`, `aria-controls={tabPanelId}`
+- Keyboard support: arrow keys to navigate tabs (optional but good practice)
+
+**Implementation Notes:**
+
+- Component is presentational only (doesn't manage state)
+- Parent component (page.tsx in Task 21) manages activeTab state
+- Component just renders UI and calls onTabChange callback
+- Should use Tailwind classes exclusively for styling
+
+### Verification
+
+Verify TypeScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit components/TabNavigation.tsx
+```
+
+Should complete without errors.
+
+Check file exists:
+
+```bash
+ls -la /home/roger/dev/tank_dynamics/frontend/components/TabNavigation.tsx
+```
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- ARIA attributes seem unclear
+- Need help with keyboard event handling
+
+**Search for these terms if stuck:**
+- "ARIA tabs pattern W3C"
+- "React button onClick handler"
+
+### Acceptance Criteria
+- [ ] Component created in `frontend/components/TabNavigation.tsx`
+- [ ] Accepts activeTab and onTabChange props
+- [ ] Renders two tabs: "Process" and "Trends"
+- [ ] Active tab is visually distinct
+- [ ] Click handler calls onTabChange with correct tab name
+- [ ] ARIA attributes present for accessibility
+- [ ] Uses Tailwind classes for styling
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 21b: Create ConnectionStatus Indicator Component
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 20e (useSimulation hook available), Task 21a (TabNavigation created)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/components/ConnectionStatus.tsx` (create)
+
+### Context and References
+
+This component displays the WebSocket connection state to the user.
+- Reference: Task 20d (useSimulation hook) provides connection status
+- Search keywords: "React status indicator" or "real-time status display"
+- Escalation: Not needed (straightforward component)
+
+### Requirements
+
+Create a component that displays the WebSocket connection status.
+
+**Functionality:**
+
+**Consume Simulation State:**
+- Use `useSimulation()` hook to get connectionStatus and error
+- Component re-renders when connection status changes
+
+**Display States:**
+
+- **"connected"**: Green dot + "Connected" text
+- **"connecting"**: Yellow/amber dot + "Connecting..." text
+- **"disconnected"**: Red dot + "Disconnected" text
+- **"error"**: Red dot + "Connection Error" text + show error message
+
+**Visual Indicators:**
+
+- Colored dot using semantic colors:
+  - Green: bg-green-500 (connected)
+  - Amber: bg-yellow-500 (connecting)
+  - Red: bg-red-500 (disconnected/error)
+  - Dot size: 12px diameter (w-3 h-3)
+- Text label next to dot
+- Optional: status details (error message if error state)
+- Position: top-right corner of screen or near tabs
+
+**CSS Classes:**
+
+Use Tailwind for:
+- Flex layout with gap (flex items-center gap-2)
+- Absolute positioning (fixed or absolute)
+- Padding and margin
+- Text sizing (text-sm)
+- Color classes for backgrounds and text
+
+**Optional Enhancements:**
+
+- Pulse animation for "connecting" state (use Tailwind animate-pulse)
+- Tooltip showing last update time (optional)
+- Expandable error details section (optional)
+
+### Verification
+
+Verify TypeScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit components/ConnectionStatus.tsx
+```
+
+Should complete without errors.
+
+Check file exists:
+
+```bash
+ls -la /home/roger/dev/tank_dynamics/frontend/components/ConnectionStatus.tsx
+```
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- useSimulation hook behavior is unclear
+- Need help with Tailwind animation classes
+
+**Search for these terms if stuck:**
+- "Tailwind CSS colors semantic"
+- "Tailwind animate-pulse animation"
+
+### Acceptance Criteria
+- [ ] Component created in `frontend/components/ConnectionStatus.tsx`
+- [ ] Calls useSimulation() hook to get connection status
+- [ ] Renders colored indicator dot based on status
+- [ ] Shows appropriate status text
+- [ ] Styled with Tailwind classes
+- [ ] Uses semantic colors (green, amber, red)
+- [ ] TypeScript compilation passes without errors
+- [ ] Component updates when connectionStatus changes
+
+---
+
+## Task 21c: Create ProcessView Placeholder Component
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 20d (useSimulation hook), Task 19f (utility functions), Task 21b (connection status)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/components/ProcessView.tsx` (create)
+
+### Context and References
+
+This is a placeholder view that demonstrates WebSocket data flow.
+- Reference: Task 20d (useSimulation) and Task 19f (formatLevel, formatFlowRate, etc.)
+- Search keywords: "React data display component" or "real-time dashboard"
+- Escalation: Not needed for placeholder (straightforward display)
+
+### Requirements
+
+Create a placeholder component for the Process View that displays current simulation state.
+
+**Functionality:**
+
+**Consume Simulation State:**
+- Use `useSimulation()` hook
+- Access: state, connectionStatus
+- Update in real-time as state changes (1 Hz)
+
+**Content:**
+
+- Heading: "Process View"
+- Subheading: "Tank visualization and real-time controls (coming next)"
+- Connection Status component (import and include)
+- Data section showing current values:
+  - Simulation Time: [formatted time from state.time]
+  - Tank Level: [formatted level from state.level]
+  - Setpoint: [formatted from state.setpoint]
+  - Inlet Flow: [formatted from state.inlet_flow]
+  - Outlet Flow: [formatted from state.outlet_flow]
+  - Valve Position: [formatted as percentage from state.valve_position]
+- Waiting message: "Waiting for WebSocket connection..." if state is null
+
+**Formatting:**
+
+Use utility functions from `lib/utils.ts`:
+- formatLevel() for tank level and setpoint
+- formatFlowRate() for inlet/outlet flows
+- formatValvePosition() for valve position
+- formatTime() for simulation time
+
+**Layout:**
+
+Using Tailwind:
+- Card/panel styling with dark background (bg-gray-800)
+- Padding and margin for spacing
+- Data displayed as key-value pairs (grid or list)
+- Monospace font for numeric values (font-mono)
+- Heading hierarchy with appropriate sizes
+
+**Visual Hierarchy:**
+
+- Prominent heading at top
+- Connection status in top-right
+- Data values clearly readable
+- Use spacing to organize information
+
+### Verification
+
+Verify TypeScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit components/ProcessView.tsx
+```
+
+Should complete without errors.
+
+Check file exists:
+
+```bash
+ls -la /home/roger/dev/tank_dynamics/frontend/components/ProcessView.tsx
+```
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- useSimulation hook not providing expected data
+- Need help with conditional rendering (if state is null)
+
+**Search for these terms if stuck:**
+- "React conditional rendering"
+- "React component data display"
+
+### Acceptance Criteria
+- [ ] Component created in `frontend/components/ProcessView.tsx`
+- [ ] Calls useSimulation() hook
+- [ ] Displays heading and description
+- [ ] Shows current simulation values when connected
+- [ ] Uses utility functions for formatting
+- [ ] Shows waiting message when disconnected
+- [ ] Includes ConnectionStatus component
+- [ ] Data updates in real-time (1 Hz)
+- [ ] Styled with Tailwind classes
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 21d: Create TrendsView Placeholder Component
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Task 20d (useSimulation hook), Task 21c (ProcessView created)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/components/TrendsView.tsx` (create)
+
+### Context and References
+
+This is a placeholder for future charting features.
+- Reference: Task 20d (useSimulation) for state access
+- Search keywords: "React data history" or "real-time data buffer"
+- Escalation: Not needed (placeholder with simple display)
+
+### Requirements
+
+Create a placeholder component for the Trends View.
+
+**Functionality:**
+
+**Consume Simulation State:**
+- Use `useSimulation()` hook
+- Store recent state updates in component state
+- Keep rolling history of last 10-20 state snapshots
+
+**Content:**
+
+- Heading: "Trends View"
+- Subheading: "Historical process trends and analytics"
+- Message: "Trend charts will be implemented in Phase 4 continued"
+- Recent Data Display: Show last 10 state updates as simple list or table
+  - Display: Time, Level, Setpoint, Inlet Flow, Outlet Flow
+  - Format numbers appropriately
+  - Show newest data first (reverse chronological)
+
+**State Management:**
+
+- Use useState hook to maintain history array
+- Use useEffect to subscribe to state updates
+- When new state arrives, add to beginning of array
+- Keep only last 10 items (trim oldest if exceeds 10)
+
+**Layout:**
+
+Using Tailwind:
+- Card/panel styling
+- Heading at top
+- Data table or list below
+- Use monospace font for numeric data
+- Light text on dark background
+- Scrollable if data exceeds viewport
+
+**Placeholder Style:**
+
+- Make it clear this is a placeholder
+- Include note about future enhancements
+- Still show data to prove WebSocket is working
+
+### Verification
+
+Verify TypeScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit components/TrendsView.tsx
+```
+
+Should complete without errors.
+
+Check file exists:
+
+```bash
+ls -la /home/roger/dev/tank_dynamics/frontend/components/TrendsView.tsx
+```
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- useState for managing history array seems unclear
+- Need help with array trimming logic
+
+**Search for these terms if stuck:**
+- "React useState array management"
+- "JavaScript array slice/trim"
+
+### Acceptance Criteria
+- [ ] Component created in `frontend/components/TrendsView.tsx`
+- [ ] Calls useSimulation() hook
+- [ ] Displays heading and placeholder message
+- [ ] Shows recent state history (last 10 updates)
+- [ ] Updates in real-time as new states arrive
+- [ ] Data displayed in reverse chronological order
+- [ ] Numbers formatted appropriately
+- [ ] Styled with Tailwind classes
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 21e: Update Home Page with Tab Navigation and Views
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Tasks 21a-21d (all components created)
+**Estimated Time:** 15-30 minutes
+**Files:** `frontend/app/page.tsx` (modify)
+
+### Context and References
+
+This task integrates all the components into the main page layout.
+- Reference: Tasks 21a-21d for component imports
+- Search keywords: "React conditional rendering" or "component composition"
+- Escalation: Not needed (straightforward integration)
+
+### Requirements
+
+Update the home page component to include the tab navigation and both view components.
+
+**Structure:**
+
+The page should have this layout:
+
+```
+┌─────────────────────────────────────────┐
+│  Header                                 │
+│  Tank Dynamics Simulator                │
+│  Real-time SCADA Interface              │
+│                              [Status]   │
+├─────────────────────────────────────────┤
+│ [Process]  [Trends]                     │
+├─────────────────────────────────────────┤
+│                                         │
+│   Current Active View                   │
+│   (ProcessView or TrendsView)           │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Implementation:**
+
+**State Management:**
+- Use useState to track activeTab (default: "process")
+- Initialize as "process" tab
+
+**Sections:**
+
+**Section 1: Header**
+- Application title: "Tank Dynamics Simulator"
+- Subtitle: "Real-time SCADA Interface"
+- ConnectionStatus component in top-right
+- Use Tailwind for layout and styling
+
+**Section 2: TabNavigation**
+- Pass activeTab and onTabChange to TabNavigation component
+- onTabChange updates the activeTab state
+
+**Section 3: Main Content Area**
+- Conditionally render ProcessView if activeTab === "process"
+- Conditionally render TrendsView if activeTab === "trends"
+- Both components stay mounted (just hidden), or unmount on switch (either approach is fine)
+- Fill remaining vertical space
+
+**Styling:**
+
+Using Tailwind:
+- Full viewport height (h-screen)
+- Flexbox column layout
+- Dark background and light text
+- Header with border-bottom separator
+- Main content area fills available space
+- Padding and gaps for spacing
+
+**Optional Enhancements:**
+
+- Smooth transition animation when switching tabs
+- Keep tab state in URL query param (for page refresh persistence)
+
+### Verification
+
+Verify TypeScript syntax:
+
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npx tsc --noEmit app/page.tsx
+```
+
+Should complete without errors.
+
+Check imports:
+
+```bash
+grep "import.*View\|import.*Tab" /home/roger/dev/tank_dynamics/frontend/app/page.tsx
+```
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Conditional rendering logic seems unclear
+- Component import paths not resolving
+
+**Search for these terms if stuck:**
+- "React conditional rendering {condition ? true : false}"
+- "React component import and usage"
+
+### Acceptance Criteria
+- [ ] page.tsx imports TabNavigation, ProcessView, TrendsView
+- [ ] useState tracks activeTab state
+- [ ] Header with title, subtitle, ConnectionStatus component
+- [ ] TabNavigation component displays with activeTab and onTabChange
+- [ ] Conditional rendering shows correct view based on activeTab
+- [ ] Both views render their content properly
+- [ ] Full viewport height layout with proper spacing
+- [ ] Switching tabs updates displayed view immediately
+- [ ] Dark theme styling applied
+- [ ] TypeScript compilation passes without errors
+
+---
+
+## Task 21f: Test Complete Frontend Application
+
+**Phase:** 4 - Next.js Frontend
+**Prerequisites:** Tasks 19-21 complete (entire frontend built)
+**Estimated Time:** 15-30 minutes
+**Files:** None - testing only
+
+### Context and References
+
+This is the integration test for all frontend components with the backend.
+
+### Requirements
+
+Test the complete frontend application with both dev server and backend running.
+
+**Setup:**
+
+1. Ensure FastAPI backend is running:
+```bash
+cd /home/roger/dev/tank_dynamics
+uv run python -m tank_dynamics.api.server
+```
+
+Should show: "Uvicorn running on http://127.0.0.1:8000"
+
+2. Start Next.js dev server:
+```bash
+cd /home/roger/dev/tank_dynamics/frontend
+npm run dev
+```
+
+Should show: "Ready in Xs on http://localhost:3000"
+
+**Visual Tests:**
+
+1. Open browser to http://localhost:3000
+2. Verify page loads without errors
+3. Verify dark theme is applied
+4. Verify title and subtitle visible
+5. Verify connection status indicator is visible (should show green "Connected")
+6. Verify two tabs visible: "Process" and "Trends"
+7. Verify "Process" tab is active by default (visually distinct)
+8. Verify ProcessView shows current values:
+   - Tank Level
+   - Setpoint
+   - Inlet Flow
+   - Outlet Flow
+   - Valve Position
+   - Simulation Time
+9. Verify values update approximately once per second (WebSocket receiving at 1 Hz)
+
+**Interaction Tests:**
+
+1. Click "Trends" tab
+2. Verify tab switches (visual change)
+3. Verify TrendsView displays
+4. Verify recent data history shown
+5. Click "Process" tab
+6. Verify tab switches back
+7. Verify ProcessView displays again
+8. Repeat tab switching several times (should be smooth)
+
+**WebSocket Connection Tests:**
+
+1. Open browser DevTools, Network tab, filter for WS
+2. Should see WebSocket connection to ws://localhost:8000/ws
+3. Should see messages flowing (one per second)
+4. Each message should contain simulation state data
+
+**Reconnection Test:**
+
+1. Leave frontend running
+2. Stop backend server (Ctrl+C)
+3. Verify connection status changes to "Disconnected" or "Error"
+4. Verify data display shows last received values or "Waiting for connection"
+5. Restart backend server
+6. Verify connection status returns to "Connected" within ~30 seconds
+7. Verify data updates resume
+
+**Browser Console:**
+
+1. Open browser DevTools Console tab
+2. Should be NO error messages
+3. Should be NO warning messages related to React or WebSocket
+4. Should see "Connected" or connection status logs (if logging implemented)
+
+### Verification
+
+If all tests pass:
+- Frontend application is fully functional
+- WebSocket connection works
+- Tab navigation works
+- Components display correctly
+- Real-time data updates working
+- Reconnection working
+
+### Troubleshooting
+
+If frontend shows "Disconnected":
+- Verify backend is running on port 8000
+- Check browser console for errors
+- Check backend logs for connection errors
+- Verify firewall not blocking WebSocket
+
+If styling looks broken:
+- Check Tailwind configuration
+- Verify globals.css imported in layout.tsx
+- Clear browser cache (Ctrl+Shift+Delete)
+- Restart dev server
+
+If WebSocket shows errors:
+- Check WebSocket URL in environment variables
+- Verify backend CORS configuration
+- Check browser console for specific error messages
+- Verify backend WebSocket endpoint exists at /ws
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Unexplained errors in multiple areas
+- WebSocket connection completely not working
+- Dark theme completely missing
+
+**Search for these terms if stuck:**
+- "Next.js WebSocket development"
+- "CORS WebSocket issue"
+
+### Acceptance Criteria
+- [ ] Frontend dev server starts without errors
+- [ ] Application loads at http://localhost:3000
+- [ ] Dark theme applied correctly
+- [ ] WebSocket connection established (green indicator)
+- [ ] ProcessView shows simulation values
+- [ ] Values update approximately every 1 second
+- [ ] Tab switching works smoothly
+- [ ] TrendsView displays recent data history
+- [ ] Reconnection works after backend restart
+- [ ] No errors in browser console
+- [ ] No errors in terminal output
+- [ ] All components render correctly
+
+---
+
+## Summary of Phase 4 Micro-Tasks
+
+| Task | File(s) | Focus | Status |
+|------|---------|-------|--------|
+| 19a | - (command) | Initialize Next.js project | Ready to start |
+| 19b | package.json | Install dependencies | Ready to start |
+| 19c | tsconfig.json | TypeScript configuration | Ready to start |
+| 19d | tailwind.config.ts | Tailwind dark theme colors | Ready to start |
+| 19e | lib/types.ts | API type definitions | Ready to start |
+| 19f | lib/utils.ts | Utility helper functions | Ready to start |
+| 19g | app/globals.css | Global styles and Tailwind imports | Ready to start |
+| 19h | app/layout.tsx | Root layout component | Ready to start |
+| 19i | app/page.tsx | Home page placeholder | Ready to start |
+| 19j | next.config.js | Next.js configuration | Ready to start |
+| 19k | - (testing) | Test dev server and build | Ready to start |
+| 20a | lib/websocket.ts | WebSocket basic connection | Ready to start |
+| 20b | lib/websocket.ts | WebSocket message sending | Depends on 20a |
+| 20c | lib/websocket.ts | WebSocket reconnection logic | Depends on 20b |
+| 20d | hooks/useWebSocket.ts | React hook wrapping WebSocket | Depends on 20c |
+| 20e | app/providers.tsx | Context provider for state | Depends on 20d |
+| 20f | app/layout.tsx | Integrate provider in layout | Depends on 20e |
+| 21a | components/TabNavigation.tsx | Tab UI component | Depends on 19d |
+| 21b | components/ConnectionStatus.tsx | Connection indicator | Depends on 20d |
+| 21c | components/ProcessView.tsx | Process view placeholder | Depends on 20d |
+| 21d | components/TrendsView.tsx | Trends view placeholder | Depends on 20d |
+| 21e | app/page.tsx | Integrate all components | Depends on 21a-21d |
+| 21f | - (testing) | End-to-end integration test | Depends on all above |
+
+**Total micro-tasks: 22**
+**Estimated time: 5-7 hours total (15-30 min per task)**
+
+---
+
+## Upcoming Work (After Phase 4 Foundation Complete)
+
+### Phase 4 Continued: Advanced Features
+
+**Task 22: Process View - Tank Visualization and Basic Controls**
+- SVG tank graphic with animated fill
+- Flow indicators with arrows
+- Basic input controls for setpoint
+- Integration with WebSocket commands
+
+**Task 23: Process View - PID Control Panel**
+- PID gains input controls
+- Current PID state display
+- Preset tuning configurations
+
+**Task 24: Process View - Inlet Mode Controls**
+- Mode selector (constant vs. Brownian)
+- Parameter inputs for Brownian mode
+- Mode-specific help text
+
+**Task 25: Trends View - Recharts Integration**
+- Historical data fetching
+- Multi-plot trend charts
+- Responsive sizing
+
+**Task 26: Trends View - Time Range Selector**
+- Dropdown for time range selection
+- Dynamic chart updates
+
+**Task 27: UI Polish and Production Ready**
+- Loading spinners
+- Error boundaries
+- Toast notifications
+- Production build optimization
+
+---
+
+## Development Workflow Notes
+
+### Context Preservation
+
+**Between Tasks:**
+- Each task is designed to be completable independently
+- Clear prerequisites specify what must be done before
+- If switching to a different task, save progress with git commit
+- Clear context by closing IDE/REPL between different tasks
+
+### Dependency Management
+
+**uv vs npm:**
+- Use `uv` for Python packages in the backend
+- Use `npm` for frontend dependencies (uv syncs lock file)
+- Never mix pip and uv
+- Never mix npm and yarn
 
 ### Testing Strategy
 
-**Manual Testing (Current Phase):**
-- Test in Chrome, Firefox, and Safari
-- Test on desktop and mobile screen sizes
-- Test keyboard navigation
-- Test with backend stopped/started to verify reconnection
-- Test all user interactions
+**Per-Task Verification:**
+- Each task includes a simple command to verify completion
+- Don't wait until end to test - test each task immediately
+- If test fails, fix before moving to next task
 
-**Future Automated Testing:**
-- Unit tests for hooks and utility functions (Vitest or Jest)
-- Component tests for UI components (React Testing Library)
-- E2E tests for complete workflows (Playwright)
+**Integration Tests:**
+- Task 21f is the integration test combining all components
+- Only reach Task 21f after all prior tasks complete
+- If integration test fails, check each component individually
 
-### Known Limitations and Future Enhancements
+### Git Workflow
 
-**Current Scope Limitations:**
-- Single simulation instance (no multi-user support)
-- No authentication or authorization
-- No data persistence beyond 2-hour ring buffer
-- No export functionality for historical data
-- No configurable chart axes or customization
+After each task:
+```bash
+git add <files-modified>
+git commit -m "Task Xz: Brief description"
+```
 
-**Potential Future Enhancements:**
-- User accounts and saved configurations
-- Multiple simulation instances
-- Data export to CSV
-- Advanced charting features (annotations, custom time ranges)
-- Alarm configuration and notification system
-- Comparison mode (run two simulations side-by-side)
-- Integration with machine learning models for predictive control
+For example:
+```bash
+git add frontend/app/layout.tsx
+git commit -m "Task 19h: Create root layout component with dark theme"
+```
+
+### Common Patterns
+
+**When importing from lib/:**
+```typescript
+import { formatLevel, formatFlowRate } from '@/lib/utils'
+```
+
+**When using hooks:**
+```typescript
+'use client'
+import { useSimulation } from '@/app/providers'
+
+export default function MyComponent() {
+  const { state, connectionStatus } = useSimulation()
+  // component code
+}
+```
+
+**When creating Tailwind variants:**
+- Define in tailwind.config.ts extend.colors
+- Use in components: `className="bg-process-normal"`
+- No manual CSS needed
 
 ---
 
-**Tasks Summary:**
-- Task 19: Next.js project setup and basic structure ✨ READY TO START
-- Task 20: WebSocket connection and state management
-- Task 21: Tab navigation and layout structure
+## Key Principles for Local LLM Success
 
-**Estimated Completion:** Tasks 19-21 should take 2-3 engineer sessions to complete, assuming no major blockers. This establishes the foundational frontend infrastructure that subsequent tasks will build upon.
+### 1. Task Independence
+Each task can be completed without reading others. Prerequisites list what's needed.
+
+### 2. Reference-First Design
+Tasks include links to relevant documentation and search keywords. If stuck, search first before asking for help.
+
+### 3. Escalation Clarity
+Each task specifies exactly when to escalate to Haiku/Sonnet. This prevents getting stuck while preserving resources.
+
+### 4. Verification at Scale
+Simple one-command verification for each task prevents accumulated errors.
+
+### 5. Structure Over Flexibility
+Exact file paths, exact prop names, exact behavior specifications. Leaves no room for ambiguity.
+
+---
+
+## Notes on Architecture Decisions
+
+### Why Context Instead of Props?
+
+The entire app needs access to simulation state. Props would require drilling through many levels. Context is cleaner for this use case, even though it's slightly more setup initially.
+
+### Why Separate WebSocket Client and Hook?
+
+The WebSocket client is a plain TypeScript class that could be used anywhere (tests, workers, other frameworks). The React hook is the adapter for React components. Separating concerns keeps code testable and reusable.
+
+### Why 1 Hz Update Rate?
+
+- Matches typical SCADA systems (human operators, not high-frequency trading)
+- Makes debugging easier (changes visible to human observation)
+- Reduces network traffic and processing
+- Simulation physics don't require faster updates for learning
+
+### Why Tailwind Over CSS-in-JS?
+
+- Faster development iteration
+- Smaller bundle size than styled-components
+- Better IDE support
+- Dark theme is built-in and easy to configure
+
+### Why Next.js Over React SPA?
+
+- Built-in optimization and code splitting
+- App Router provides better organization
+- Server components reduce client-side JavaScript
+- Better for SCADA (static-first, progressive enhancement)
+
+---
+
+**Status: Phase 4 Foundation Ready for Implementation**
+
+The micro-task breakdown is complete and ready for local LLM execution. Each task is independently testable and suitable for models with limited context windows. Start with Task 19a and proceed sequentially.
+
+For questions about specific tasks, refer to the task details and reference links. For pattern clarification not covered in task details, search the provided keywords before escalating.
+
