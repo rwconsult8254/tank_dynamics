@@ -1028,6 +1028,7 @@ If styling doesn't work:
 **Phase:** 4 - Next.js Frontend
 **Prerequisites:** Task 19 complete (project structure)
 **Estimated Time:** 15-30 minutes
+
 **Files:** `frontend/lib/websocket.ts` (create)
 
 ### Context and References
@@ -2503,4 +2504,3 @@ The WebSocket client is a plain TypeScript class that could be used anywhere (te
 The micro-task breakdown is complete and ready for local LLM execution. Each task is independently testable and suitable for models with limited context windows. Start with Task 19a and proceed sequentially.
 
 For questions about specific tasks, refer to the task details and reference links. For pattern clarification not covered in task details, search the provided keywords before escalating.
-
