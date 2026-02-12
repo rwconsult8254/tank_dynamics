@@ -23,17 +23,17 @@ export interface InletConfig {
 
 /**
  * Real-time simulation state snapshot sent via WebSocket every second
+ * Fields match api/simulation.py SimulationManager.get_state() output
  */
 export interface SimulationState {
   time: number;
-  level: number;
+  tank_level: number;
   setpoint: number;
   error: number;
   inlet_flow: number;
   outlet_flow: number;
   valve_position: number;
-  inlet_mode: "constant" | "brownian";
-  inlet_config?: InletConfig;
+  controller_output: number;
 }
 
 /**

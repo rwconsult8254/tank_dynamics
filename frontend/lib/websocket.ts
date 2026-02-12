@@ -199,63 +199,15 @@ export class WebSocketClient {
   }
 
   /**
-   * Send a command to the simulation
-   * @param command - Command name (e.g., "start", "stop", "reset", "set_valve")
-   * @param params - Optional parameters for the command
+   * Send a message to the WebSocket server
+   * Message format must match the backend protocol (see WebSocketMessage type in types.ts)
+   * @param message - Message object to send (will be JSON-serialized)
    * @throws Error if not connected
    */
-  sendCommand(command: string, params?: Record<string, unknown>): void {
+  send(message: Record<string, unknown>): void {
     if (this.connectionStatus !== "connected" || this.websocket === null) {
-      throw new Error("Cannot send command: WebSocket not connected");
+      throw new Error("Cannot send message: WebSocket not connected");
     }
-
-    const message = {
-      type: "command",
-      command,
-      params: params || {},
-    };
-
-    this.websocket.send(JSON.stringify(message));
-  }
-
-  /**
-   * Subscribe to updates for a specific tag
-   * @param tag - Tag name to subscribe to
-   * @param callback - Optional callback to handle updates for this tag
-   * @throws Error if not connected
-   */
-  subscribe(tag: string, callback?: MessageCallback): void {
-    if (this.connectionStatus !== "connected" || this.websocket === null) {
-      throw new Error("Cannot subscribe: WebSocket not connected");
-    }
-
-    const message = {
-      type: "subscribe",
-      tag,
-    };
-
-    this.websocket.send(JSON.stringify(message));
-
-    // If a callback is provided, register it for message events
-    if (callback) {
-      this.on("message", callback);
-    }
-  }
-
-  /**
-   * Unsubscribe from updates for a specific tag
-   * @param tag - Tag name to unsubscribe from
-   * @throws Error if not connected
-   */
-  unsubscribe(tag: string): void {
-    if (this.connectionStatus !== "connected" || this.websocket === null) {
-      throw new Error("Cannot unsubscribe: WebSocket not connected");
-    }
-
-    const message = {
-      type: "unsubscribe",
-      tag,
-    };
 
     this.websocket.send(JSON.stringify(message));
   }
