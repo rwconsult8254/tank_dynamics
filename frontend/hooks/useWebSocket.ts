@@ -3,10 +3,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { WebSocketClient, ConnectionStatus } from "../lib/websocket";
 import { SimulationState } from "../lib/types";
+import { clampValue } from "../lib/utils";
 
 /**
  * React hook that wraps the WebSocket client and integrates with React lifecycle.
- * Manages connection, state updates, and provides command methods.
+ * Manages connection, state updates, and provides command methods with input validation.
  */
 export function useWebSocket(): {
   state: SimulationState | null;
@@ -71,34 +72,132 @@ export function useWebSocket(): {
   }, []);
 
   const setSetpoint = useCallback((value: number) => {
+    // Validate input
+    if (!Number.isFinite(value)) {
+      setError("Invalid setpoint: must be a finite number");
+      console.error("Invalid setpoint value:", value);
+      return;
+    }
+
+    // Clamp to valid range (tank height 0-10m)
+    const clamped = clampValue(value, 0, 10);
+    if (clamped !== value) {
+      console.warn(`Setpoint clamped from ${value} to ${clamped}`);
+    }
+
     try {
-      clientRef.current?.send({ type: "setpoint", value });
-    } catch {
-      setError("Failed to send setpoint command");
+      clientRef.current?.send({ type: "setpoint", value: clamped });
+      setError(null);
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      console.error("Failed to send setpoint command:", e);
+      setError(`Failed to send setpoint: ${errorMsg}`);
     }
   }, []);
 
   const setPIDGains = useCallback(
     (Kc: number, tau_I: number, tau_D: number) => {
+      // Validate inputs
+      if (
+        !Number.isFinite(Kc) ||
+        !Number.isFinite(tau_I) ||
+        !Number.isFinite(tau_D)
+      ) {
+        setError("Invalid PID gains: all values must be finite numbers");
+        console.error("Invalid PID gains:", { Kc, tau_I, tau_D });
+        return;
+      }
+
+      // Validate ranges (reasonable PID values)
+      if (Kc < 0) {
+        setError("Invalid Kc: must be non-negative");
+        console.error("Invalid Kc value:", Kc);
+        return;
+      }
+      if (tau_I < 0) {
+        setError("Invalid tau_I: must be non-negative");
+        console.error("Invalid tau_I value:", tau_I);
+        return;
+      }
+      if (tau_D < 0) {
+        setError("Invalid tau_D: must be non-negative");
+        console.error("Invalid tau_D value:", tau_D);
+        return;
+      }
+
       try {
         clientRef.current?.send({ type: "pid", Kc, tau_I, tau_D });
-      } catch {
-        setError("Failed to send PID gains command");
+        setError(null);
+      } catch (e) {
+        const errorMsg = e instanceof Error ? e.message : "Unknown error";
+        console.error("Failed to send PID gains command:", e);
+        setError(`Failed to send PID gains: ${errorMsg}`);
       }
     },
     [],
   );
 
   const setInletFlow = useCallback((value: number) => {
+    // Validate input
+    if (!Number.isFinite(value)) {
+      setError("Invalid inlet flow: must be a finite number");
+      console.error("Invalid inlet flow value:", value);
+      return;
+    }
+
+    // Clamp to reasonable range (0-5 m³/s)
+    const clamped = clampValue(value, 0, 5);
+    if (clamped !== value) {
+      console.warn(`Inlet flow clamped from ${value} to ${clamped}`);
+    }
+
     try {
-      clientRef.current?.send({ type: "inlet_flow", value });
-    } catch {
-      setError("Failed to send inlet flow command");
+      clientRef.current?.send({ type: "inlet_flow", value: clamped });
+      setError(null);
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      console.error("Failed to send inlet flow command:", e);
+      setError(`Failed to send inlet flow: ${errorMsg}`);
     }
   }, []);
 
   const setInletMode = useCallback(
     (mode: string, min: number, max: number, variance: number) => {
+      // Validate mode
+      if (mode !== "constant" && mode !== "brownian") {
+        setError("Invalid inlet mode: must be 'constant' or 'brownian'");
+        console.error("Invalid inlet mode:", mode);
+        return;
+      }
+
+      // Validate numeric inputs
+      if (
+        !Number.isFinite(min) ||
+        !Number.isFinite(max) ||
+        !Number.isFinite(variance)
+      ) {
+        setError(
+          "Invalid inlet mode parameters: all values must be finite numbers",
+        );
+        console.error("Invalid inlet mode parameters:", { min, max, variance });
+        return;
+      }
+
+      // Validate ranges
+      if (min < 0 || max < 0 || variance < 0) {
+        setError("Invalid inlet mode parameters: values must be non-negative");
+        console.error("Invalid inlet mode parameters:", { min, max, variance });
+        return;
+      }
+      if (min >= max) {
+        setError("Invalid inlet mode parameters: min must be less than max");
+        console.error("Invalid inlet mode parameters: min >= max", {
+          min,
+          max,
+        });
+        return;
+      }
+
       try {
         clientRef.current?.send({
           type: "inlet_mode",
@@ -107,8 +206,11 @@ export function useWebSocket(): {
           max,
           variance,
         });
-      } catch {
-        setError("Failed to send inlet mode command");
+        setError(null);
+      } catch (e) {
+        const errorMsg = e instanceof Error ? e.message : "Unknown error";
+        console.error("Failed to send inlet mode command:", e);
+        setError(`Failed to send inlet mode: ${errorMsg}`);
       }
     },
     [],

@@ -1,20 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useSimulation } from "../app/providers";
-import { SimulationState } from "../lib/types";
-import {
-  formatLevel,
-  formatFlowRate,
-  formatTime,
-} from "../lib/utils";
+import { formatLevel, formatFlowRate, formatTime } from "../lib/utils";
 
 /**
  * TrendsView component displays historical simulation state updates
  * and provides a placeholder for future charting and analytics features.
  *
- * Maintains a rolling history of the last 10 state snapshots and
- * displays them in reverse chronological order (newest first).
+ * Consumes the last 10 state snapshots from the SimulationProvider context
+ * and displays them in reverse chronological order (newest first).
  *
  * Displays:
  * - Last 10 state updates in a table
@@ -22,20 +16,7 @@ import {
  * - Placeholder message for future enhancements
  */
 export function TrendsView() {
-  const { state } = useSimulation();
-  const [history, setHistory] = useState<SimulationState[]>([]);
-
-  // Subscribe to state updates and maintain rolling history
-  useEffect(() => {
-    if (state !== null) {
-      setHistory((prevHistory) => {
-        // Add new state to beginning of array (reverse chronological)
-        const updated = [state, ...prevHistory];
-        // Keep only last 10 items
-        return updated.slice(0, 10);
-      });
-    }
-  }, [state]);
+  const { history } = useSimulation();
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -50,7 +31,9 @@ export function TrendsView() {
       {/* Placeholder message */}
       <div className="bg-blue-900 border border-blue-700 rounded-lg p-4 mb-6">
         <p className="text-sm text-blue-200">
-          <span className="font-semibold">Placeholder:</span> Trend charts will be implemented in Phase 4 continued. Currently showing recent state updates to verify WebSocket connectivity.
+          <span className="font-semibold">Placeholder:</span> Trend charts will
+          be implemented in Phase 4 continued. Currently showing recent state
+          updates to verify WebSocket connectivity.
         </p>
       </div>
 
@@ -86,10 +69,7 @@ export function TrendsView() {
             </thead>
             <tbody className="divide-y divide-gray-700">
               {history.map((item, index) => (
-                <tr
-                  key={index}
-                  className="hover:bg-gray-700 transition-colors"
-                >
+                <tr key={index} className="hover:bg-gray-700 transition-colors">
                   <td className="py-3 px-3 font-mono text-white">
                     {formatTime(item.time)}
                   </td>

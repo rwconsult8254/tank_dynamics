@@ -22,7 +22,7 @@ import {
  * - Waiting message when disconnected
  */
 export function ProcessView() {
-  const { state, connectionStatus } = useSimulation();
+  const { state } = useSimulation();
 
   return (
     <div className="w-full h-full flex flex-col">
