@@ -33,14 +33,15 @@ Tank Dynamics is a proof-of-concept process simulation and control system. It de
 │  │  - Setpoint input       │  │  - Historical data          │  │
 │  └─────────────────────────┘  └─────────────────────────────┘  │
 └────────────────────────────────┬────────────────────────────────┘
-                                 │ WebSocket (1 Hz updates)
+                                 │ WebSocket (1 Hz, per-session)
                                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    FastAPI Server (Python)                      │
-│  - WebSocket endpoint for real-time state                       │
-│  - REST endpoints for control and history                       │
-│  - Simulation orchestration (1 Hz tick rate)                    │
-│  - Ring buffer history (~2 hours of data)                       │
+│  - Per-session simulation (one simulator per WebSocket)         │
+│  - SessionManager registry (UUID-keyed sessions)                │
+│  - WebSocket: state broadcast + commands + history              │
+│  - REST: health check + config only                             │
+│  - Ring buffer history per session (~2 hours)                   │
 └────────────────────────────────┬────────────────────────────────┘
                                  │ pybind11
                                  ▼
@@ -58,7 +59,7 @@ Tank Dynamics is a proof-of-concept process simulation and control system. It de
 **Components:**
 - **C++ Simulation Core** (`libsim`): High-performance physics engine using GSL RK4 integrator and Eigen linear algebra
 - **Python Bindings** (`tank_sim`): pybind11 interface exposing simulation to Python
-- **FastAPI Backend** (`api/`): Real-time WebSocket server orchestrating simulation
+- **FastAPI Backend** (`api/`): Per-session WebSocket server — each connection gets its own independent simulator
 - **Next.js Frontend** (`frontend/`): Modern React-based SCADA interface with Tailwind CSS styling
 
 ## Quick Start
@@ -258,16 +259,17 @@ This project uses a structured AI-assisted workflow:
 
 See `CLAUDE.md` for detailed role definitions and boundaries.
 
-### Current Phase: Phase 7 - Integration and Polish [✅ COMPLETE]
+### Current Phase: Phase 8 - Per-Session Simulation & Deployment [✅ COMPLETE]
 
-**Progress:** Phase 7 complete (2026-02-13) - Production-ready system with comprehensive testing and documentation
+**Progress:** Phase 8 complete (2026-02-13) - Per-session isolation deployed to production
 - ✅ Phase 1: C++ Simulation Core (42 C++ tests passing)
 - ✅ Phase 2: Python Bindings (28 Python tests passing)
-- ✅ Phase 3: FastAPI Backend (70+ tests passing)
+- ✅ Phase 3: FastAPI Backend (31 backend tests passing)
 - ✅ Phase 4: Next.js Frontend Foundation (21 tasks complete)
 - ✅ Phase 5: Process View (12 tasks complete)
 - ✅ Phase 6: Trends View Enhancement (14 tasks complete)
-- ✅ Phase 7: Integration and Polish (12 tasks complete, error handling + E2E tests + documentation)
+- ✅ Phase 7: Integration and Polish (12 tasks complete)
+- ✅ Phase 8: Per-Session Simulation & VPS Deployment (live at tank.rogerwibrew.com)
 
 **Phase 3 Deliverables:**
 - ✅ Task 13: FastAPI project structure with Pydantic models and core endpoints
@@ -367,31 +369,32 @@ Works with VSCode (clangd extension), Neovim (nvim-lspconfig), Emacs (eglot), et
 
 **Health Check:**
 ```bash
-curl http://localhost:8000/api/health
+curl https://tank.rogerwibrew.com/api/health
+# {"status":"ok","active_sessions":2}
 ```
 
-**Get Current State:**
+**Get Configuration:**
 ```bash
-curl http://localhost:8000/api/state
+curl https://tank.rogerwibrew.com/api/config
 ```
 
-**Set Setpoint:**
-```bash
-curl -X POST http://localhost:8000/api/setpoint \
-  -H "Content-Type: application/json" \
-  -d '{"value": 3.5}'
-```
+**WebSocket (all control and data via WebSocket):**
+```javascript
+const ws = new WebSocket("wss://tank.rogerwibrew.com/ws");
 
-**Update PID Gains:**
-```bash
-curl -X POST http://localhost:8000/api/pid \
-  -H "Content-Type: application/json" \
-  -d '{"Kc": 1.5, "tau_I": 8.0, "tau_D": 2.0}'
-```
+// Receive 1 Hz state updates
+ws.onmessage = (e) => {
+  const msg = JSON.parse(e.data);
+  if (msg.type === "state") console.log(msg.data);
+  if (msg.type === "history") console.log(msg.data.length, "entries");
+};
 
-**Get Historical Data:**
-```bash
-curl 'http://localhost:8000/api/history?duration=3600'
+// Send commands
+ws.send(JSON.stringify({ type: "setpoint", value: 3.5 }));
+ws.send(JSON.stringify({ type: "pid", Kc: 1.5, tau_I: 8.0, tau_D: 2.0 }));
+ws.send(JSON.stringify({ type: "inlet_flow", value: 0.8 }));
+ws.send(JSON.stringify({ type: "reset" }));
+ws.send(JSON.stringify({ type: "history", duration: 3600 }));
 ```
 
 For complete examples, see [examples/](examples/) directory.
@@ -494,26 +497,26 @@ Follow the workflow defined in `CLAUDE.md` when contributing:
 
 ---
 
-**Last Updated:** 2026-02-13 (Phase 7 Complete - Production Ready)
-**Current Status:** ✅ COMPLETE - 7 phases with production-grade quality assurance and documentation
-**System Status:** Production-Ready
+**Last Updated:** 2026-02-13 (Phase 8 Complete - Per-Session Simulation & Production Deployment)
+**Current Status:** ✅ COMPLETE - 8 phases, deployed to production at tank.rogerwibrew.com
+**System Status:** Production (live)
 
-**Phase 7 Completion Summary:**
-- ✅ Error boundaries for graceful failure handling
-- ✅ WebSocket reconnection with exponential backoff and jitter
-- ✅ Loading skeleton screens for improved UX
-- ✅ Playwright E2E test suite (3 test specs)
-- ✅ Operator Quick Start Guide (non-technical documentation)
-- ✅ Production Deployment Guide (systemd/Docker/Nginx)
-- ✅ Development Workflow Guide (for developers)
-- ✅ Release Checklist (quality assurance)
-- ✅ Updated README with Phase 7 completion
+**Phase 8 Completion Summary:**
+- ✅ Per-session simulation (each WebSocket gets independent simulator)
+- ✅ SessionManager with UUID-keyed session registry
+- ✅ Removed session-scoped REST endpoints (now WebSocket-only)
+- ✅ WebSocket reset and history commands
+- ✅ Docker multi-stage builds (backend + frontend)
+- ✅ CI/CD via GitHub Actions (rsync + docker compose)
+- ✅ Traefik reverse proxy with auto HTTPS
+- ✅ 31 backend tests passing (session isolation verified)
 
 **System Completion Status:**
 - ✅ Phase 1: C++ Core (42 tests, 100% pass)
 - ✅ Phase 2: Python Bindings (28 tests, 100% pass)
-- ✅ Phase 3: FastAPI Backend (70+ tests, production-ready)
+- ✅ Phase 3: FastAPI Backend (31 tests, per-session architecture)
 - ✅ Phase 4: Frontend Foundation (21 tasks, base interface)
 - ✅ Phase 5: Process View (12 tasks, SCADA interface)
 - ✅ Phase 6: Trends View (14 tasks, historical visualization)
 - ✅ Phase 7: Integration & Polish (12 tasks, production quality)
+- ✅ Phase 8: Per-Session & Deployment (live at tank.rogerwibrew.com)

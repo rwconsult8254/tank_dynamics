@@ -4,6 +4,93 @@ All notable changes to Tank Dynamics Simulator are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-13 - Per-Session Simulation & Production Deployment
+
+### Phase 8: Per-Session Isolation & VPS Deployment
+
+**Status:** COMPLETE - Each WebSocket connection gets its own independent simulation; deployed to production at tank.rogerwibrew.com
+
+#### Added
+
+**Per-Session Simulation Architecture**
+- New `SessionSimulation` class (`api/simulation.py`) — one instance per WebSocket connection, owns its own `Simulator`, history deque, inlet mode, and 1 Hz async loop
+- New `SessionManager` class — created once at startup, manages `dict[str, SessionSimulation]` registry with UUID-keyed sessions
+- `MAX_SESSIONS = 100` — rejects new connections when limit reached to prevent resource exhaustion
+- Session lifecycle: created on WebSocket connect, destroyed on disconnect (including cleanup of asyncio tasks)
+
+**New WebSocket Commands**
+- `{"type": "reset"}` — resets the session's simulation to initial conditions and clears history
+- `{"type": "history", "duration": N}` — returns session-scoped historical data via WebSocket response `{"type": "history", "data": [...]}`
+
+**Production Deployment**
+- `Dockerfile.backend` — multi-stage Docker build (C++ compilation in builder stage, minimal runtime with libgsl28)
+- `Dockerfile.frontend` — multi-stage Next.js standalone build with baked-in `NEXT_PUBLIC_WS_URL`
+- `.dockerignore` — excludes build artifacts, node_modules, .venv from Docker context
+- `.github/workflows/deploy.yml` — CI/CD pipeline: rsync to VPS, docker compose build, health check via public URL
+- Traefik reverse proxy routing: `Host(tank.rogerwibrew.com) && (PathPrefix(/api) || PathPrefix(/ws))` for backend, catch-all for frontend
+- Automatic HTTPS via Let's Encrypt TLS certificates
+
+**Frontend: WebSocket-Based History**
+- `useWebSocket.ts` now exposes `reset()`, `requestHistory(duration)`, and `historyData` state
+- `useHistory.ts` rewritten from REST `fetch("/api/history")` to WebSocket `{"type": "history", "duration": N}` request
+- `providers.tsx` context extended with `historyData`, `reset`, `requestHistory`
+- `types.ts` extended with `reset` and `history` WebSocket message variants
+
+#### Changed
+
+- `api/simulation.py` — replaced singleton `SimulationManager` with `SessionSimulation` + `SessionManager`
+- `api/main.py` — WebSocket handler now creates/destroys sessions; removed global simulation loop task
+- `api/main.py` — CORS origins configurable via `CORS_ORIGINS` environment variable
+- `frontend/next.config.ts` — added `output: "standalone"` for Docker deployment, configurable `API_URL` env var
+- Health check endpoint now returns `active_sessions` count: `{"status": "ok", "active_sessions": 2}`
+
+#### Removed
+
+- **Singleton `SimulationManager`** — replaced with per-session architecture
+- **Session-scoped REST endpoints** — `/api/state`, `/api/setpoint`, `/api/pid`, `/api/inlet_flow`, `/api/inlet_mode`, `/api/reset`, `/api/history` all removed (now WebSocket-only)
+- Global broadcast pattern — each session sends state only to its own WebSocket
+
+#### Fixed
+
+- **Session isolation** — two browser tabs now get completely independent simulations (separate tank level, setpoint, history)
+- **CI health check** — changed from `curl localhost:8000` (unreachable inside Docker network) to `curl https://tank.rogerwibrew.com/api/health` (via Traefik)
+
+#### Testing
+
+- 31 backend tests passing (100%)
+  - `test_endpoints.py`: health, config, 404, and verification that removed endpoints return 404
+  - `test_websocket.py`: connection, all commands, reset, history, session isolation, active session counting
+  - `test_concurrent.py`: concurrent sessions, independent setpoints, reset isolation, per-session history
+  - `test_brownian.py`: updated from `SimulationManager` to `SessionSimulation` — all Brownian mode tests pass
+- Docker images build successfully locally (backend + frontend)
+
+#### Technology Decisions
+
+| Component | Choice | Reason |
+|-----------|--------|--------|
+| Session Management | UUID-keyed dict | Simple, no external state store needed; single-worker uvicorn |
+| History Delivery | WebSocket command | Session-scoped; REST endpoint would need session tokens |
+| Docker Build | Multi-stage | Separate C++ compilation from minimal runtime image |
+| Reverse Proxy | Traefik | Already in use on VPS, auto HTTPS, Docker-native labels |
+| CI/CD | GitHub Actions + rsync | Simple pipeline, build on VPS to match production environment |
+
+#### Performance Characteristics
+
+- Memory per session: ~2-3 MB (Simulator + 7200-entry history deque)
+- VPS capacity: 8 GB RAM → ~2000+ concurrent sessions (theoretical)
+- Session creation: < 10ms
+- Session destruction: < 5ms (asyncio task cancellation)
+- No change to simulation step time (< 1ms, C++ side)
+
+#### Deployment
+
+- **Production URL:** https://tank.rogerwibrew.com
+- **VPS:** Hostinger Ubuntu 22.04, 8 GB RAM
+- **Infrastructure:** Traefik + Docker Compose (tank-backend, tank-frontend, portfolio, traefik)
+- **DNS:** A record for tank.rogerwibrew.com → 153.92.221.139
+
+---
+
 ## [0.3.0] - 2026-02-09 - FastAPI Backend Complete
 
 ### Phase 3: FastAPI Backend Implementation

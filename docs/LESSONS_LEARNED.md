@@ -1576,6 +1576,114 @@ Real SCADA systems follow ISA-101 high-performance HMI standards which differ si
 - **After:** ISA-101 aligned P&ID schematic that establishes conventions and spatial layout patterns reusable across future process units
 - **Key insight:** Getting the HMI style right early prevents costly redesigns when expanding from single-tank PoC to full plant simulation
 
+## 16. Singleton to Per-Session: When Users Share State
+
+### The Problem We Encountered
+
+**What happened:** After deploying to production (tank.rogerwibrew.com), opening two browser tabs showed identical simulation trends. Changing the setpoint in one tab affected both tabs. The root cause: `SimulationManager` was a singleton — one simulator, one history buffer, one set of controls — shared across all WebSocket connections via global broadcast.
+
+This was predicted in Lesson 3 ("Avoid singletons — use registry pattern for multiple simulations") but was deferred during the proof-of-concept phase. Going live made it immediately visible.
+
+### The Migration
+
+**Before (singleton):**
+```python
+class SimulationManager:
+    _instance = None
+    def __new__(cls, config):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    async def broadcast(self, message):
+        for connection in self.connections:
+            await connection.send_json(message)
+```
+
+**After (per-session):**
+```python
+class SessionSimulation:
+    def __init__(self, session_id, config, websocket):
+        self.simulator = tank_sim.Simulator(config)
+        self.history = deque(maxlen=7200)
+        self.websocket = websocket  # one websocket, not a set
+    
+    async def simulation_loop(self):
+        while True:
+            await asyncio.sleep(1.0)
+            self.step()
+            state = self.get_state()
+            self.history.append(state)
+            await self.websocket.send_json({"type": "state", "data": state})
+
+class SessionManager:
+    def __init__(self, config):
+        self.sessions: dict[str, SessionSimulation] = {}
+    
+    def create_session(self, websocket) -> SessionSimulation:
+        session = SessionSimulation(uuid4(), self.config, websocket)
+        session.start()
+        return session
+```
+
+### Key Design Decisions
+
+1. **WebSocket connection IS the session.** No session IDs needed on the frontend. Connect = new session. Disconnect = session destroyed. This avoids session token management entirely.
+
+2. **History moved from REST to WebSocket.** With per-session state, a REST `GET /api/history` endpoint would need to identify which session to query. Rather than adding session tokens to REST, history became a WebSocket command: send `{"type": "history", "duration": 3600}`, receive `{"type": "history", "data": [...]}`.
+
+3. **All control endpoints removed from REST.** `POST /api/setpoint`, `/api/pid`, `/api/inlet_flow`, `/api/inlet_mode`, `/api/reset` were all removed. These were already duplicated by WebSocket commands — the REST versions were legacy from Phase 3 before the frontend existed. Removing them simplified the API surface and eliminated the ambiguity of "which session does the REST endpoint affect?"
+
+4. **Only stateless endpoints survive as REST.** `GET /api/health` (with `active_sessions` count) and `GET /api/config` (shared default config) remain. These don't reference any session state.
+
+5. **MAX_SESSIONS guard.** `SessionManager` rejects new connections when 100 sessions exist. Each session consumes ~2-3 MB (Simulator C++ object + 7200-entry history deque). On an 8 GB VPS, this is conservative but prevents runaway resource consumption.
+
+### What Went Smoothly
+
+- **Frontend changes were minimal.** The WebSocket message protocol for existing commands (setpoint, pid, inlet_flow, inlet_mode) was unchanged. Only `useHistory.ts` needed rewriting (REST fetch → WebSocket request), and `useWebSocket.ts` needed two new methods (`reset`, `requestHistory`).
+- **Test rewrite was straightforward.** The mock `MockSimulator` in conftest.py didn't need changes. Tests for removed REST endpoints became 404 assertions. New session isolation tests were simple: open two WebSocket connections, change setpoint on one, verify the other is unaffected.
+- **The `PIDGains` mock bug was caught by tests.** The mock in conftest created `PIDGains(Kc, tau_I, tau_D)` (required args) but `main.py` called `PIDGains()` (no args) then set attributes. Changing the mock to a class with default args fixed it. This demonstrates the value of running tests against the real code path.
+
+### The Lesson
+
+**For production multi-user systems:**
+
+1. **Deploy early, even with known limitations.** The shared-session bug was invisible in local development (one browser). Production exposure with real users instantly surfaced it. Don't wait for perfection before deploying.
+
+2. **WebSocket connection = session is the simplest model.** No cookies, no tokens, no session storage. The connection lifecycle IS the session lifecycle. This works perfectly for stateful simulations where each user needs independent state.
+
+3. **Remove REST endpoints that duplicate WebSocket commands.** Having two ways to do the same thing (REST POST and WebSocket message) creates ambiguity about which session is affected. Pick one protocol for stateful operations.
+
+4. **Guard resource consumption per session.** Each simulation instance has a cost (memory, CPU for the 1 Hz loop). Set hard limits and reject connections gracefully rather than letting the server OOM.
+
+## 17. Docker Deployment: Multi-Stage Builds and Traefik Routing
+
+### The Problem We Encountered
+
+Deploying a project with a C++ physics engine, Python backend, and Next.js frontend required solving several packaging challenges:
+
+1. **C++ compilation needs build tools** (cmake, gcc, libgsl-dev, libeigen3-dev) but the runtime only needs shared libraries (libgsl28). A single-stage Docker image would be ~1 GB instead of ~200 MB.
+
+2. **GSL library naming varies by Debian version.** The builder stage (python:3.12-slim, based on Debian Trixie) installs `libgsl-dev`. The runtime stage needs the shared library, which is `libgsl28` in Trixie — not `libgsl27` (Bookworm). This was discovered by running `apt-cache search libgsl` inside the container after the build failed.
+
+3. **scikit-build-core reads pyproject.toml metadata during build.** The `readme = "README.md"` field caused a build failure because `README.md` wasn't copied into the Docker build context. Similarly, `CMakeLists.txt` references `add_subdirectory(tests)`, so the `tests/` directory must be present even for a production build.
+
+4. **Next.js `NEXT_PUBLIC_` vars are baked at build time.** `NEXT_PUBLIC_WS_URL=wss://tank.rogerwibrew.com/ws` must be set as an environment variable during `npm run build`, not at container runtime. Regular env vars like `API_URL` can be set at runtime.
+
+5. **Traefik routes by Docker labels, not port mapping.** Containers use `expose: "8000"` (Docker-internal only), not `ports: "8000:8000"`. Traefik reads labels like `traefik.http.routers.tank-api.rule=Host(tank.rogerwibrew.com) && PathPrefix(/api)` to route traffic. This means `curl localhost:8000` from the host doesn't work — the CI health check had to use the public URL through Traefik instead.
+
+6. **WebSocket routing needs explicit path matching.** Traefik needs `PathPrefix(/ws)` alongside `PathPrefix(/api)` in the same router rule for WebSocket upgrade requests to reach the backend.
+
+### The Lesson
+
+**For Docker deployments with compiled code:**
+
+- **Multi-stage builds are essential.** Builder stage for compilation tools, runtime stage with only shared libraries. This dramatically reduces image size and attack surface.
+- **Pin shared library package names.** They change between Debian releases. Test the runtime stage by running `ldd` on the compiled binary to check all shared libraries resolve.
+- **Copy everything the build system references.** Even if `README.md` and `tests/` aren't used at runtime, the build system may fail without them.
+- **Distinguish build-time vs runtime env vars** in Next.js. `NEXT_PUBLIC_*` = build-time (baked into JS bundle). Others = runtime (read by server.js).
+- **Health checks must go through the reverse proxy** when containers don't expose ports to the host. Use the public URL, not localhost.
+
 ## Next Steps
 
 1. **Immediate:** Apply micro-task breakdown to Phase 4 tasks
@@ -1586,5 +1694,5 @@ Real SCADA systems follow ISA-101 high-performance HMI standards which differ si
 ---
 
 **Document maintained by:** Engineering team  
-**Last updated:** 2026-02-13 (added Lesson 15: ISA-101 HMI redesign)  
+**Last updated:** 2026-02-13 (added Lessons 16-17: per-session migration, Docker deployment)  
 **Review cycle:** After each major phase
