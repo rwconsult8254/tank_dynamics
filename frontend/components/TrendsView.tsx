@@ -65,12 +65,16 @@ export function TrendsView() {
     }
   }, [state]);
 
-  // Downsample for rendering — Recharts is SVG-based and bogs down
-  // beyond ~500 points. The full chartData is kept for accurate appends.
-  const displayData = useMemo(
-    () => downsample(chartData, MAX_CHART_POINTS),
-    [chartData],
-  );
+  // Take most recent MAX_CHART_POINTS without downsampling to avoid visual instability.
+  // Downsampling recalculates which points to show on every update, causing lines to jump.
+  // Instead, we simply show the tail of the data (most recent points).
+  const displayData = useMemo(() => {
+    if (chartData.length <= MAX_CHART_POINTS) {
+      return chartData;
+    }
+    // Show most recent MAX_CHART_POINTS
+    return chartData.slice(-MAX_CHART_POINTS);
+  }, [chartData]);
 
   return (
     <div className="w-full h-full flex flex-col">
