@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import uuid
 from collections import deque
 from typing import Any
 
@@ -9,25 +10,20 @@ import tank_sim
 
 logger = logging.getLogger(__name__)
 
+MAX_SESSIONS = 100
 
-class SimulationManager:
+
+class SessionSimulation:
     """
-    Singleton manager for the tank simulator.
-    Manages simulation state and provides interface for API to interact with the simulator.
+    Per-WebSocket-connection simulation instance.
+    Each session owns its own Simulator, history, inlet mode, and async loop.
     """
 
-    _instance: "SimulationManager | None" = None
-
-    def __new__(cls, config: tank_sim.SimulatorConfig):
-        if cls._instance is None:
-            cls._instance = super(SimulationManager, cls).__new__(cls)
-        return cls._instance
-
-    def __init__(self, config: tank_sim.SimulatorConfig):
-        self.config: tank_sim.SimulatorConfig = config
-        self.initialized: bool = False
+    def __init__(self, session_id: str, config: tank_sim.SimulatorConfig, websocket):
+        self.session_id = session_id
+        self.config = config
+        self.websocket = websocket
         self.simulator: tank_sim.Simulator | None = None
-        self.connections: set = set()
         self.history: deque = deque(maxlen=7200)  # 2 hours at 1 Hz
         self.inlet_mode: str = "constant"
         self.inlet_mode_params: dict[str, float] = {
@@ -35,21 +31,21 @@ class SimulationManager:
             "max": 1.2,
             "variance": 0.05,
         }
+        self._task: asyncio.Task | None = None
+        self._initialize()
 
-    def initialize(self):
-        """Initialize the simulator with the configuration."""
+    def _initialize(self):
+        """Initialize the simulator with a fresh config clone."""
         try:
             self.simulator = tank_sim.Simulator(self.config)
-            self.initialized = True
-            logger.info("SimulationManager initialized successfully")
+            logger.info(f"Session {self.session_id}: simulator initialized")
         except Exception as e:
-            logger.error(f"Failed to initialize simulator: {e}")
+            logger.error(f"Session {self.session_id}: failed to initialize: {e}")
             raise
 
     def get_state(self) -> dict[str, Any]:
         """Get current simulation state snapshot."""
-        if self.simulator is None or not self.initialized:
-            logger.warning("get_state called but simulator not initialized")
+        if self.simulator is None:
             return {
                 "time": 0.0,
                 "tank_level": 0.0,
@@ -64,14 +60,13 @@ class SimulationManager:
         try:
             state = self.simulator.get_state()
             tank_level = state[0]
-            setpoint = self.simulator.get_setpoint(0)  # 0 is controller index
+            setpoint = self.simulator.get_setpoint(0)
             inlet_flow = self.simulator.get_inputs()[0]
             valve_position = self.simulator.get_inputs()[1]
-            error = self.simulator.get_error(0)  # 0 is controller index
+            error = self.simulator.get_error(0)
             controller_output = self.simulator.get_controller_output(0)
             time = self.simulator.get_time()
 
-            # Calculate outlet flow using valve equation: q_out = k_v * valve_position * sqrt(tank_level)
             k_v = self.config.model_params.k_v
             outlet_flow = (
                 k_v * valve_position * (tank_level**0.5) if tank_level > 0 else 0.0
@@ -88,7 +83,7 @@ class SimulationManager:
                 "controller_output": float(controller_output),
             }
         except Exception as e:
-            logger.error(f"Error getting state: {e}")
+            logger.error(f"Session {self.session_id}: error getting state: {e}")
             return {
                 "time": 0.0,
                 "tank_level": 0.0,
@@ -102,12 +97,10 @@ class SimulationManager:
 
     def step(self):
         """Advance simulation by one time step."""
-        if self.simulator is None or not self.initialized:
-            logger.warning("step called but simulator not initialized")
+        if self.simulator is None:
             return
 
         try:
-            # Apply Brownian inlet flow if enabled
             if self.inlet_mode == "brownian":
                 current_inlet_flow = self.simulator.get_inputs()[0]
                 new_inlet_flow = self.apply_brownian_inlet(current_inlet_flow)
@@ -115,12 +108,11 @@ class SimulationManager:
 
             self.simulator.step()
         except Exception as e:
-            logger.error(f"Error during simulation step: {e}")
+            logger.error(f"Session {self.session_id}: error during step: {e}")
 
     def reset(self):
-        """Reset simulation to initial conditions and clear history buffer."""
-        if self.simulator is None or not self.initialized:
-            logger.warning("reset called but simulator not initialized")
+        """Reset simulation to initial conditions and clear history."""
+        if self.simulator is None:
             return
 
         try:
@@ -132,180 +124,133 @@ class SimulationManager:
                 "max": 1.2,
                 "variance": 0.05,
             }
-            logger.info("Simulation reset to initial conditions and history cleared")
+            logger.info(f"Session {self.session_id}: reset")
         except Exception as e:
-            logger.error(f"Error resetting simulation: {e}")
+            logger.error(f"Session {self.session_id}: error resetting: {e}")
 
     def set_setpoint(self, value: float):
         """Set the controller setpoint."""
-        if self.simulator is None or not self.initialized:
-            logger.warning("set_setpoint called but simulator not initialized")
+        if self.simulator is None:
             return
-
         try:
-            self.simulator.set_setpoint(0, value)  # 0 is controller index
-            logger.info(f"Setpoint set to {value}")
+            self.simulator.set_setpoint(0, value)
         except Exception as e:
-            logger.error(f"Error setting setpoint: {e}")
+            logger.error(f"Session {self.session_id}: error setting setpoint: {e}")
 
     def set_pid_gains(self, gains: tank_sim.PIDGains):
         """Set PID controller gains."""
-        if self.simulator is None or not self.initialized:
-            logger.warning("set_pid_gains called but simulator not initialized")
+        if self.simulator is None:
             return
-
         try:
-            self.simulator.set_controller_gains(0, gains)  # 0 is controller index
-            logger.info(
-                f"PID gains set: Kc={gains.Kc}, tau_I={gains.tau_I}, tau_D={gains.tau_D}"
-            )
+            self.simulator.set_controller_gains(0, gains)
         except Exception as e:
-            logger.error(f"Error setting PID gains: {e}")
+            logger.error(f"Session {self.session_id}: error setting PID gains: {e}")
 
     def set_inlet_flow(self, value: float):
         """Set inlet flow rate."""
-        if self.simulator is None or not self.initialized:
-            logger.warning("set_inlet_flow called but simulator not initialized")
+        if self.simulator is None:
             return
-
         try:
-            self.simulator.set_input(0, value)  # 0 is inlet flow input index
-            logger.info(f"Inlet flow set to {value}")
+            self.simulator.set_input(0, value)
         except Exception as e:
-            logger.error(f"Error setting inlet flow: {e}")
-
-    def apply_brownian_inlet(self, current_flow: float) -> float:
-        """
-        Apply Brownian motion to inlet flow.
-
-        Args:
-            current_flow: Current inlet flow value
-
-        Returns:
-            New inlet flow value after applying Brownian step
-        """
-        # Generate random increment from normal distribution
-        increment = np.random.normal(0.0, self.inlet_mode_params["variance"])
-
-        # Add increment to current flow
-        new_flow = current_flow + increment
-
-        # Clamp to bounds
-        min_flow = self.inlet_mode_params["min"]
-        max_flow = self.inlet_mode_params["max"]
-        new_flow = np.clip(new_flow, min_flow, max_flow)
-
-        return float(new_flow)
+            logger.error(f"Session {self.session_id}: error setting inlet flow: {e}")
 
     def set_inlet_mode(
         self, mode: str, min_flow: float, max_flow: float, variance: float = 0.05
     ):
         """Set inlet flow mode (constant or brownian)."""
-        if self.simulator is None or not self.initialized:
-            logger.warning("set_inlet_mode called but simulator not initialized")
-            return
+        self.inlet_mode = mode
+        self.inlet_mode_params = {
+            "min": min_flow,
+            "max": max_flow,
+            "variance": variance,
+        }
 
-        try:
-            # Store mode parameters for Brownian implementation
-            self.inlet_mode = mode
-            self.inlet_mode_params = {
-                "min": min_flow,
-                "max": max_flow,
-                "variance": variance,
-            }
-            if mode == "brownian":
-                logger.info(
-                    f"Brownian inlet mode enabled: min={min_flow}, max={max_flow}, variance={variance}"
-                )
-            else:
-                logger.info(f"Inlet mode set to {mode}")
-        except Exception as e:
-            logger.error(f"Error setting inlet mode: {e}")
+    def apply_brownian_inlet(self, current_flow: float) -> float:
+        """Apply Brownian motion to inlet flow."""
+        increment = np.random.normal(0.0, self.inlet_mode_params["variance"])
+        new_flow = current_flow + increment
+        min_flow = self.inlet_mode_params["min"]
+        max_flow = self.inlet_mode_params["max"]
+        new_flow = np.clip(new_flow, min_flow, max_flow)
+        return float(new_flow)
 
     def get_history(self, duration: int = 3600) -> list[dict[str, Any]]:
-        """
-        Get historical data points.
-
-        Args:
-            duration: Number of seconds of history to return (1-7200, default 3600)
-
-        Returns:
-            List of state snapshots in chronological order (oldest first)
-        """
-        if duration < 1 or duration > 7200:
-            logger.warning(f"Invalid duration {duration}, clamping to valid range")
-            duration = max(1, min(duration, 7200))
-
+        """Get historical data points."""
+        duration = max(1, min(duration, 7200))
         num_entries = min(duration, len(self.history))
         if num_entries == 0:
             return []
-
         return list(self.history)[-num_entries:]
 
-    def add_connection(self, websocket):
-        """Add a WebSocket connection."""
-        self.connections.add(websocket)
-        logger.info(
-            f"WebSocket connection added. Total connections: {len(self.connections)}"
-        )
-
-    def remove_connection(self, websocket):
-        """Remove a WebSocket connection."""
-        self.connections.discard(websocket)
-        logger.info(
-            f"WebSocket connection removed. Total connections: {len(self.connections)}"
-        )
-
-    async def broadcast(self, message: dict[str, Any]):
-        """Broadcast message to all connected clients."""
-        disconnected = []
-        for connection in self.connections:
-            try:
-                await connection.send_json(message)
-            except Exception as e:
-                logger.warning(f"Error sending message to client: {e}")
-                disconnected.append(connection)
-
-        # Remove failed connections
-        for connection in disconnected:
-            self.remove_connection(connection)
-
     async def simulation_loop(self):
-        """
-        Main simulation loop running at 1 Hz.
-
-        Continuously:
-        - Steps the simulation
-        - Gets current state
-        - Broadcasts state to all connected WebSocket clients
-        - Stores state in history buffer
-        """
-        logger.info("Simulation loop started")
+        """Main simulation loop running at 1 Hz, sending state to this session's websocket."""
+        logger.info(f"Session {self.session_id}: simulation loop started")
         try:
             while True:
                 await asyncio.sleep(1.0)
-
                 try:
-                    # Advance simulation by one step
                     self.step()
-
-                    # Get current state
                     state = self.get_state()
-
-                    # Store in history buffer
                     self.history.append(state)
-
-                    # Broadcast to all connected clients
-                    message = {"type": "state", "data": state}
-                    await self.broadcast(message)
-
+                    await self.websocket.send_json({"type": "state", "data": state})
                 except Exception as e:
-                    logger.error(f"Error in simulation loop iteration: {e}")
-                    # Continue loop without crashing
-
+                    logger.error(
+                        f"Session {self.session_id}: error in loop iteration: {e}"
+                    )
         except asyncio.CancelledError:
-            logger.info("Simulation loop cancelled")
+            logger.info(f"Session {self.session_id}: simulation loop cancelled")
             raise
-        except Exception as e:
-            logger.error(f"Fatal error in simulation loop: {e}")
-            raise
+
+    def start(self):
+        """Start the simulation loop as an asyncio task."""
+        self._task = asyncio.create_task(self.simulation_loop())
+
+    async def stop(self):
+        """Stop the simulation loop."""
+        if self._task is not None:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+            logger.info(f"Session {self.session_id}: stopped")
+
+
+class SessionManager:
+    """
+    Manages per-connection simulation sessions.
+    Created once at startup, holds shared config.
+    """
+
+    def __init__(self, config: tank_sim.SimulatorConfig):
+        self.config = config
+        self.sessions: dict[str, SessionSimulation] = {}
+
+    def create_session(self, websocket) -> SessionSimulation:
+        """Create a new session for a WebSocket connection."""
+        if len(self.sessions) >= MAX_SESSIONS:
+            raise RuntimeError(
+                f"Maximum sessions ({MAX_SESSIONS}) reached, rejecting connection"
+            )
+
+        session_id = str(uuid.uuid4())
+        session = SessionSimulation(session_id, self.config, websocket)
+        self.sessions[session_id] = session
+        session.start()
+        logger.info(f"Session created: {session_id} (active: {len(self.sessions)})")
+        return session
+
+    async def destroy_session(self, session_id: str):
+        """Stop and remove a session."""
+        session = self.sessions.pop(session_id, None)
+        if session is not None:
+            await session.stop()
+            logger.info(
+                f"Session destroyed: {session_id} (active: {len(self.sessions)})"
+            )
+
+    @property
+    def active_session_count(self) -> int:
+        return len(self.sessions)

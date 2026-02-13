@@ -20,6 +20,7 @@ type SimulationContextType = {
   connectionStatus: ConnectionStatus;
   error: string | null;
   history: SimulationState[];
+  historyData: SimulationState[] | null;
   setSetpoint: (value: number) => void;
   setPIDGains: (Kc: number, tau_I: number, tau_D: number) => void;
   setInletFlow: (value: number) => void;
@@ -29,6 +30,8 @@ type SimulationContextType = {
     max: number,
     variance: number,
   ) => void;
+  reset: () => void;
+  requestHistory: (duration: number) => void;
   reconnect: () => void;
 };
 
@@ -40,10 +43,13 @@ const defaultContextValue: SimulationContextType = {
   connectionStatus: "disconnected",
   error: null,
   history: [],
+  historyData: null,
   setSetpoint: () => {},
   setPIDGains: () => {},
   setInletFlow: () => {},
   setInletMode: () => {},
+  reset: () => {},
+  requestHistory: () => {},
   reconnect: () => {},
 };
 

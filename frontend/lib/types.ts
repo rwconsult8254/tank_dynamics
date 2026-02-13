@@ -23,7 +23,7 @@ export interface InletConfig {
 
 /**
  * Real-time simulation state snapshot sent via WebSocket every second
- * Fields match api/simulation.py SimulationManager.get_state() output
+ * Fields match api/simulation.py SessionSimulation.get_state() output
  */
 export interface SimulationState {
   time: number;
@@ -81,4 +81,11 @@ export type WebSocketMessage =
       min?: number;
       max?: number;
       variance?: number;
+    }
+  | {
+      type: "reset";
+    }
+  | {
+      type: "history";
+      duration: number;
     };

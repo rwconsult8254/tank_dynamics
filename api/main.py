@@ -1,24 +1,16 @@
-import asyncio
 import json
 import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 import tank_sim
 
-from .models import (
-    ConfigResponse,
-    InletFlowCommand,
-    InletModeCommand,
-    PIDTuningCommand,
-    SetpointCommand,
-    SimulationState,
-)
-from .simulation import SimulationManager
+from .models import ConfigResponse
+from .simulation import SessionManager
 
 # Configure logging
 logging.basicConfig(
@@ -27,45 +19,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global simulation manager instance
-simulation_manager: SimulationManager | None = None
-
-# Track the background simulation loop task
-simulation_task: asyncio.Task | None = None
+# Global session manager instance
+session_manager: SessionManager | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Manages application startup and shutdown.
-    """
-    # Startup
-    global simulation_manager, simulation_task
+    """Manages application startup and shutdown."""
+    global session_manager
     try:
         config = tank_sim.create_default_config()
-        simulation_manager = SimulationManager(config)
-        simulation_manager.initialize()
+        session_manager = SessionManager(config)
         logger.info("Application started successfully")
-
-        # Start the simulation loop as a background task
-        simulation_task = asyncio.create_task(simulation_manager.simulation_loop())
-        logger.info("Simulation loop started")
-
     except Exception as e:
-        logger.error(f"Failed to initialize simulation manager: {e}")
+        logger.error(f"Failed to initialize session manager: {e}")
         raise
 
     yield
 
-    # Shutdown
-    if simulation_task is not None:
-        simulation_task.cancel()
-        try:
-            await simulation_task
-        except asyncio.CancelledError:
-            pass
-        logger.info("Simulation loop stopped")
-
+    # Shutdown: destroy all active sessions
+    if session_manager is not None:
+        for session_id in list(session_manager.sessions.keys()):
+            await session_manager.destroy_session(session_id)
     logger.info("Application shutting down")
 
 
@@ -73,7 +48,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Tank Dynamics Simulator API",
     description="Real-time tank level control simulation with PID control",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -97,39 +72,28 @@ app.add_middleware(
 )
 
 
-# REST Endpoints
+# REST Endpoints — only shared/stateless ones remain
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint for monitoring."""
-    return {"status": "ok"}
-
-
-@app.get("/api/state", response_model=SimulationState)
-async def get_state():
-    """Get current simulation state snapshot."""
-    try:
-        if simulation_manager is None or not simulation_manager.initialized:
-            return JSONResponse(
-                status_code=500, content={"error": "Simulation not initialized"}
-            )
-
-        state = simulation_manager.get_state()
-        return state
-    except Exception as e:
-        logger.error(f"Error getting state: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    return {
+        "status": "ok",
+        "active_sessions": session_manager.active_session_count
+        if session_manager
+        else 0,
+    }
 
 
 @app.get("/api/config", response_model=ConfigResponse)
 async def get_config():
-    """Get current simulation configuration."""
+    """Get default simulation configuration."""
     try:
-        if simulation_manager is None or not simulation_manager.initialized:
+        if session_manager is None:
             return JSONResponse(
-                status_code=500, content={"error": "Simulation not initialized"}
+                status_code=500, content={"error": "Application not initialized"}
             )
 
-        config = simulation_manager.config
+        config = session_manager.config
         model_params = config.model_params
         controller = config.controllers[0]
         gains = controller.gains
@@ -147,162 +111,53 @@ async def get_config():
             },
             "timestep": config.dt,
             "history_capacity": 7200,
-            "history_size": len(simulation_manager.history),
+            "history_size": 0,
         }
     except Exception as e:
         logger.error(f"Error getting config: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-@app.post("/api/reset")
-async def reset_simulation():
-    """Reset simulation to initial steady state."""
-    try:
-        if simulation_manager is None or not simulation_manager.initialized:
-            return JSONResponse(
-                status_code=500, content={"error": "Simulation not initialized"}
-            )
-
-        simulation_manager.reset()
-        logger.info("Simulation reset")
-        return {"message": "Simulation reset successfully"}
-    except Exception as e:
-        logger.error(f"Error resetting simulation: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@app.post("/api/setpoint")
-async def set_setpoint(command: SetpointCommand):
-    """Update the simulation setpoint."""
-    try:
-        if simulation_manager is None or not simulation_manager.initialized:
-            return JSONResponse(
-                status_code=500, content={"error": "Simulation not initialized"}
-            )
-
-        simulation_manager.set_setpoint(command.value)
-        logger.info(f"Setpoint changed to {command.value}")
-        return {"message": "Setpoint updated", "value": command.value}
-    except Exception as e:
-        logger.error(f"Error setting setpoint: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@app.post("/api/pid")
-async def set_pid_gains(command: PIDTuningCommand):
-    """Update PID controller gains."""
-    try:
-        if simulation_manager is None or not simulation_manager.initialized:
-            return JSONResponse(
-                status_code=500, content={"error": "Simulation not initialized"}
-            )
-
-        gains = tank_sim.PIDGains()
-        gains.Kc = command.Kc
-        gains.tau_I = command.tau_I
-        gains.tau_D = command.tau_D
-        simulation_manager.set_pid_gains(gains)
-        logger.info(
-            f"PID gains updated: Kc={command.Kc}, tau_I={command.tau_I}, tau_D={command.tau_D}"
-        )
-        return {
-            "message": "PID gains updated",
-            "gains": {"Kc": command.Kc, "tau_I": command.tau_I, "tau_D": command.tau_D},
-        }
-    except Exception as e:
-        logger.error(f"Error setting PID gains: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@app.post("/api/inlet_flow")
-async def set_inlet_flow(command: InletFlowCommand):
-    """Update inlet flow rate."""
-    try:
-        if simulation_manager is None or not simulation_manager.initialized:
-            return JSONResponse(
-                status_code=500, content={"error": "Simulation not initialized"}
-            )
-
-        simulation_manager.set_inlet_flow(command.value)
-        logger.info(f"Inlet flow changed to {command.value}")
-        return {"message": "Inlet flow updated", "value": command.value}
-    except Exception as e:
-        logger.error(f"Error setting inlet flow: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@app.post("/api/inlet_mode")
-async def set_inlet_mode(command: InletModeCommand):
-    """Switch inlet between constant and Brownian modes."""
-    try:
-        if simulation_manager is None or not simulation_manager.initialized:
-            return JSONResponse(
-                status_code=500, content={"error": "Simulation not initialized"}
-            )
-
-        simulation_manager.set_inlet_mode(
-            command.mode, command.min, command.max, command.variance
-        )
-        logger.info(f"Inlet mode changed to {command.mode}")
-        return {
-            "message": "Inlet mode updated",
-            "mode": command.mode,
-            "min": command.min,
-            "max": command.max,
-            "variance": command.variance,
-        }
-    except Exception as e:
-        logger.error(f"Error setting inlet mode: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@app.get("/api/history")
-async def get_history(duration: int = Query(3600, ge=1, le=7200)):
-    """Get historical data points."""
-    try:
-        if simulation_manager is None or not simulation_manager.initialized:
-            return JSONResponse(
-                status_code=500, content={"error": "Simulation not initialized"}
-            )
-
-        history = simulation_manager.get_history(duration)
-        return history
-    except Exception as e:
-        logger.error(f"Error getting history: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-# WebSocket endpoint
+# WebSocket endpoint — each connection gets its own simulation session
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """
-    WebSocket endpoint for real-time state broadcasting and command handling.
+    WebSocket endpoint for real-time simulation.
+    Each connection gets its own independent simulation instance.
 
     Sends:
-    - State updates: {"type": "state", "data": {...}}
-    - Error messages: {"type": "error", "message": "..."}
+    - {"type": "state", "data": {...}} — 1 Hz state updates
+    - {"type": "history", "data": [...]} — response to history request
+    - {"type": "error", "message": "..."} — error messages
 
     Receives:
     - {"type": "setpoint", "value": <float>}
     - {"type": "pid", "Kc": <float>, "tau_I": <float>, "tau_D": <float>}
     - {"type": "inlet_flow", "value": <float>}
     - {"type": "inlet_mode", "mode": <str>, "min": <float>, "max": <float>, "variance": <float>}
+    - {"type": "reset"}
+    - {"type": "history", "duration": <int>}
     """
     await websocket.accept()
     logger.info("Client connected to WebSocket")
 
+    if session_manager is None:
+        await websocket.send_json(
+            {"type": "error", "message": "Application not initialized"}
+        )
+        await websocket.close()
+        return
+
+    # Create a session for this connection
     try:
-        if simulation_manager is None or not simulation_manager.initialized:
-            await websocket.send_json(
-                {"type": "error", "message": "Simulation not initialized"}
-            )
-            await websocket.close()
-            return
+        session = session_manager.create_session(websocket)
+    except RuntimeError as e:
+        await websocket.send_json({"type": "error", "message": str(e)})
+        await websocket.close()
+        return
 
-        simulation_manager.add_connection(websocket)
-
+    try:
         while True:
-            # Receive JSON messages from client
             try:
                 data = await websocket.receive_text()
                 message = json.loads(data)
@@ -311,11 +166,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     {"type": "error", "message": "Invalid JSON format"}
                 )
                 continue
-            except Exception as e:
-                logger.error(f"Error receiving message: {e}")
+            except Exception:
                 break
 
-            # Route message based on type
             try:
                 msg_type = message.get("type")
 
@@ -326,8 +179,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             {"type": "error", "message": "Missing 'value' field"}
                         )
                     else:
-                        simulation_manager.set_setpoint(float(value))
-                        logger.info(f"Setpoint command: {value}")
+                        session.set_setpoint(float(value))
 
                 elif msg_type == "pid":
                     kc = message.get("Kc")
@@ -345,10 +197,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         gains.Kc = float(kc)
                         gains.tau_I = float(tau_i)
                         gains.tau_D = float(tau_d)
-                        simulation_manager.set_pid_gains(gains)
-                        logger.info(
-                            f"PID command: Kc={kc}, tau_I={tau_i}, tau_D={tau_d}"
-                        )
+                        session.set_pid_gains(gains)
 
                 elif msg_type == "inlet_flow":
                     value = message.get("value")
@@ -357,14 +206,13 @@ async def websocket_endpoint(websocket: WebSocket):
                             {"type": "error", "message": "Missing 'value' field"}
                         )
                     else:
-                        simulation_manager.set_inlet_flow(float(value))
-                        logger.info(f"Inlet flow command: {value}")
+                        session.set_inlet_flow(float(value))
 
                 elif msg_type == "inlet_mode":
                     mode = message.get("mode")
                     min_val = message.get("min")
                     max_val = message.get("max")
-                    variance = message.get("variance", 0.05)  # Default if not provided
+                    variance = message.get("variance", 0.05)
                     if any(x is None for x in [mode, min_val, max_val]):
                         await websocket.send_json(
                             {
@@ -373,10 +221,21 @@ async def websocket_endpoint(websocket: WebSocket):
                             }
                         )
                     else:
-                        simulation_manager.set_inlet_mode(
+                        session.set_inlet_mode(
                             str(mode), float(min_val), float(max_val), float(variance)
                         )
-                        logger.info(f"Inlet mode command: {mode}")
+
+                elif msg_type == "reset":
+                    session.reset()
+
+                elif msg_type == "history":
+                    duration = message.get("duration", 3600)
+                    try:
+                        duration = int(duration)
+                    except (ValueError, TypeError):
+                        duration = 3600
+                    history_data = session.get_history(duration)
+                    await websocket.send_json({"type": "history", "data": history_data})
 
                 else:
                     await websocket.send_json(
@@ -387,7 +246,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     )
 
             except (ValueError, TypeError) as e:
-                logger.error(f"Error parsing message values: {e}")
                 await websocket.send_json(
                     {"type": "error", "message": f"Invalid message format: {e}"}
                 )
@@ -399,9 +257,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         logger.info("Client disconnected from WebSocket")
-        if simulation_manager is not None:
-            simulation_manager.remove_connection(websocket)
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
-        if simulation_manager is not None:
-            simulation_manager.remove_connection(websocket)
+    finally:
+        await session_manager.destroy_session(session.session_id)

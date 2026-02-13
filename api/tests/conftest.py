@@ -105,15 +105,14 @@ if "tank_sim" not in sys.modules:
     mock_module.create_default_config = MagicMock(return_value=mock_config)
     mock_module.Simulator = MockSimulator
 
-    # Mock PIDGains
-    def create_pid_gains(Kc, tau_I, tau_D):
-        gains = MagicMock()
-        gains.Kc = Kc
-        gains.tau_I = tau_I
-        gains.tau_D = tau_D
-        return gains
+    # Mock PIDGains — supports both PIDGains() and PIDGains(Kc, tau_I, tau_D)
+    class MockPIDGains:
+        def __init__(self, Kc=0.0, tau_I=0.0, tau_D=0.0):
+            self.Kc = Kc
+            self.tau_I = tau_I
+            self.tau_D = tau_D
 
-    mock_module.PIDGains = create_pid_gains
+    mock_module.PIDGains = MockPIDGains
 
     # Install mock in sys.modules
     sys.modules["tank_sim"] = mock_module
@@ -138,12 +137,7 @@ def app():
 
     This creates a fresh app for each test to ensure isolation.
     """
-    # Import after mock_tank_sim fixture ensures mock is in place
     from api.main import app as fastapi_app
-    from api.simulation import SimulationManager
-
-    # Reset the SimulationManager singleton for test isolation
-    SimulationManager._instance = None
 
     return fastapi_app
 
@@ -153,10 +147,8 @@ def client(app):
     """
     Fixture that returns a synchronous test client for testing.
 
-    This uses Starlette's TestClient which works synchronously with FastAPI.
-    For async tests, use this client with asyncio patterns.
-
-    The TestClient automatically handles the lifespan context manager.
+    The TestClient automatically handles the lifespan context manager,
+    which creates the SessionManager.
     """
     with TestClient(app) as test_client:
         yield test_client
@@ -165,9 +157,7 @@ def client(app):
 @pytest.fixture
 async def async_client(app):
     """
-    Fixture that returns an async httpx client for WebSocket testing.
-
-    This uses httpx.AsyncClient which can handle WebSocket connections.
+    Fixture that returns an async httpx client for testing.
     """
     async with httpx.AsyncClient(app=app, base_url="http://test") as client:
         yield client
@@ -177,8 +167,6 @@ async def async_client(app):
 def simulation_state():
     """
     Fixture providing a typical simulation state dictionary.
-
-    Tests can override specific fields as needed.
     """
     return {
         "time": 10.0,
@@ -196,8 +184,6 @@ def simulation_state():
 def default_config():
     """
     Fixture providing the default simulation configuration.
-
-    Matches what GET /api/config endpoint should return.
     """
     return {
         "tank_height": 5.0,

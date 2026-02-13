@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/acme.json:/acme.json
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=roger@rogerwibrew.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/acme.json"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+
+  portfolio:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portfolio.rule=Host(`rogerwibrew.com`)"
+      - "traefik.http.routers.portfolio.entrypoints=websecure"
+      - "traefik.http.routers.portfolio.tls.certresolver=letsencrypt"
+
+  tank-backend:
+    build:
+      context: ./tank_dynamics
+      dockerfile: Dockerfile.backend
+    container_name: tank-backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - CORS_ORIGINS=https://tank.rogerwibrew.com
+      - LOG_LEVEL=info
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tank-api.rule=Host(`tank.rogerwibrew.com`) && (PathPrefix(`/api`) || PathPrefix(`/ws`))"
+      - "traefik.http.routers.tank-api.entrypoints=websecure"
+      - "traefik.http.routers.tank-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.tank-api.service=tank-api-svc"
+      - "traefik.http.services.tank-api-svc.loadbalancer.server.port=8000"
+
+  tank-frontend:
+    build:
+      context: ./tank_dynamics
+      dockerfile: Dockerfile.frontend
+    container_name: tank-frontend
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      - API_URL=http://tank-backend:8000
+    depends_on:
+      - tank-backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tank-frontend.rule=Host(`tank.rogerwibrew.com`)"
+      - "traefik.http.routers.tank-frontend.entrypoints=websecure"
+      - "traefik.http.routers.tank-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.tank-frontend.service=tank-frontend-svc"
+      - "traefik.http.routers.tank-frontend.priority=1"
+      - "traefik.http.services.tank-frontend-svc.loadbalancer.server.port=3000"

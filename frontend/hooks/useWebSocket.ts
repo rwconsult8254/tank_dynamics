@@ -13,6 +13,7 @@ export function useWebSocket(): {
   state: SimulationState | null;
   connectionStatus: ConnectionStatus;
   error: string | null;
+  historyData: SimulationState[] | null;
   setSetpoint: (value: number) => void;
   setPIDGains: (Kc: number, tau_I: number, tau_D: number) => void;
   setInletFlow: (value: number) => void;
@@ -22,12 +23,17 @@ export function useWebSocket(): {
     max: number,
     variance: number,
   ) => void;
+  reset: () => void;
+  requestHistory: (duration: number) => void;
   reconnect: () => void;
 } {
   const [state, setState] = useState<SimulationState | null>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
+  const [historyData, setHistoryData] = useState<SimulationState[] | null>(
+    null,
+  );
   const clientRef = useRef<WebSocketClient | null>(null);
 
   // Effect: Initialize connection on mount, cleanup on unmount
@@ -51,12 +57,13 @@ export function useWebSocket(): {
     });
 
     const unsubMessage = client.on("message", (data: unknown) => {
-      const msg = data as { type?: string; data?: unknown };
+      const msg = data as { type?: string; data?: unknown; message?: string };
       if (msg.type === "state" && msg.data) {
         setState(msg.data as SimulationState);
+      } else if (msg.type === "history" && msg.data) {
+        setHistoryData(msg.data as SimulationState[]);
       } else if (msg.type === "error") {
-        const errMsg = msg as { message?: string };
-        setError(errMsg.message || "Server error");
+        setError(msg.message || "Server error");
       }
     });
 
@@ -219,6 +226,34 @@ export function useWebSocket(): {
     [],
   );
 
+  const reset = useCallback(() => {
+    try {
+      clientRef.current?.send({ type: "reset" });
+      setError(null);
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      console.error("Failed to send reset command:", e);
+      setError(`Failed to send reset: ${errorMsg}`);
+    }
+  }, []);
+
+  const requestHistory = useCallback((duration: number) => {
+    if (!Number.isFinite(duration) || duration < 1) {
+      console.warn("Invalid history duration:", duration);
+      return;
+    }
+    try {
+      clientRef.current?.send({
+        type: "history",
+        duration: Math.min(Math.max(Math.round(duration), 1), 7200),
+      });
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      console.error("Failed to request history:", e);
+      setError(`Failed to request history: ${errorMsg}`);
+    }
+  }, []);
+
   const reconnect = useCallback(() => {
     setError(null);
     clientRef.current?.connect();
@@ -228,10 +263,13 @@ export function useWebSocket(): {
     state,
     connectionStatus,
     error,
+    historyData,
     setSetpoint,
     setPIDGains,
     setInletFlow,
     setInletMode,
+    reset,
+    requestHistory,
     reconnect,
   };
 }
