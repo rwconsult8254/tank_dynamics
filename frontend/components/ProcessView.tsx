@@ -2,6 +2,7 @@
 
 import { useSimulation } from "../app/providers";
 import { ConnectionStatus } from "./ConnectionStatus";
+import TankGraphic from "./TankGraphic";
 import {
   formatLevel,
   formatFlowRate,
@@ -46,69 +47,83 @@ export function ProcessView() {
           </p>
         </div>
       ) : (
-        /* Data display section */
-        <div className="bg-gray-800 rounded-lg p-6 space-y-4">
-          {/* Simulation Time */}
-          <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-700">
-            <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                Simulation Time
-              </label>
-              <p className="text-lg font-mono text-white mt-1">
-                {formatTime(state.time)}
-              </p>
+        /* Two-column layout: tank graphic and data display */
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left column: Tank Graphic */}
+          <div className="flex justify-center">
+            <div className="w-full max-w-md">
+              <TankGraphic
+                level={state.tank_level}
+                setpoint={state.setpoint}
+                maxHeight={5.0}
+              />
             </div>
           </div>
 
-          {/* Tank Level and Setpoint */}
-          <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-700">
-            <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                Tank Level
-              </label>
-              <p className="text-lg font-mono text-white mt-1">
-                {formatLevel(state.tank_level)} m
-              </p>
+          {/* Right column: Data display section */}
+          <div className="bg-gray-800 rounded-lg p-6 space-y-4">
+            {/* Simulation Time */}
+            <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-700">
+              <div>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Simulation Time
+                </label>
+                <p className="text-lg font-mono text-white mt-1">
+                  {formatTime(state.time)}
+                </p>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                Setpoint
-              </label>
-              <p className="text-lg font-mono text-white mt-1">
-                {formatLevel(state.setpoint)} m
-              </p>
-            </div>
-          </div>
 
-          {/* Flow Rates */}
-          <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-700">
-            <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                Inlet Flow
-              </label>
-              <p className="text-lg font-mono text-white mt-1">
-                {formatFlowRate(state.inlet_flow)} m³/s
-              </p>
+            {/* Tank Level and Setpoint */}
+            <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-700">
+              <div>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Tank Level
+                </label>
+                <p className="text-lg font-mono text-white mt-1">
+                  {formatLevel(state.tank_level)} m
+                </p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Setpoint
+                </label>
+                <p className="text-lg font-mono text-white mt-1">
+                  {formatLevel(state.setpoint)} m
+                </p>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                Outlet Flow
-              </label>
-              <p className="text-lg font-mono text-white mt-1">
-                {formatFlowRate(state.outlet_flow)} m³/s
-              </p>
-            </div>
-          </div>
 
-          {/* Valve Position */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                Valve Position
-              </label>
-              <p className="text-lg font-mono text-white mt-1">
-                {formatValvePosition(state.valve_position)}
-              </p>
+            {/* Flow Rates */}
+            <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-700">
+              <div>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Inlet Flow
+                </label>
+                <p className="text-lg font-mono text-white mt-1">
+                  {formatFlowRate(state.inlet_flow)} m³/s
+                </p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Outlet Flow
+                </label>
+                <p className="text-lg font-mono text-white mt-1">
+                  {formatFlowRate(state.outlet_flow)} m³/s
+                </p>
+              </div>
+            </div>
+
+            {/* Valve Position */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Valve Position
+                </label>
+                <p className="text-lg font-mono text-white mt-1">
+                  {formatValvePosition(state.valve_position)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
