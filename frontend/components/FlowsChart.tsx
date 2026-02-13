@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,7 +12,7 @@ import {
   Legend,
 } from "recharts";
 import { SimulationState } from "../lib/types";
-import { formatTime } from "../lib/utils";
+import { formatTime, formatFlowRate } from "../lib/utils";
 
 /**
  * FlowsChart component displays inlet and outlet flows over time.
@@ -25,6 +25,39 @@ interface FlowsChartProps {
 }
 
 export default function FlowsChart({ data }: FlowsChartProps) {
+  const [hiddenLines, setHiddenLines] = useState<Record<string, boolean>>({
+    inlet_flow: false,
+    outlet_flow: false,
+  });
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || !payload.length) return null;
+
+    return (
+      <div className="bg-gray-900 border border-gray-600 rounded p-3">
+        <p className="text-gray-400 text-sm mb-2">{formatTime(label)}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-2 text-sm">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-white">
+              {entry.name}: {formatFlowRate(entry.value)} m³/s
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const handleLegendClick = (dataKey: string) => {
+    setHiddenLines((prev) => ({
+      ...prev,
+      [dataKey]: !prev[dataKey],
+    }));
+  };
+
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
       <h3 className="text-lg font-semibold text-white mb-4">
@@ -47,22 +80,21 @@ export default function FlowsChart({ data }: FlowsChartProps) {
 
           <YAxis
             domain={[0, 2]}
-            label={{ value: "Flow Rate (m³/s)", angle: -90, position: "insideLeft" }}
+            label={{
+              value: "Flow Rate (m³/s)",
+              angle: -90,
+              position: "insideLeft",
+            }}
             stroke="#9ca3af"
             style={{ fontSize: 12 }}
           />
 
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#1f2937",
-              border: "1px solid #374151",
-            }}
-            labelStyle={{ color: "#9ca3af" }}
-            itemStyle={{ color: "#fff" }}
-            labelFormatter={(label: any) => formatTime(label)}
-          />
+          <Tooltip content={<CustomTooltip />} />
 
-          <Legend wrapperStyle={{ fontSize: 14 }} />
+          <Legend
+            wrapperStyle={{ fontSize: 14, cursor: "pointer" }}
+            onClick={(e) => handleLegendClick(e.dataKey)}
+          />
 
           <Line
             type="monotone"
@@ -71,6 +103,7 @@ export default function FlowsChart({ data }: FlowsChartProps) {
             strokeWidth={2}
             dot={false}
             name="Inlet Flow"
+            hide={hiddenLines.inlet_flow}
           />
 
           <Line
@@ -80,6 +113,7 @@ export default function FlowsChart({ data }: FlowsChartProps) {
             strokeWidth={2}
             dot={false}
             name="Outlet Flow"
+            hide={hiddenLines.outlet_flow}
           />
         </LineChart>
       </ResponsiveContainer>

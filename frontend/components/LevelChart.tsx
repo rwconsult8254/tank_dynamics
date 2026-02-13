@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,7 +12,7 @@ import {
   Legend,
 } from "recharts";
 import { SimulationState } from "../lib/types";
-import { formatTime } from "../lib/utils";
+import { formatTime, formatLevel } from "../lib/utils";
 
 /**
  * LevelChart component displays tank level and setpoint over time.
@@ -25,6 +25,39 @@ interface LevelChartProps {
 }
 
 export default function LevelChart({ data }: LevelChartProps) {
+  const [hiddenLines, setHiddenLines] = useState<Record<string, boolean>>({
+    tank_level: false,
+    setpoint: false,
+  });
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || !payload.length) return null;
+
+    return (
+      <div className="bg-gray-900 border border-gray-600 rounded p-3">
+        <p className="text-gray-400 text-sm mb-2">{formatTime(label)}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-2 text-sm">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-white">
+              {entry.name}: {formatLevel(entry.value)} m
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const handleLegendClick = (dataKey: string) => {
+    setHiddenLines((prev) => ({
+      ...prev,
+      [dataKey]: !prev[dataKey],
+    }));
+  };
+
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
       <h3 className="text-lg font-semibold text-white mb-4">
@@ -52,17 +85,12 @@ export default function LevelChart({ data }: LevelChartProps) {
             style={{ fontSize: 12 }}
           />
 
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#1f2937",
-              border: "1px solid #374151",
-            }}
-            labelStyle={{ color: "#9ca3af" }}
-            itemStyle={{ color: "#fff" }}
-            labelFormatter={(label: any) => formatTime(label)}
-          />
+          <Tooltip content={<CustomTooltip />} />
 
-          <Legend wrapperStyle={{ fontSize: 14 }} />
+          <Legend
+            wrapperStyle={{ fontSize: 14, cursor: "pointer" }}
+            onClick={(e) => handleLegendClick(e.dataKey)}
+          />
 
           <Line
             type="monotone"
@@ -71,6 +99,7 @@ export default function LevelChart({ data }: LevelChartProps) {
             strokeWidth={2}
             dot={false}
             name="Level"
+            hide={hiddenLines.tank_level}
           />
 
           <Line
@@ -81,6 +110,7 @@ export default function LevelChart({ data }: LevelChartProps) {
             strokeDasharray="5 5"
             dot={false}
             name="Setpoint"
+            hide={hiddenLines.setpoint}
           />
         </LineChart>
       </ResponsiveContainer>
