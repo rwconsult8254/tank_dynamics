@@ -92,7 +92,7 @@ export default memo(function LevelChart({ data }: LevelChartProps) {
           <Legend wrapperStyle={LEGEND_STYLE} onClick={handleLegendClick} />
 
           <Line
-            type="monotone"
+            type="linear"
             dataKey="tank_level"
             stroke="#3b82f6"
             strokeWidth={2}
@@ -102,7 +102,7 @@ export default memo(function LevelChart({ data }: LevelChartProps) {
           />
 
           <Line
-            type="monotone"
+            type="linear"
             dataKey="setpoint"
             stroke="#ef4444"
             strokeWidth={2}

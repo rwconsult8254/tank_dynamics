@@ -94,7 +94,7 @@ export default memo(function ValveChart({ data }: ValveChartProps) {
           <Legend wrapperStyle={LEGEND_STYLE} onClick={handleLegendClick} />
 
           <Line
-            type="monotone"
+            type="linear"
             dataKey="valve_position"
             stroke="#a855f7"
             strokeWidth={2}

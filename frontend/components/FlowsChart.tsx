@@ -96,7 +96,7 @@ export default memo(function FlowsChart({ data }: FlowsChartProps) {
           <Legend wrapperStyle={LEGEND_STYLE} onClick={handleLegendClick} />
 
           <Line
-            type="monotone"
+            type="linear"
             dataKey="inlet_flow"
             stroke="#06b6d4"
             strokeWidth={2}
@@ -106,7 +106,7 @@ export default memo(function FlowsChart({ data }: FlowsChartProps) {
           />
 
           <Line
-            type="monotone"
+            type="linear"
             dataKey="outlet_flow"
             stroke="#f97316"
             strokeWidth={2}
