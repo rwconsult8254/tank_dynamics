@@ -139,15 +139,15 @@ export default function InletFlowControl({
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg p-4 w-full">
-      <h3 className="text-lg font-semibold text-white mb-4">
+    <div className="bg-gray-800 rounded-lg p-3 w-full">
+      <h3 className="text-sm font-semibold text-white mb-3">
         Inlet Flow Control
       </h3>
 
       {/* Mode selector */}
-      <div className="mb-4">
-        <div className="text-sm text-gray-400 mb-2">Mode</div>
-        <div className="flex gap-6">
+      <div className="mb-3">
+        <div className="text-xs text-gray-400 mb-1">Mode</div>
+        <div className="flex gap-4">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="radio"
@@ -175,9 +175,8 @@ export default function InletFlowControl({
 
       {/* Conditional rendering based on mode */}
       {localMode === "constant" ? (
-        // Constant mode inputs
-        <div className="mb-4">
-          <label className="block text-xs font-semibold text-gray-400 uppercase mb-1">
+        <div className="mb-3">
+          <label className="block text-xs text-gray-400 mb-1">
             Flow Rate [m³/s]
           </label>
           <input
@@ -187,14 +186,13 @@ export default function InletFlowControl({
             step="0.1"
             value={localFlowRate}
             onChange={handleFlowRateChange}
-            className="w-full bg-gray-700 text-white border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
       ) : (
-        // Brownian mode inputs
-        <div className="mb-4">
-          <div className="mb-3">
-            <label className="block text-xs font-semibold text-gray-400 uppercase mb-1">
+        <div className="mb-3 space-y-2">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">
               Min Flow [m³/s]
             </label>
             <input
@@ -204,12 +202,11 @@ export default function InletFlowControl({
               step="0.1"
               value={localMin}
               onChange={handleMinChange}
-              className="w-full bg-gray-700 text-white border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-
-          <div className="mb-3">
-            <label className="block text-xs font-semibold text-gray-400 uppercase mb-1">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">
               Max Flow [m³/s]
             </label>
             <input
@@ -219,14 +216,11 @@ export default function InletFlowControl({
               step="0.1"
               value={localMax}
               onChange={handleMaxChange}
-              className="w-full bg-gray-700 text-white border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-
           <div>
-            <label className="block text-xs font-semibold text-gray-400 uppercase mb-1">
-              Variance
-            </label>
+            <label className="block text-xs text-gray-400 mb-1">Variance</label>
             <input
               type="number"
               min="0"
@@ -234,23 +228,19 @@ export default function InletFlowControl({
               step="0.01"
               value={localVariance}
               onChange={handleVarianceChange}
-              className="w-full bg-gray-700 text-white border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
       )}
 
-      {/* Error message */}
       {errorMessage && (
-        <div className="mb-3 text-sm text-red-400 font-semibold">
-          {errorMessage}
-        </div>
+        <div className="mb-2 text-xs text-red-400">{errorMessage}</div>
       )}
 
-      {/* Apply button */}
       <button
         onClick={handleApply}
-        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors"
+        className="w-full bg-green-700 hover:bg-green-600 text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors"
       >
         Apply
       </button>

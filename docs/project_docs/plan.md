@@ -422,27 +422,42 @@ REST POST /api/reset
 
 **Dependencies:** Phase 3 (for testing, can start in parallel)
 
-### Phase 5: Process View
+### Phase 5: Process View ✅ COMPLETE
 **Goals:** SCADA-style process display
 **Deliverables:**
-- Tank SVG visualization with animated level
-- Flow indicators (inlet, outlet)
-- Valve position indicator
-- Live value displays
-- Control inputs (setpoint, inlet flow, PID parameters)
+- ✅ Tank SVG visualization with animated level
+- ✅ Flow indicators (inlet, outlet)
+- ✅ Valve position indicator
+- ✅ Live value displays
+- ✅ Control inputs (setpoint, inlet flow, PID parameters)
 
 **Dependencies:** Phase 4
 
-### Phase 6: Trends View
+### Phase 6: Trends View ✅ COMPLETE
 **Goals:** Historical trend charts
 **Deliverables:**
-- Level vs Setpoint chart
-- Inlet Flow vs Outlet Flow chart
-- Valve Position chart
-- Time range selector
-- Auto-scrolling with new data
+- ✅ Level vs Setpoint chart
+- ✅ Inlet Flow vs Outlet Flow chart
+- ✅ Valve Position chart
+- ✅ Time range selector
+- ✅ Auto-scrolling with new data
 
 **Dependencies:** Phase 4
+
+### Phase 6.5: HMI Redesign (ISA-101) ✅ COMPLETE
+**Goals:** Realistic SCADA HMI following ISA-101 high-performance standards
+**Deliverables:**
+- ✅ P&ID-style landscape schematic replacing two-column layout
+- ✅ ISA bow-tie valve symbol with actuator
+- ✅ Instrument tags on schematic (FI-100, LI-100, FI-101, VP-100)
+- ✅ LIC-100 control loop faceplate with inline setpoint input
+- ✅ Control signal line from LIC-100 to CV-100
+- ✅ Grayscale baseline (ISA-101 compliant)
+- ✅ PID tuning moved to engineer-access popover
+- ✅ Upsets tab for inlet flow disturbance configuration
+- ✅ 3-tab navigation (Process / Trends / Upsets)
+
+**Dependencies:** Phases 5, 6
 
 ### Phase 7: Integration and Polish
 **Goals:** Complete, tested system

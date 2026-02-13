@@ -3,7 +3,10 @@ interface TabNavigationProps {
   onTabChange: (tab: string) => void;
 }
 
-export default function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
+export default function TabNavigation({
+  activeTab,
+  onTabChange,
+}: TabNavigationProps) {
   return (
     <div role="tablist" className="flex border-b border-gray-700">
       <button
@@ -31,6 +34,19 @@ export default function TabNavigation({ activeTab, onTabChange }: TabNavigationP
         }`}
       >
         Trends
+      </button>
+      <button
+        role="tab"
+        aria-selected={activeTab === "upsets"}
+        aria-controls="upsets-panel"
+        onClick={() => onTabChange("upsets")}
+        className={`px-6 py-3 font-medium transition-colors duration-200 ${
+          activeTab === "upsets"
+            ? "bg-blue-600 text-white border-b-2 border-blue-400"
+            : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+        }`}
+      >
+        Upsets
       </button>
     </div>
   );

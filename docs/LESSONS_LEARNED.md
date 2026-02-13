@@ -1523,6 +1523,59 @@ Real-time charting with Recharts requires careful attention to React rendering b
 - **After:** Single render per WebSocket update, chart data capped at 500 display points regardless of time range, chart components skip re-render when data reference unchanged, stable prop references throughout
 - **Estimated improvement:** 2-hour case goes from non-functional to responsive. All time ranges now render ~500 SVG points instead of up to 7,200, combined with elimination of render cascades and unnecessary re-renders
 
+## 15. HMI Realism: ISA-101 High-Performance HMI Design
+
+### The Problem We Encountered
+
+The initial Process View looked like a typical web dashboard: a tank SVG on the left, a tall scrollable panel of controls on the right with large text displays, slider-style setpoint controls, full-width PID tuning forms, and inlet flow configuration all on the same screen. While functional, it did not resemble a real SCADA/HMI screen and would not scale well as the model expanded to a full chemical processing plant.
+
+### The Lesson
+
+Real SCADA systems follow ISA-101 high-performance HMI standards which differ significantly from typical web UI patterns:
+
+1. **Grayscale baseline**: Equipment and pipes rendered in gray tones. Color is reserved exclusively for abnormal situations and alarms. The original red setpoint line violated this principle — red means alarm, not setpoint.
+
+2. **Process values on the schematic**: In real HMI screens, process values (flows, levels, positions) are displayed as compact instrument tags positioned directly on the P&ID diagram near their measurement points, not in a separate data panel.
+
+3. **ISA standard symbols**: Valves use the ISA bow-tie symbol (two triangles meeting at center), not a circle-cross. Equipment labels follow ISA naming conventions (TK-100, CV-100, FI-100, LIC-100).
+
+4. **Control loop visualization**: The controller faceplate (LIC-100) shows SP/PV/OP/Error in a compact box near the controlled variable, with a dashed signal line connecting it to the final control element (valve). Setpoints are simple typed values, not sliders.
+
+5. **Operator vs engineer separation**: PID tuning parameters belong on an engineer screen with elevated permissions, not on the main operator display. A small popover triggered by an icon simulates this access pattern.
+
+6. **Space economy**: Real plants have many process units on one screen. Indicators must be compact. Large form controls and oversized text waste screen real estate.
+
+7. **Upset/disturbance separation**: Process disturbance configuration (steady vs brownian inlet flow) belongs on a separate tab, not mixed with operator controls.
+
+### Specific Recommendations
+
+- **Start with ISA-101 principles** when designing any process visualization, even for proof-of-concept work. Retrofitting realism is harder than building it in.
+- **Use landscape-oriented SVG viewBoxes** (e.g., 800x400) matching real P&ID orientation and widescreen monitors.
+- **Route control signal lines carefully** — dashed lines connecting controllers to final elements must not pass through instrument tags. Plan the layout spatially before coding.
+- **Separate concerns by tab**: Process (operator view), Trends (historical data), Upsets (disturbance configuration). This maps to real SCADA screen hierarchies.
+- **SVG `<foreignObject>`** works well for embedding editable inputs (like setpoint fields) directly within an SVG schematic, keeping them anchored in the P&ID coordinate system.
+- **Fixed-position modals/popovers** for overlays that must stay visible regardless of SVG scaling — absolute positioning within scaled SVG containers causes elements to render off-screen.
+
+### Design Changes Applied
+
+| Before | After |
+|--------|-------|
+| Two-column layout (SVG + controls panel) | Full-width P&ID schematic |
+| Large text displays in separate panel | Compact instrument tags on schematic |
+| Slider/buttons for setpoint | Typed input in LIC-100 faceplate |
+| Full PID form on operator screen | Compact popover via gear icon |
+| Inlet flow control on Process tab | Moved to new Upsets tab |
+| Red setpoint line | Gray dashed line (ISA-101 compliant) |
+| Circle-cross valve | ISA bow-tie valve with actuator |
+| Animated pulsing flow arrows | Static direction indicators |
+| 2 tabs (Process/Trends) | 3 tabs (Process/Trends/Upsets) |
+
+### Impact Assessment
+
+- **Before:** Functional but unrealistic dashboard that would not scale to multi-unit plant displays
+- **After:** ISA-101 aligned P&ID schematic that establishes conventions and spatial layout patterns reusable across future process units
+- **Key insight:** Getting the HMI style right early prevents costly redesigns when expanding from single-tank PoC to full plant simulation
+
 ## Next Steps
 
 1. **Immediate:** Apply micro-task breakdown to Phase 4 tasks
@@ -1533,5 +1586,5 @@ Real-time charting with Recharts requires careful attention to React rendering b
 ---
 
 **Document maintained by:** Engineering team  
-**Last updated:** 2026-02-13 (added Lesson 14: Recharts real-time rendering performance)  
+**Last updated:** 2026-02-13 (added Lesson 15: ISA-101 HMI redesign)  
 **Review cycle:** After each major phase

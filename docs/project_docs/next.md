@@ -1,23 +1,39 @@
 # Next Tasks - Tank Dynamics Simulator
 
 **Generated:** 2026-02-13  
-**Phase:** Phase 6 - Trends View Enhancement & Polish  
-**Previous Phase:** Phase 5 (Process View) - ✅ COMPLETE
+**Phase:** Phase 7 - Integration and Polish  
+**Previous Phases:** Phase 6 (Trends View) - ✅ COMPLETE, Phase 6.5 (HMI Redesign) - ✅ COMPLETE
 
 ---
 
-## Current Phase: Phase 6 - Trends View Enhancement & Polish
+## Completed: Phase 6 - Trends View Enhancement & Polish ✅
 
-Phase 5 delivered a complete SCADA interface with tank visualization and real-time controls. Phase 6 has two goals:
+All 14 micro-tasks complete (Tasks 28a-28f polish, Tasks 29a-29h trends).
 
-1. **Primary Goal:** Implement historical trend charts using Recharts (already installed v3.7.0)
-2. **Secondary Goal:** Address 6 code review findings from `docs/feedback.md` (polish tasks)
+## Completed: Phase 6.5 - HMI Redesign (ISA-101) ✅
 
-The phase is divided into two sub-phases:
-- **Phase 6A:** Polish tasks (Tasks 28a-28f) - Quick UX improvements
-- **Phase 6B:** Trends View (Tasks 29a-29h) - Historical data visualization
+Process View redesigned to follow ISA-101 high-performance HMI standards:
+- P&ID-style landscape schematic with ISA symbols and instrument tags
+- LIC-100 control loop faceplate with inline setpoint input
+- PID tuning via engineer-access popover
+- Upsets tab for disturbance configuration
+- Grayscale baseline, control signal lines
+- See Lesson 15 in `docs/LESSONS_LEARNED.md` for full details
 
-**Total Tasks:** 14 micro-tasks (~6 hours estimated)
+---
+
+## Current Phase: Phase 7 - Integration and Polish
+
+### Upcoming Work
+- End-to-end testing with Playwright
+- Performance profiling and optimization
+- Error boundary components
+- Loading states and skeleton screens
+- Data export functionality (CSV download)
+- Advanced chart features (zoom, pan, download as image)
+- Alarm thresholds and notifications
+
+**Total Tasks:** To be broken down by Senior Engineer
 
 ---
 

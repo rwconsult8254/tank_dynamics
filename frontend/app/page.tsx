@@ -4,6 +4,7 @@ import { useState } from "react";
 import TabNavigation from "@/components/TabNavigation";
 import { ProcessView } from "@/components/ProcessView";
 import { TrendsView } from "@/components/TrendsView";
+import { UpsetsView } from "@/components/UpsetsView";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 
 export default function Home() {
@@ -29,7 +30,9 @@ export default function Home() {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto px-8 py-6">
-        {activeTab === "process" ? <ProcessView /> : <TrendsView />}
+        {activeTab === "process" && <ProcessView />}
+        {activeTab === "trends" && <TrendsView />}
+        {activeTab === "upsets" && <UpsetsView />}
       </div>
     </main>
   );
