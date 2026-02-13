@@ -129,6 +129,11 @@ export default function PIDTuningControl({
           />
           <span className="text-sm text-gray-300">Reverse Acting</span>
         </label>
+        <div className="text-xs text-gray-400 mt-1">
+          Check this box if opening the outlet valve DECREASES tank level. For
+          this tank system, valve opening increases drainage, so reverse acting
+          should be checked.
+        </div>
       </div>
 
       {/* Kc input */}
