@@ -1411,6 +1411,42 @@ This should be addressed as a prerequisite to Task 21c.
 
 ---
 
+## 13. Dev Server Startup: Avoid uv run and Scope File Watchers
+
+### The Problem We Encountered
+
+Starting the backend with `uv run uvicorn api.main:app --reload` caused two issues:
+
+1. **`uv run` rebuilds C++ every time.** Even though `tank_sim` was already installed in the venv, `uv run` triggers a full rebuild of the C++ extension (~60s) on every invocation.
+
+2. **`uvicorn --reload` watches the entire project tree.** Without `--reload-dir`, uvicorn watches everything including `frontend/.next/`, which contains thousands of rapidly-changing files during Next.js development. The two file watchers (uvicorn's WatchFiles and Next.js's Turbopack) conflict, causing the frontend to hang on browser refresh.
+
+### The Lesson
+
+- Use `.venv/bin/uvicorn` directly to skip the C++ rebuild.
+- Scope `--reload-dir` to only the directories that contain backend code.
+- Clean up stale `frontend/.next/dev/lock` files before starting Next.js.
+
+### Resolution
+
+Created `scripts/dev.sh` that encodes these lessons:
+
+```bash
+# Backend: direct venv invocation, scoped reload
+.venv/bin/uvicorn api.main:app --reload --reload-dir api --reload-dir tank_sim --host 0.0.0.0 --port 8000
+
+# Frontend: standard Next.js dev
+cd frontend && npm run dev
+```
+
+### Specific Recommendations
+
+- **Always use `scripts/dev.sh`** to start the dev environment.
+- **Never use `uv run`** for starting the backend server. Only use `uv run` for one-off commands like `uv run pytest` where the rebuild check is acceptable.
+- **If the frontend hangs on refresh**, check whether another file watcher is scanning `frontend/.next/`.
+
+---
+
 ## Next Steps
 
 1. **Immediate:** Apply micro-task breakdown to Phase 4 tasks
