@@ -1,0 +1,56 @@
+# Multi-stage build: compile C++ extension, then run with minimal image
+
+# === Stage 1: Build ===
+FROM python:3.12-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    ninja-build \
+    git \
+    libgsl-dev \
+    libeigen3-dev \
+    python3-dev \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+WORKDIR /app
+
+# Copy everything needed for the build
+COPY pyproject.toml uv.lock CMakeLists.txt README.md ./
+COPY src/ src/
+COPY bindings/ bindings/
+COPY tests/ tests/
+COPY tank_sim/ tank_sim/
+COPY api/ api/
+
+# Build C++ extension and install Python dependencies (non-editable for clean packaging)
+RUN uv venv /app/.venv --python 3.12 && \
+    uv pip install --python /app/.venv ".[api]"
+
+# === Stage 2: Runtime ===
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgsl28 \
+    libgslcblas0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy api module (not installed in venv, imported via PYTHONPATH)
+COPY api/ api/
+
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app"
+
+EXPOSE 8000
+
+# Single worker: simulation is a stateful singleton
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

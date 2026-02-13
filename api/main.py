@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
@@ -76,13 +77,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Enable CORS middleware
+# CORS: configurable via CORS_ORIGINS env var (comma-separated), with dev defaults
+_cors_env = os.getenv("CORS_ORIGINS", "")
+cors_origins = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else [
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Next.js dev server
-        "http://localhost:5173",  # Vite dev server
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

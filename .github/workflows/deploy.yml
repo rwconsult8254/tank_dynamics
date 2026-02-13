@@ -1,0 +1,64 @@
+name: Deploy Tank Dynamics to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync code to VPS
+        run: |
+          rsync -avz --delete \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='frontend/node_modules' \
+            --exclude='frontend/.next' \
+            --exclude='.venv' \
+            --exclude='build' \
+            --exclude='test_venv' \
+            --exclude='.coverage' \
+            --exclude='.pytest_cache' \
+            --exclude='.cache' \
+            --exclude='__pycache__' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:~/portfolio/tank_dynamics/
+
+      - name: Build and restart containers
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} '
+            cd ~/portfolio && \
+            docker compose build tank-backend tank-frontend && \
+            docker compose up -d tank-backend tank-frontend
+          '
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            if ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+              "curl -sf http://localhost:8000/api/health" > /dev/null 2>&1; then
+              echo "Health check passed on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i: waiting..."
+            sleep 2
+          done
+          echo "Health check failed after 30 attempts"
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            "cd ~/portfolio && docker compose logs --tail=50 tank-backend"
+          exit 1
+
+      - name: Deployment complete
+        run: echo "Tank Dynamics deployed to https://tank.rogerwibrew.com"

@@ -1,0 +1,14 @@
+.git
+.venv
+build/
+node_modules
+frontend/node_modules
+frontend/.next
+*.pyc
+__pycache__
+.coverage
+.pytest_cache
+.cache
+test_venv/
+.zed/
+.claude/
