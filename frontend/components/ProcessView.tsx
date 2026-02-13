@@ -101,6 +101,8 @@ export function ProcessView() {
                 level={state.tank_level}
                 setpoint={state.setpoint}
                 maxHeight={5.0}
+                inletFlow={state.inlet_flow}
+                outletFlow={state.outlet_flow}
               />
             </div>
           </div>
