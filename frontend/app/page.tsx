@@ -6,6 +6,7 @@ import { ProcessView } from "@/components/ProcessView";
 import { TrendsView } from "@/components/TrendsView";
 import { UpsetsView } from "@/components/UpsetsView";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("process");
@@ -29,11 +30,13 @@ export default function Home() {
       <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-auto px-8 py-6">
-        {activeTab === "process" && <ProcessView />}
-        {activeTab === "trends" && <TrendsView />}
-        {activeTab === "upsets" && <UpsetsView />}
-      </div>
+      <ErrorBoundary>
+        <div className="flex-1 overflow-auto px-8 py-6">
+          {activeTab === "process" && <ProcessView />}
+          {activeTab === "trends" && <TrendsView />}
+          {activeTab === "upsets" && <UpsetsView />}
+        </div>
+      </ErrorBoundary>
     </main>
   );
 }
