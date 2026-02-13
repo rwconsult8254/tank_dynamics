@@ -1,860 +1,534 @@
-# Code Review: Phase 4 - Next.js Frontend Foundation
+# Code Review: Phase 5 Process View (2026-02-13)
 
-**Date:** 2026-02-12  
-**Branch:** phase4-initial  
-**Reviewer:** Claude Code (Code Reviewer Role)  
-**Scope:** Tasks 19a-21f (Complete Phase 4 foundation)
+**Reviewer:** Claude Sonnet 4.5 (Code Reviewer Role)  
+**Branch Reviewed:** phase5-process-view  
+**Merge Status:** ✅ MERGED TO MAIN  
+**Overall Assessment:** APPROVED - High-quality, production-ready code
 
 ---
 
 ## Summary
 
-Phase 4 implementation successfully delivers a functional Next.js frontend with real-time WebSocket integration to the FastAPI backend. The code quality is **very good overall** with clean separation of concerns, proper TypeScript typing, and effective use of React patterns. The implementation demonstrates strong architectural discipline and follows modern React best practices.
-
-**Overall Assessment:** ✅ **READY FOR MERGE** with minor issues to address in future work.
-
-The frontend successfully achieves:
-- ✅ Real-time bidirectional communication with backend
-- ✅ Type-safe state management with React Context
-- ✅ Clean component architecture with proper separation
-- ✅ Professional SCADA-style dark theme UI
-- ✅ Production-ready build configuration
-- ✅ Comprehensive error handling
+Phase 5 implementation is excellent and demonstrates strong engineering discipline. All acceptance criteria met. The code shows comprehensive component design with proper separation of concerns, excellent type safety, robust error handling, and thorough documentation. No critical issues found.
 
 **Key Strengths:**
-1. Excellent TypeScript usage with discriminated unions for message types
-2. Proper WebSocket lifecycle management with reconnection logic
-3. Clean React Context pattern for global state
-4. Well-documented code with clear docstrings
-5. Consistent code formatting and style
-
-**Areas Requiring Attention:**
-1. One ESLint error in TrendsView (setState in useEffect)
-2. Minor unused variable warning
-3. Missing input validation in some areas
-4. No unit tests (acceptable for MVP, needed for production)
+- Single Responsibility Principle followed throughout
+- Comprehensive TypeScript type safety
+- Proper "Apply" pattern for SCADA safety
+- Exemplary git commit history
+- Outstanding documentation-as-code (dev.sh script)
 
 ---
 
 ## Critical Issues
 
-**None.** No blocking issues found. The application builds successfully, runs without errors, and meets all acceptance criteria.
+**NONE** - No blocking issues found.
 
 ---
 
 ## Major Issues
 
-### Issue 1: React Anti-pattern in TrendsView Component
+### 1. Flow Direction Indicator Unconditional Animation
+
 **Severity:** Major  
-**Location:** frontend/components/TrendsView.tsx:31
+**Location:** `frontend/components/TankGraphic.tsx:169, 190`
 
-**Problem:** The component calls `setState()` synchronously within a `useEffect` body triggered by state changes. This creates cascading renders and violates React's effect design principles.
+**Problem:** Flow indicator arrows use Tailwind's `animate-pulse` class unconditionally on both inlet and outlet arrows. This causes visual noise when flows are zero (gray arrows pulse with no semantic meaning) and consumes browser resources unnecessarily through continuous CSS animations.
 
-```typescript
-useEffect(() => {
-  if (state !== null) {
-    setHistory((prevHistory) => {
-      const updated = [state, ...prevHistory];
-      return updated.slice(0, 10);
-    });
-  }
-}, [state]);
+**Why it matters:** In long-running SCADA interfaces:
+- Unnecessary animations reduce battery life on mobile/laptop devices
+- Visual confusion when multiple indicators pulse simultaneously with no flow
+- Continuous CSS animations increase CPU/GPU usage for no benefit
+- Operator distraction from meaningless motion
+
+**Suggested approach:** Make the pulse animation conditional on flow being active. Apply `animate-pulse` class only when the corresponding flow rate is greater than zero. This provides clear visual feedback (pulsing = active flow, static = no flow) while reducing resource consumption when idle.
+
+**Implementation guidance:**
+- For inlet arrow: Apply className conditionally based on `inletFlow > 0`
+- For outlet arrow: Apply className conditionally based on `outletFlow > 0`
+- Keep the color-coding logic separate (blue when flowing, gray when stopped)
+
+**Example pattern:**
+```
+className attribute should be constructed based on flow state
+- When flow > 0: include "animate-pulse"
+- When flow = 0: omit "animate-pulse"
 ```
 
-**Why it matters:** 
-- ESLint correctly flags this as `react-hooks/set-state-in-effect` error
-- Can cause performance issues with rapid state updates (1 Hz is manageable, but pattern is wrong)
-- Violates React's effect design: effects should synchronize with external systems, not derive state
-- May cause unexpected behavior in React 19+ with concurrent rendering
-
-**Suggested approach:** Use `useMemo` or `useRef` to derive history from state changes instead of storing it in separate state. This pattern is more aligned with React's data flow model.
-
-**Alternative solutions:**
-1. **useMemo pattern** (recommended):
-   ```typescript
-   const history = useMemo(() => {
-     // Maintain history in ref, update on state change
-     // Return derived value
-   }, [state]);
-   ```
-
-2. **Move history to context** (if needed globally):
-   - Store history in SimulationProvider
-   - Update history in the same state setter that updates state
-
-3. **Accept the pattern** (pragmatic for MVP):
-   - Add ESLint disable comment with justification
-   - Document that this is a known issue to fix later
-   - Performance is acceptable at 1 Hz update rate
-
-**Recommendation:** For Phase 4 foundation, add an ESLint disable comment with a TODO to refactor. For Phase 4 continuation (charting), move history management to the context provider where it belongs architecturally.
+**Acceptance criteria:**
+- Inlet arrow only pulses when inlet_flow > 0
+- Outlet arrow only pulses when outlet_flow > 0
+- Arrows remain visible but static when flow = 0
+- Color coding (blue/gray) remains unchanged
 
 ---
 
 ## Minor Issues
 
-### Issue 2: Unused Variable in ProcessView
+### 1. Magic Numbers in TankGraphic SVG Coordinates
+
 **Severity:** Minor  
-**Location:** frontend/components/ProcessView.tsx:25
+**Location:** `frontend/components/TankGraphic.tsx:27-39, 145-212`
 
-**Problem:** Variable `connectionStatus` is destructured from `useSimulation()` but never used in the component logic.
+**Problem:** SVG coordinate calculations use hardcoded numbers scattered throughout the component (e.g., `57.5`, `182.5`, `tankLeft + 75`, `tankLeft + 82.5`). These magic numbers make it difficult to:
+- Understand spatial relationships between elements
+- Adjust tank size or pipe positions
+- Add new visual elements consistently
+- Maintain proportions when scaling
 
-```typescript
-const { state, connectionStatus } = useSimulation();
-```
+**Why it matters:** Future designers may want to resize the tank, adjust pipe positions, or add new visual elements (e.g., level sensors, alarms). The current hardcoded approach requires hunting through the file to find all related coordinates and understanding their implicit relationships.
 
-The `ConnectionStatus` component is rendered directly and handles its own connection status display.
+**Suggested approach:** Extract magic numbers to named constants at the top of the component. Use calculated positions based on tank dimensions rather than absolute coordinates. Group related constants together with comments.
 
-**Why it matters:** Creates noise in lint output and suggests incomplete implementation or dead code.
+**Implementation guidance:**
+- Define constants for pipe positions relative to tank dimensions
+- Define constants for arrow positions and offsets
+- Calculate positions using tank dimensions (tankLeft, tankWidth, etc.)
+- Add comments explaining spatial relationships
 
-**Suggested approach:** Remove the unused destructured variable:
-```typescript
-const { state } = useSimulation();
-```
-
-**Note:** This is cosmetic and doesn't affect functionality.
+**Priority:** Low - improves maintainability but doesn't affect current functionality.
 
 ---
 
-### Issue 3: Missing Input Validation in Command Methods
+### 2. PIDTuningControl Reverse Acting Checkbox Label Clarity
+
 **Severity:** Minor  
-**Location:** frontend/hooks/useWebSocket.ts (setSetpoint, setPIDGains, setInletFlow, setInletMode)
+**Location:** `frontend/components/PIDTuningControl.tsx:115-123`
 
-**Problem:** Command methods don't validate input ranges before sending to backend. All validation happens server-side.
+**Problem:** The "Reverse Acting" checkbox label doesn't explain what it means or when to use it. Process control operators unfamiliar with control theory may not understand this technical term. There is no tooltip, help text, or inline explanation.
 
-```typescript
-const setSetpoint = useCallback((value: number) => {
-  try {
-    clientRef.current?.send({ type: "setpoint", value });
-  } catch {
-    setError("Failed to send setpoint command");
-  }
-}, []);
-```
+**Why it matters:** Incorrect reverse-acting selection causes the controller to drive the process in the wrong direction (positive feedback instead of negative feedback). This can lead to:
+- Control instability
+- Runaway conditions (tank overfilling or emptying)
+- Operator confusion when controller behavior seems backwards
+- Need to stop the process and reconfigure
 
-**Why it matters:** 
-- Poor UX: user gets server error instead of immediate feedback
-- Network waste: sending invalid commands that will be rejected
-- Type safety isn't range safety: TypeScript accepts `setSetpoint(-1000)` or `setSetpoint(NaN)`
+While operators can observe and correct the mistake, it causes unnecessary process upsets and delays.
 
-**Suggested approach:** Add client-side validation using the `clampValue` utility that was created but never used:
+**Suggested approach:** Add contextual help explaining the concept in plain language. Options include:
+1. Tooltip on hover with explanation
+2. Help icon with popover text
+3. Inline explanatory text below the checkbox
+4. More descriptive label: "Reverse Acting (valve closes on level increase)"
 
-```typescript
-const setSetpoint = useCallback((value: number) => {
-  // Validate input range (match backend constraints)
-  if (!Number.isFinite(value)) {
-    setError("Invalid setpoint: must be a finite number");
-    return;
-  }
-  const clamped = clampValue(value, 0, 10); // Tank height = 10m
-  if (clamped !== value) {
-    setError(`Setpoint clamped to valid range: ${clamped}`);
-  }
-  
-  try {
-    clientRef.current?.send({ type: "setpoint", value: clamped });
-  } catch {
-    setError("Failed to send setpoint command");
-  }
-}, []);
-```
+**Implementation guidance:**
+- Explain in operator terms, not control theory jargon
+- For level control: "Check if opening valve DECREASES level"
+- Or: "Check if system is reverse-acting (increasing valve decreases level)"
+- Include visual indicator or icon for help availability
 
-**Note:** This becomes more important when UI controls are added in Phase 4 continuation.
+**Priority:** Medium - affects usability and could cause process upsets, but operators can recover.
 
 ---
 
-### Issue 4: WebSocket URL Configuration
+### 3. InletFlowControl Local State Persistence on Mode Change
+
 **Severity:** Minor  
-**Location:** frontend/hooks/useWebSocket.ts:21
+**Location:** `frontend/components/InletFlowControl.tsx:47-51, 93-97`
 
-**Problem:** WebSocket URL falls back to localhost hardcoded value if environment variable is missing:
+**Problem:** When switching between Constant and Brownian modes, the component preserves user's pending changes in local state even though different inputs are displayed. This creates a confusing scenario:
 
-```typescript
-const url = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws";
-```
+1. User enters Brownian parameters (min=0.5, max=1.5, variance=0.1)
+2. User switches to Constant mode (Brownian inputs hidden)
+3. User switches back to Brownian mode
+4. Previous Brownian values reappear (min=0.5, max=1.5, variance=0.1)
+5. User might not notice and click Apply, sending stale parameters
 
-**Why it matters:**
-- Works fine for development
-- Production deployment would need environment variable set
-- No indication to user if env var is missing (silent fallback)
+**Why it matters:** Stale values from a previous mode configuration may be unintentionally reapplied if the user doesn't carefully verify all inputs before clicking Apply. This is especially problematic if the user made several mode switches while exploring options.
 
-**Suggested approach:** 
-For production readiness:
-1. Log a warning if using fallback URL
-2. Validate URL format before connecting
-3. Document required environment variables in README
+**Suggested approach:** Reset local state variables to defaults when mode changes. When switching away from a mode, clear its parameters to prevent stale values from persisting.
 
-**Note:** Acceptable for MVP, document in deployment guide.
+**Implementation guidance:**
+- When switching from Brownian to Constant: No action needed (Brownian params don't affect Constant)
+- When switching from Constant to Brownian: Reset Brownian params to sensible defaults
+- Consider: Always reset to defaults when switching modes (clearer UX)
+- Mark `hasLocalChanges` as true when mode changes
+
+**Priority:** Low - edge case requiring specific user behavior sequence to trigger.
 
 ---
 
-### Issue 5: Error Handling Swallows Errors Silently
+### 4. ProcessView Hardcoded Initial PID Gains
+
 **Severity:** Minor  
-**Location:** frontend/hooks/useWebSocket.ts (all command methods)
+**Location:** `frontend/components/ProcessView.tsx:26-30`
 
-**Problem:** Catch blocks set generic error messages without logging or preserving original error:
+**Problem:** Initial PID gains are hardcoded in component state (`Kc: 1.0, tau_I: 10.0, tau_D: 1.0`). The backend has actual configured gains from `tank_sim.create_default_config()`, but the frontend doesn't fetch them on load. This creates a disconnect:
+- Backend may be running with different gains
+- Frontend displays hardcoded values until user manually changes them
+- Configuration changes in backend don't propagate to frontend display
 
-```typescript
-try {
-  clientRef.current?.send({ type: "setpoint", value });
-} catch {
-  setError("Failed to send setpoint command");
-}
-```
+**Why it matters:** If the backend configuration changes default gains (e.g., during tuning experiments or deployment), the frontend continues displaying stale hardcoded values. This creates confusion about what gains are actually active.
 
-**Why it matters:**
-- Makes debugging difficult (what actually failed?)
-- User sees generic message, developer has no diagnostic info
-- No way to distinguish between different failure modes
+**Suggested approach:** Fetch initial gains from `GET /api/config` endpoint on component mount. The endpoint already returns `pid_gains: { Kc, tau_I, tau_D }`. Use this data to populate the `currentPIDGains` state.
 
-**Suggested approach:** Log errors to console and include error details in user message:
+**Implementation guidance:**
+- Add useEffect hook that runs on component mount
+- Fetch from /api/config endpoint
+- Extract pid_gains from response
+- Set currentPIDGains state with fetched values
+- Handle fetch errors gracefully (fall back to defaults if API unavailable)
 
-```typescript
-try {
-  clientRef.current?.send({ type: "setpoint", value });
-} catch (e) {
-  const errorMsg = e instanceof Error ? e.message : "Unknown error";
-  console.error("Failed to send setpoint command:", e);
-  setError(`Failed to send setpoint: ${errorMsg}`);
-}
-```
-
-**Note:** Low priority for MVP, important for production debugging.
+**Priority:** Low - This is already documented as **deferred technical debt for Phase 6+** in the pre-merge review documents. Acceptable to defer.
 
 ---
 
-### Issue 6: No Unit Tests
+### 5. SetpointControl Error Display Color Semantics
+
 **Severity:** Minor  
-**Location:** Entire frontend/ directory
+**Location:** `frontend/components/SetpointControl.tsx:97-102`
 
-**Problem:** No test files present for any components, hooks, utilities, or WebSocket client.
+**Problem:** The error display (setpoint - level) uses green for positive error and red for negative error. In process control semantics:
+- Positive error (setpoint > level) = process below target = potentially problematic
+- Negative error (setpoint < level) = process above target = overshoot condition
 
-**Why it matters:**
-- Refactoring becomes risky without test coverage
-- Bug regressions can slip through
-- Complex logic (WebSocket reconnection, message parsing) is untested
+The color scheme might be counterintuitive because:
+- Green typically means "good" but positive error may indicate underperformance
+- Red typically means "bad" but negative error may just be temporary overshoot
 
-**Suggested approach:** For production readiness, add tests for:
+**Why it matters:** Operators glancing at the display might misinterpret red/green as good/bad indicators rather than directional indicators (above/below). This could:
+- Slow down troubleshooting during process upsets
+- Create confusion when controller is working correctly but error is "red"
+- Conflict with standard SCADA color conventions in some industries
 
-**High-priority test coverage:**
-1. WebSocketClient class (connection lifecycle, reconnection logic, message handling)
-2. useWebSocket hook (state management, command methods)
-3. Utility functions (formatters, clampValue)
-4. Type guards for message parsing
+**Suggested approach:** Consider alternative color schemes that are more semantically neutral or clearly directional:
 
-**Testing strategy:**
-- Use Jest + React Testing Library
-- Mock WebSocket API for client tests
-- Test component integration with mocked context
-- Test reconnection logic with fake timers
+**Option 1:** Neutral directional colors
+- Positive error (below setpoint): Cyan or blue
+- Negative error (above setpoint): Yellow or amber
 
-**Example test structure:**
-```typescript
-describe('WebSocketClient', () => {
-  it('should reconnect with exponential backoff', async () => {
-    // Test reconnection delays: 1s, 2s, 4s, 8s, 16s
-  });
-  
-  it('should stop reconnecting after max attempts', async () => {
-    // Test gives up after 5 attempts
-  });
-  
-  it('should reset retry counter on successful connection', async () => {
-    // Test counter resets
-  });
-});
-```
+**Option 2:** Magnitude-based coloring
+- Small errors (|error| < 0.1): Gray (good control)
+- Medium errors (|error| < 0.5): Yellow (attention)
+- Large errors (|error| >= 0.5): Red (action needed)
 
-**Note:** Acceptable to skip for MVP, but should be high priority for Phase 4 continuation.
+**Option 3:** More explicit labeling
+- Keep colors but add text: "Below setpoint" vs "Above setpoint"
+- Or: "Level Low" vs "Level High"
+
+**Priority:** Low - cosmetic issue that doesn't affect functionality or safety.
 
 ---
 
 ## Notes
 
-### Note 1: Excellent TypeScript Usage
-**Location:** frontend/lib/types.ts
+### 1. TankGraphic Animation Performance is Excellent
 
-**Observation:** The type definitions demonstrate excellent TypeScript practices:
+**Location:** `frontend/components/TankGraphic.tsx:136-140`
 
-1. **Discriminated union for messages:**
-   ```typescript
-   export type WebSocketMessage =
-     | { type: "setpoint"; value: number; }
-     | { type: "pid"; Kc: number; tau_I: number; tau_D: number; }
-     | { type: "inlet_flow"; value: number; }
-     | { type: "inlet_mode"; mode: "constant" | "brownian"; ... }
-   ```
-   This provides compile-time type safety for message handling and enables exhaustive checking.
+**Observation:** The liquid fill animation uses Tailwind's `transition-all duration-500` class, which leverages CSS transitions instead of JavaScript-driven animations. The transition applies to the liquid fill height (y-position and height of the blue rectangle).
 
-2. **Interfaces match backend models:** Types mirror Pydantic models exactly, ensuring frontend/backend contract is enforced.
+**Why it's good:** 
+- CSS transitions are GPU-accelerated via browser compositor thread
+- Doesn't block the main JavaScript thread during animation
+- The 500ms duration provides smooth visual feedback without perceived lag
+- Automatic easing curve (ease-in-out) matches user expectations
+- Implementation shows good understanding of web performance best practices
 
-3. **Proper use of optional fields:** Uses `?` for truly optional fields, avoids overuse of `| undefined`.
-
-**Why this is good:** Prevents entire classes of runtime errors through type checking. Message routing becomes type-safe.
+This is the correct pattern for smooth, performant SCADA visualizations. Avoid changing this approach.
 
 ---
 
-### Note 2: Clean Separation of Concerns
-**Location:** WebSocket implementation (lib/websocket.ts, hooks/useWebSocket.ts, app/providers.tsx)
+### 2. WebSocket Hook Validation Strategy is Well-Designed
 
-**Observation:** The WebSocket integration uses a well-designed three-layer architecture:
+**Location:** `frontend/hooks/useWebSocket.ts:75-227`
 
-1. **WebSocketClient (lib/websocket.ts):** 
-   - Pure JavaScript WebSocket wrapper
-   - Event-based API
-   - No React dependencies
-   - Reusable in non-React contexts
+**Observation:** The hook implements comprehensive validation before sending commands to the backend:
 
-2. **useWebSocket hook (hooks/useWebSocket.ts):**
-   - React integration layer
-   - Manages lifecycle with useEffect
-   - Exposes state and command methods
-   - Handles React-specific concerns
+**Validation layers:**
+1. **Type checking:** `Number.isFinite()` ensures values are valid numbers
+2. **Range validation:** Parameters clamped/checked against physical limits
+3. **Semantic validation:** Relationships checked (e.g., min < max for Brownian mode)
+4. **Error logging:** Console errors with technical details for debugging
+5. **User feedback:** Error state with friendly messages for UI display
 
-3. **SimulationProvider (app/providers.tsx):**
-   - Global state distribution
-   - Single instance management
-   - Clean consumer API via useSimulation()
+**Error handling pattern:**
+- User-facing errors in `setError()` state (displayed in UI)
+- Technical details in `console.error()` (for developer debugging)
+- Clamped values logged with warnings when auto-corrected
+- Try-catch blocks around WebSocket send operations
 
-**Why this is good:** 
-- Each layer has single responsibility
-- WebSocket client is testable in isolation
-- React hook can be tested with React Testing Library
-- Components don't know about WebSocket implementation details
-- Easy to swap WebSocket for different transport (e.g., SSE, HTTP polling)
+**Why it's good:**
+- **Defense in depth:** Invalid data caught at multiple layers (UI → hook → backend)
+- **Fast feedback:** Errors caught immediately without round-trip to server
+- **Reduced load:** Backend doesn't process invalid commands
+- **Debugging support:** Console logs help diagnose validation failures
+- **Separation of concerns:** Validation in hook, business logic in components
 
----
-
-### Note 3: Reconnection Logic is Robust
-**Location:** frontend/lib/websocket.ts:139-161
-
-**Observation:** Exponential backoff implementation is well-designed:
-
-```typescript
-private attemptReconnect(): void {
-  if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-    console.error(`Max reconnection attempts (${this.maxReconnectAttempts}) reached. Giving up.`);
-    return;
-  }
-
-  const delay = this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts);
-  this.reconnectAttempts++;
-  
-  this.reconnectTimer = setTimeout(() => {
-    this.reconnectTimer = null;
-    this.connect();
-  }, delay);
-}
-```
-
-**Why this is good:**
-- Prevents connection storms (exponential backoff: 1s → 2s → 4s → 8s → 16s)
-- Gives up after 5 attempts (prevents infinite loops)
-- Resets counter on successful connection
-- Respects manual disconnect (doesn't reconnect when user closes connection)
-- Cleans up pending timers properly
-
-**Improvement suggestion:** Consider making max attempts and base delay configurable via constructor params for different deployment scenarios (development vs production).
+This pattern should be maintained and used as a reference for future control components.
 
 ---
 
-### Note 4: SCADA Theme Implementation is Professional
-**Location:** frontend/app/globals.css, frontend/tailwind.config.ts
+### 3. dev.sh Script Demonstrates Strong Systems Understanding
 
-**Observation:** The dark theme configuration uses industrial SCADA conventions:
+**Location:** `scripts/dev.sh:1-117`
 
-- Dark background (#111827) reduces eye strain for 24/7 monitoring
-- Status colors follow industry standards (green=normal, yellow=warning, red=alarm)
-- High contrast for critical data
-- Monospace fonts for numeric values
-- Clean, uncluttered interface
+**Observation:** The development startup script includes extensive inline comments documenting three rounds of iterative debugging:
 
-**Why this is good:** Matches user expectations for industrial control systems, suitable for professional deployment.
+**Encoded lessons:**
+1. **uv run behavior:** Documents that `uv run` triggers unnecessary C++ rebuilds (~60s) even when extension already installed, explaining why direct `.venv/bin/uvicorn` is used
+2. **File watcher conflicts:** Explains uvicorn watching entire project tree causes frontend hang, documenting `--reload-dir` scoping solution
+3. **Turbopack cache corruption:** Documents `.next/` cache corruption symptoms and need to clear entire directory, not just lock files
+4. **Port detection edge cases:** Documents `lsof` missing wildcard-bound processes, explaining switch to `ss` command
+5. **Graceful cleanup:** Implements proper process cleanup with Ctrl+C trap and wait cycles
 
----
+**Why it's good:**
+- **Documentation as code:** Future developers (or same developer months later) understand WHY specific workarounds exist
+- **Troubleshooting guide:** Comments explain symptoms, root causes, and solutions
+- **Systems knowledge:** Demonstrates understanding of:
+  - Python packaging tools (uv internals)
+  - File system watcher mechanisms (uvicorn, Turbopack)
+  - Unix process management (ss vs lsof, signal handling)
+  - Development server caching strategies
+- **Professional rigor:** Level of detail rare in side projects, shows production mindset
 
-### Note 5: Documentation Quality is Excellent
-**Location:** All frontend source files
-
-**Observation:** Every component, function, and class has clear JSDoc comments explaining:
-- Purpose and responsibility
-- Parameters and return values
-- Usage examples where helpful
-- Important behavioral notes
-
-**Example:**
-```typescript
-/**
- * WebSocket client for communicating with the Tank Dynamics backend
- */
-export class WebSocketClient {
-  /**
-   * Create a WebSocket client
-   * @param url - WebSocket endpoint URL
-   */
-  constructor(url: string) { ... }
-```
-
-**Why this is good:** Enables IDE intellisense, helps future maintainers, serves as inline documentation.
-
----
-
-### Note 6: Git Commit Hygiene is Excellent
-**Location:** Git history
-
-**Observation:** Commits follow clear patterns:
-- One task per commit (with task ID)
-- Clear, descriptive commit messages
-- Logical grouping of related changes
-- Documentation commits separate from code commits
-
-**Examples:**
-```
-Task 21e: Update Home Page with Tab Navigation and Views
-Task 21d: Create TrendsView placeholder component
-Task 20d: Create useWebSocket hook, fix WebSocket protocol and state type mismatches
-```
-
-**Why this is good:** Makes git history navigable, enables easy rollback, facilitates code review, helps with git bisect debugging.
-
----
-
-### Note 7: Lessons Learned Documentation is Valuable
-**Location:** docs/LESSONS_LEARNED.md
-
-**Observation:** The project includes comprehensive documentation of:
-- Framework version mismatches encountered
-- Task granularity insights
-- Documentation query strategies
-- Specific examples of what went wrong and how to fix it
-
-**Why this is valuable:** 
-- Demonstrates reflective learning process
-- Prevents repeating mistakes in future phases
-- Valuable for scaling to larger projects
-- Shows awareness of LLM limitations
-
-**Specific insight:** The "Framework Documentation: Query, Don't Assume" section (Lesson 0) directly addresses issues encountered during Phase 4 and provides actionable guidance for future work.
+This approach (encoding troubleshooting knowledge in scripts) should be adopted project-wide. When encountering multi-round debugging sessions, document the learnings as executable infrastructure.
 
 ---
 
 ## Positive Observations
 
-### Architecture Decisions
+### 1. Component Architecture Follows Single Responsibility Principle
 
-1. **Context Pattern for Global State** ✅
-   - Single WebSocket connection shared across all components
-   - Prevents multiple connections per component
-   - Clean API via useSimulation() hook
-   - Proper provider placement in layout
+Each component has exactly one reason to change:
+- **TankGraphic:** Rendering tank visualization (no state management, no business logic)
+- **SetpointControl:** Adjusting single parameter with +/- buttons
+- **PIDTuningControl:** Tuning three related parameters with apply pattern
+- **InletFlowControl:** Switching modes and configuring mode-specific parameters
+- **ProcessView:** Orchestrating components and displaying system state
 
-2. **Type-Safe Message Protocol** ✅
-   - Discriminated unions prevent invalid messages
-   - Compiler enforces message structure
-   - Easy to extend with new message types
-   - Matches backend protocol exactly
+**Benefits observed:**
+- Components are independently testable
+- Components are reusable (TankGraphic can be used in multiple views)
+- Changes to one component don't ripple to others
+- Future phases can swap implementations (e.g., 3D tank graphic) without touching controls
 
-3. **Utility Functions Are Reusable** ✅
-   - Pure functions with no side effects
-   - Well-tested formatting (formatLevel, formatTime, etc.)
-   - clampValue available for future input validation
-   - cn() function ready for complex Tailwind combinations
-
-4. **Build Configuration Is Production-Ready** ✅
-   - API proxy configured for development
-   - React Strict Mode enabled
-   - TypeScript strict mode enabled
-   - Successful production build with no warnings
-
-### Code Quality
-
-1. **Consistent Code Style** ✅
-   - Follows Next.js conventions
-   - Consistent component structure
-   - Uniform naming patterns
-   - Proper use of TypeScript features
-
-2. **Error Handling Present** ✅
-   - WebSocket errors caught and displayed
-   - Command failures reported to user
-   - Connection status visible at all times
-   - Graceful degradation when disconnected
-
-3. **Performance Considerations** ✅
-   - useCallback for command methods prevents unnecessary re-renders
-   - useState for minimal state
-   - No prop drilling (uses context)
-   - Efficient re-render patterns
-
-4. **Accessibility Basics** ✅
-   - Proper ARIA roles on tabs (role="tab", role="tablist")
-   - aria-selected and aria-controls for tab navigation
-   - Semantic HTML structure
-   - High contrast for readability
+This architecture should be maintained as the reference pattern for future development.
 
 ---
 
-## Architecture Review
+### 2. Type Safety is Comprehensive
 
-### Current Architecture: Strengths
+**Observations:**
+- All components define explicit TypeScript interfaces for props
+- WebSocket messages use discriminated union type (`WebSocketMessage`)
+- No `any` types anywhere in the codebase
+- Callback functions properly typed with parameter and return types
+- State hooks properly typed (React generics used correctly)
 
-The implemented architecture follows a clean layered approach:
+**Benefits:**
+- Type system serves as **living documentation**
+- Integration errors caught at compile time, not runtime
+- IDE autocomplete works reliably
+- Refactoring is safe (TypeScript catches breaking changes)
+- New developers have clear contracts to follow
 
-```
-Components (UI)
-     ↓
-useSimulation() hook (State Access)
-     ↓
-SimulationProvider (Global State)
-     ↓
-useWebSocket() hook (React Integration)
-     ↓
-WebSocketClient (Transport)
-     ↓
-Backend WebSocket Endpoint
-```
-
-**Strengths:**
-- Each layer has single responsibility
-- Dependencies flow in one direction (downward)
-- Easy to test each layer independently
-- Easy to swap implementations (e.g., REST API instead of WebSocket)
-- Follows React best practices
-
-### Scalability Considerations
-
-**Current design will scale well for:**
-- ✅ Adding more UI components (just consume useSimulation())
-- ✅ Adding more command types (extend discriminated union)
-- ✅ Adding more state fields (update types, backend handles it)
-- ✅ Multiple views showing same data (context prevents duplicate connections)
-
-**Potential scaling challenges:**
-1. **History Management:** Currently TrendsView manages its own history (10 items). When adding charts, history should move to context or be fetched from backend `/api/history` endpoint.
-
-2. **Selective Subscriptions:** Current implementation broadcasts all state to all clients. At scale, might want variable-specific subscriptions.
-
-3. **State Update Frequency:** Fixed 1 Hz update rate. Future might need dynamic rates per variable.
-
-**Note:** All these are acceptable for MVP and can be addressed in Phase 4 continuation.
+The type definitions in `lib/types.ts` serve as a single source of truth for the data model. This approach should continue.
 
 ---
 
-## Testing Review
+### 3. Apply Pattern Prevents Accidental Parameter Changes
 
-### Build Testing
+**Components using the pattern:**
+- PIDTuningControl (Apply button for gains)
+- InletFlowControl (Apply button for mode/parameters)
+- SetpointControl (implicit apply on every input change - consider this variation)
 
-✅ **Production build succeeds:**
-```
-npm run build
-✓ Compiled successfully
-✓ Generating static pages (4/4)
-Route (app)
-┌ ○ /
-└ ○ /_not-found
-```
+**Implementation details:**
+- Local state (`localKc`, `localMin`, etc.) tracks pending changes
+- UI updates immediately for responsive feel
+- `hasLocalChanges` flag tracks dirty state
+- Apply button only sends changes to backend
+- Props update from backend only when `!hasLocalChanges` (prevents overwriting user edits)
 
-### Lint Testing
+**Why this is correct for SCADA:**
+- Prevents accidental "fat finger" parameter changes
+- Gives operators time to verify values before committing
+- Allows exploring different parameter combinations without affecting live process
+- Clear separation between "proposed" and "active" values
+- Industry-standard pattern for process control interfaces
 
-⚠️ **ESLint reports 1 error, 1 warning:**
-- Error: setState in effect (TrendsView.tsx:31)
-- Warning: Unused variable (ProcessView.tsx:25)
-
-Both are minor and don't prevent deployment.
-
-### Manual Testing Evidence
-
-Based on commit history and documentation:
-- ✅ Dev server runs successfully
-- ✅ WebSocket connection established
-- ✅ Real-time state updates working
-- ✅ Tab navigation functional
-- ✅ Connection status indicator updates correctly
-- ✅ Process view displays data
+**Note:** SetpointControl doesn't use explicit Apply button (changes immediately). This is acceptable for setpoint but may want Apply button consistency in future if operators request it.
 
 ---
 
-## Security Review
+### 4. Error Handling is User-Friendly and Developer-Friendly
 
-### Potential Security Concerns
+**Dual-level error reporting observed:**
 
-**None identified for MVP**, but consider for production:
+**User-facing (in UI):**
+- "Max flow must be greater than min flow"
+- "Proportional Gain (Kc) must be >= 0"
+- Red error text, clear positioning below affected inputs
 
-1. **WebSocket URL from Environment Variable:**
-   - Currently uses `NEXT_PUBLIC_` prefix (exposed to browser)
-   - This is correct - frontend needs to know WS URL
-   - Ensure production env vars are set correctly
+**Developer-facing (in console):**
+- `console.error("Invalid inlet flow value:", value)`
+- `console.warn("Setpoint clamped from 5.5 to 5.0")`
+- Stack traces preserved for debugging
 
-2. **No Authentication/Authorization:**
-   - WebSocket endpoint has no auth
-   - Anyone can connect and send commands
-   - Acceptable for local development
-   - **MUST add auth before internet-facing deployment**
+**Benefits:**
+- **Operators** see what's wrong in plain language
+- **Developers** get technical details for debugging
+- **Support teams** can ask for console logs when troubleshooting
+- **No security leaks** (internal details not exposed to network)
 
-3. **Input Validation:**
-   - Backend validates inputs (good)
-   - Frontend doesn't validate before sending (minor issue)
-   - Could send malformed messages (backend handles gracefully)
-
-4. **CORS Configuration:**
-   - Backend allows localhost:3000 (correct for dev)
-   - Production needs actual domain added
-
-**Recommendation:** Document security requirements for production deployment in README or deployment guide.
+This approach should be standardized across all future components.
 
 ---
 
-## Performance Review
+### 5. Git History is Exemplary
 
-### Build Performance
+**Observations:**
+- 13 commits, each representing one complete atomic task
+- Commit messages follow conventional commits format
+- Clear task attribution (Task 22a, Task 26b, etc.)
+- Logical progression (component creation → integration → fixes)
+- No "WIP" commits, no merge commits (linear history)
+- Bug fixes properly documented (e.g., "Fix Brownian-to-Constant inlet mode switch")
 
-✅ **Excellent build performance:**
-- Compiled in ~1 second
-- Static page generation in ~150ms
-- Production bundle size not measured but likely small (minimal dependencies)
+**Example good messages:**
+- `Task 22a: Create TankGraphic SVG component and dev startup script`
+- `Task 27: Fix Brownian-to-Constant inlet mode switch`
+- `Documentation: Sync next.md with recent changes and lessons learned`
 
-### Runtime Performance
+**Benefits:**
+- `git bisect` effective for finding regressions
+- Each commit independently reviewable
+- History tells a clear story of feature development
+- Easy to cherry-pick specific changes if needed
+- Professional-grade commit hygiene
 
-✅ **Expected to be excellent:**
-- React 19 with modern optimizations
-- Minimal state updates (1 Hz)
-- No heavy computations in render
-- useCallback prevents unnecessary re-renders
-
-**Note:** No performance profiling done yet (acceptable for MVP). Consider React DevTools Profiler for future optimization.
-
----
-
-## Dependency Review
-
-### Core Dependencies
-
-```json
-{
-  "dependencies": {
-    "next": "16.1.6",           // Latest stable
-    "react": "19.2.3",          // Latest stable
-    "react-dom": "19.2.3",      // Matches React version
-    "recharts": "^3.7.0"        // Latest charting library
-  }
-}
-```
-
-✅ **All dependencies are current and appropriate:**
-- Next.js 16 with App Router (modern, recommended)
-- React 19 (latest stable, future-proof)
-- Recharts 3 (actively maintained, widely used)
-
-### Dev Dependencies
-
-```json
-{
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.6",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
-}
-```
-
-✅ **All dev dependencies are appropriate:**
-- Tailwind v4 (latest, matches tutorial/docs)
-- TypeScript 5 (current stable)
-- ESLint 9 (latest)
-- Proper Next.js ESLint config
-
-**Note:** Using caret (^) ranges allows patch updates automatically, which is good for security fixes.
+This commit discipline should be maintained as a project standard.
 
 ---
 
-## Documentation Review
+### 6. Documentation is Thorough and Accurate
 
-### Code Documentation
+**Documentation artifacts created:**
+- Component-level JSDoc comments (purpose, props, behavior)
+- Inline code comments for non-obvious logic (e.g., reverse-acting Kc negation)
+- Pre-merge review document (6,500+ lines verifying all acceptance criteria)
+- Lessons learned updates (framework documentation queries, task granularity)
+- Merge-ready checklist (comprehensive verification steps)
+- dev.sh script comments (troubleshooting knowledge as code)
 
-✅ **Excellent inline documentation:**
-- Every file has purpose comment
-- Every function has JSDoc
-- Complex logic explained
-- Type definitions documented
+**Quality indicators:**
+- Documentation matches implemented code (verified during review)
+- No outdated or misleading content found
+- Appropriate detail level (not too verbose, not too terse)
+- Clear separation of concerns (architectural docs, task specs, lessons learned)
 
-### Project Documentation
-
-✅ **Comprehensive project-level docs:**
-- PHASE4_COMPLETION.md provides full overview
-- FRONTEND_GUIDE.md (821 lines) documents architecture
-- LESSONS_LEARNED.md captures insights
-- next.md has detailed task specifications
-- README updated with frontend instructions
-
-### Missing Documentation
-
-Minor gaps to address in future:
-- No deployment guide (environment variables, production setup)
-- No troubleshooting guide for common issues
-- No API documentation for useSimulation() hook
-
-**Note:** Acceptable for MVP, add as project matures.
-
----
-
-## Comparison with Specification
-
-### Requirements Met
-
-Comparing implementation against docs/project_docs/next.md:
-
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| Next.js with App Router | ✅ | v16.1.6 |
-| TypeScript strict mode | ✅ | Configured correctly |
-| Tailwind CSS v4 | ✅ | Dark theme configured |
-| WebSocket connection | ✅ | With reconnection logic |
-| Real-time state display | ✅ | 1 Hz updates |
-| Tab navigation | ✅ | Process/Trends views |
-| Connection status | ✅ | Visual indicator |
-| Type-safe API | ✅ | Full TypeScript coverage |
-| SCADA dark theme | ✅ | Professional appearance |
-| Production build | ✅ | Builds successfully |
-
-**Verdict:** All acceptance criteria met ✅
+This level of documentation is **production-grade** and demonstrates long-term thinking about maintainability.
 
 ---
 
 ## Recommended Actions
 
-### High Priority (Address Before Next Phase)
+### High Priority (Can Address in Phase 6 Polish Tasks)
 
-1. **Fix React anti-pattern in TrendsView** (Issue #1)
-   - Option A: Refactor to use useMemo
-   - Option B: Move history to context
-   - Option C: Add ESLint disable with TODO comment
-   - **Recommended:** Option C for now, Option B during Phase 4 continuation
+1. **Conditional flow indicator animation** (Major Issue #1)
+   - Estimated effort: 5 minutes
+   - Impact: Improved UX, reduced resource consumption
+   - Risk: Very low (CSS class conditional logic)
 
-2. **Remove unused variable** (Issue #2)
-   - Simple one-line fix
-   - Eliminates lint warning
+### Medium Priority (Consider for Phase 6)
 
-### Medium Priority (Address During Phase 4 Continuation)
+2. **Reverse Acting checkbox help text** (Minor Issue #2)
+   - Estimated effort: 10 minutes
+   - Impact: Improved operator usability
+   - Risk: Low (UI addition, no logic changes)
 
-3. **Add input validation to command methods** (Issue #3)
-   - Use the clampValue utility that's already available
-   - Improves UX when UI controls are added
-   - Prevents sending invalid commands
+### Low Priority (Can Defer to Future Phases)
 
-4. **Improve error handling** (Issue #5)
-   - Log errors to console for debugging
-   - Include error details in user messages
-   - Helps diagnose issues in development
+3. **Extract SVG magic numbers** (Minor Issue #1)
+   - Estimated effort: 15 minutes
+   - Impact: Improved maintainability for future designers
+   - Risk: Very low (refactoring constants)
 
-5. **Move history management to context** (Related to Issue #1)
-   - When implementing charts, history needs to be shared
-   - Central history management in SimulationProvider
-   - Fixes the setState-in-effect anti-pattern
+4. **Mode change state reset** (Minor Issue #3)
+   - Estimated effort: 10 minutes
+   - Impact: Better UX for edge case
+   - Risk: Low (state management addition)
 
-### Low Priority (Future Enhancements)
+5. **Fetch PID gains from config** (Minor Issue #4)
+   - Estimated effort: 20 minutes
+   - Impact: Accurate initial display
+   - Risk: Low (already deferred to Phase 6+)
+   - **Note:** Already documented as deferred work
 
-6. **Add unit tests** (Issue #6)
-   - Set up Jest + React Testing Library
-   - Test WebSocketClient reconnection logic
-   - Test utility functions
-   - Test hook behavior
+6. **Error color semantics review** (Minor Issue #5)
+   - Estimated effort: 15 minutes (after deciding on approach)
+   - Impact: Potentially clearer operator feedback
+   - Risk: Very low (cosmetic change)
 
-7. **Add deployment documentation**
-   - Document required environment variables
-   - Document production build process
-   - Document Docker deployment (if applicable)
+**Total estimated effort for all improvements: ~75 minutes**
 
-8. **Add WebSocket URL validation** (Issue #4)
-   - Validate URL format before connecting
-   - Warn if using fallback URL
-   - Better error messages for configuration issues
+All items are optional and non-blocking. Can be incorporated into Phase 6 polish tasks if desired.
 
 ---
 
-## Phase Transition Recommendations
+## Phase 6 Recommendations
 
-### Ready for Phase 4 Continuation
+Based on this review and existing project documentation, Phase 6 should consider:
 
-The foundation is solid and ready for advanced features:
+### Polish and UX Improvements
+- Address the 6 minor issues identified above (if desired)
+- Fetch configuration from backend on load (already planned)
+- Add tooltips/help text to technical controls
+- Consider operator feedback on color schemes and labeling
 
-✅ **Strengths to build on:**
-- Clean architecture supports extension
-- Type system prevents breaking changes
-- WebSocket integration is robust
-- UI framework in place
+### Quality and Testing
+- Add end-to-end tests using Playwright (already planned for Phase 7)
+- Performance profiling for long-running sessions (>1 hour)
+- Memory leak testing (run overnight, monitor browser memory)
 
-⚠️ **Considerations for next phase:**
-- Fix TrendsView anti-pattern before adding complex charting
-- Move history to context when implementing real trends
-- Add input validation when adding UI controls
-- Consider adding tests for complex features
+### Feature Enhancements
+- Trends View data integration (connect charts to historical data)
+- Time range selector for historical data display
+- Alarm thresholds and notifications (deferred from earlier phases)
 
-### Suggested Phase 4 Continuation Priorities
+### Architecture Considerations
+- All current patterns are solid, no architectural changes recommended
+- Continue following established patterns (component architecture, type safety, Apply pattern)
+- dev.sh script serves as good model for documenting complex tooling issues
 
-1. **Process View Enhancements:**
-   - Tank visualization (SVG graphic)
-   - Real-time control inputs (sliders, numeric inputs)
-   - PID parameter adjustment UI
-   - Inlet mode toggle
+---
 
-2. **Trends View Enhancements:**
-   - Real-time Recharts line charts
-   - Multi-variable plotting
-   - Zoom and pan controls
-   - Historical data fetching from `/api/history`
+## Deployment Readiness Assessment
 
-3. **Testing:**
-   - Unit tests for critical paths
-   - Integration tests for WebSocket
-   - E2E tests for user workflows
+**Status: ✅ PRODUCTION READY**
 
-4. **Polish:**
-   - Loading states
-   - Error boundaries
-   - Toast notifications
-   - Responsive design
+| Category | Status | Notes |
+|----------|--------|-------|
+| Functionality | ✅ Pass | All features working as specified |
+| Type Safety | ✅ Pass | Full TypeScript strict mode compliance |
+| Error Handling | ✅ Pass | Comprehensive validation and user feedback |
+| Security | ✅ Pass | No XSS risks, input validation present, errors don't leak internals |
+| Performance | ✅ Pass | CSS animations, no unnecessary re-renders detected |
+| Documentation | ✅ Pass | Thorough and accurate |
+| Git History | ✅ Pass | Clean, atomic commits |
+| Backend Integration | ✅ Pass | Protocol alignment verified |
+| Browser Compatibility | ✅ Pass | Modern browser APIs used appropriately |
+| Responsive Design | ✅ Pass | Layout works on different screen sizes |
 
 ---
 
 ## Conclusion
 
-Phase 4 foundation implementation is **excellent** and ready for merge with only minor issues. The code demonstrates strong architectural discipline, proper use of React patterns, and professional quality.
+Phase 5 represents **high-quality, professional-grade work**. The implementation demonstrates:
 
-**Strengths:**
-- ✅ Clean, maintainable architecture
-- ✅ Type-safe implementation
-- ✅ Professional UI/UX
-- ✅ Robust WebSocket handling
-- ✅ Excellent documentation
+- Strong software engineering fundamentals
+- Deep understanding of frameworks and tools
+- Commitment to documentation and maintainability
+- Appropriate use of design patterns
+- Excellent attention to detail
 
-**Issues to address:**
-- ⚠️ One ESLint error (non-blocking)
-- ⚠️ Minor input validation gaps
-- ⚠️ No tests (acceptable for MVP)
+All identified issues are minor and can be addressed in future phases without blocking production deployment. The code is ready to serve as the foundation for Phase 6 development.
 
-**Recommendation:** **APPROVE MERGE** to main branch. The minor issues can be addressed incrementally during Phase 4 continuation without blocking deployment of this solid foundation.
-
-**Next Steps:**
-1. Merge phase4-initial to main
-2. Create new branch for Phase 4 continuation
-3. Address ESLint error and unused variable (15 min)
-4. Proceed with advanced features on solid foundation
+**Final Status: ✅ APPROVED AND MERGED TO MAIN**
 
 ---
 
-## Reviewer Notes
-
-This review was conducted by Claude Code in the Code Reviewer role according to prompts/code-reviewer.md. The review examined:
-- 23 commits on phase4-initial branch
-- 36 files changed (14,046+ insertions)
-- All frontend source code
-- Build and lint output
-- Backend integration points
-- Project documentation
-
-The implementation demonstrates that the hybrid AI workflow (Architect → Senior Engineer → Engineer → Code Reviewer) is producing high-quality results with appropriate granularity for successful task completion.
+**Review Completed:** 2026-02-13  
+**Reviewer:** Claude Sonnet 4.5 (Code Reviewer Role)  
+**Next Step:** Senior Engineer to create Phase 6 task breakdown
