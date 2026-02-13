@@ -1,22 +1,24 @@
 "use client";
 
-import { useSimulation } from "../app/providers";
-import { formatLevel, formatFlowRate, formatTime } from "../lib/utils";
+import { useHistory } from "../hooks/useHistory";
+import LevelChart from "./LevelChart";
+import FlowsChart from "./FlowsChart";
+import ValveChart from "./ValveChart";
 
 /**
  * TrendsView component displays historical simulation state updates
- * and provides a placeholder for future charting and analytics features.
+ * as interactive charts spanning up to 1 hour of historical data.
  *
- * Consumes the last 10 state snapshots from the SimulationProvider context
- * and displays them in reverse chronological order (newest first).
+ * Fetches historical data from the backend via useHistory hook
+ * and displays three charts:
+ * - Tank level vs setpoint over time
+ * - Inlet and outlet flow rates over time
+ * - Controller output (valve position) over time
  *
- * Displays:
- * - Last 10 state updates in a table
- * - Time, Level, Setpoint, Inlet Flow, Outlet Flow
- * - Placeholder message for future enhancements
+ * Handles loading, error, and empty states appropriately.
  */
 export function TrendsView() {
-  const { history } = useSimulation();
+  const { history, loading, error } = useHistory(3600);
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -28,67 +30,57 @@ export function TrendsView() {
         </p>
       </div>
 
-      {/* Placeholder message */}
-      <div className="bg-blue-900 border border-blue-700 rounded-lg p-4 mb-6">
-        <p className="text-sm text-blue-200">
-          <span className="font-semibold">Placeholder:</span> Trend charts will
-          be implemented in Phase 4 continued. Currently showing recent state
-          updates to verify WebSocket connectivity.
-        </p>
-      </div>
-
-      {/* Data history display */}
-      {history.length === 0 ? (
+      {/* Loading state */}
+      {loading && (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-gray-400 text-center">
-            Waiting for state updates...
+            Loading historical data...
           </p>
         </div>
-      ) : (
-        <div className="bg-gray-800 rounded-lg p-6 overflow-auto flex-1">
-          {/* Table header */}
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide pb-3 px-3">
-                  Time
-                </th>
-                <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wide pb-3 px-3">
-                  Level (m)
-                </th>
-                <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wide pb-3 px-3">
-                  Setpoint (m)
-                </th>
-                <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wide pb-3 px-3">
-                  Inlet (m³/s)
-                </th>
-                <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wide pb-3 px-3">
-                  Outlet (m³/s)
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {history.map((item, index) => (
-                <tr key={index} className="hover:bg-gray-700 transition-colors">
-                  <td className="py-3 px-3 font-mono text-white">
-                    {formatTime(item.time)}
-                  </td>
-                  <td className="py-3 px-3 font-mono text-right text-white">
-                    {formatLevel(item.tank_level)}
-                  </td>
-                  <td className="py-3 px-3 font-mono text-right text-white">
-                    {formatLevel(item.setpoint)}
-                  </td>
-                  <td className="py-3 px-3 font-mono text-right text-white">
-                    {formatFlowRate(item.inlet_flow)}
-                  </td>
-                  <td className="py-3 px-3 font-mono text-right text-white">
-                    {formatFlowRate(item.outlet_flow)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      )}
+
+      {/* Error state */}
+      {error && !loading && (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-red-400 text-center">{error}</p>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && history.length === 0 && (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-400 text-center">
+            No historical data available
+          </p>
+        </div>
+      )}
+
+      {/* Charts */}
+      {!loading && !error && history.length > 0 && (
+        <div className="flex-1 overflow-auto space-y-4">
+          {/* Level Chart */}
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-white mb-3">
+              Tank Level vs Setpoint
+            </h3>
+            <LevelChart data={history} />
+          </div>
+
+          {/* Flows Chart */}
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-white mb-3">
+              Inlet and Outlet Flows
+            </h3>
+            <FlowsChart data={history} />
+          </div>
+
+          {/* Valve Chart */}
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-white mb-3">
+              Controller Output (Valve Position)
+            </h3>
+            <ValveChart data={history} />
+          </div>
         </div>
       )}
     </div>
