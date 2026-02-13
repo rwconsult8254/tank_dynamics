@@ -44,6 +44,7 @@ export class WebSocketClient {
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 5;
   private baseReconnectDelay: number = 1000; // 1 second
+  private maxReconnectDelay: number = 30000; // 30 seconds
   private manualDisconnect: boolean = false;
 
   /**
@@ -77,7 +78,11 @@ export class WebSocketClient {
 
       this.websocket.addEventListener("open", () => {
         this.connectionStatus = "connected";
+        const attempts = this.reconnectAttempts;
         this.reconnectAttempts = 0; // Reset retry counter on successful connection
+        if (attempts > 0) {
+          console.log(`WebSocket reconnected after ${attempts} attempts`);
+        }
         this.callbacks.connect.forEach((callback) => callback());
       });
 
@@ -140,7 +145,9 @@ export class WebSocketClient {
   }
 
   /**
-   * Attempt to reconnect with exponential backoff
+   * Attempt to reconnect with exponential backoff and jitter
+   * Uses exponential backoff: delay = base * 2^attempts (capped at maxReconnectDelay)
+   * Adds random jitter to prevent thundering herd problem
    * @private
    */
   private attemptReconnect(): void {
@@ -158,18 +165,26 @@ export class WebSocketClient {
       return;
     }
 
-    // Calculate delay with exponential backoff: delay = base * 2^attempts
-    const delay = this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts);
+    // Calculate delay with exponential backoff: base * 2^attempts
+    let delay = this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts);
+
+    // Cap delay at maximum
+    delay = Math.min(delay, this.maxReconnectDelay);
+
+    // Add random jitter: multiply by random factor between 0.5 and 1.5
+    const jitter = 0.5 + Math.random();
+    const finalDelay = Math.floor(delay * jitter);
+
     this.reconnectAttempts++;
 
     console.log(
-      `Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms...`,
+      `Reconnecting in ${finalDelay}ms (attempt ${this.reconnectAttempts})`,
     );
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
-    }, delay);
+    }, finalDelay);
   }
 
   /**

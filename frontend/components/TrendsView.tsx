@@ -127,12 +127,32 @@ export function TrendsView() {
         </div>
       </div>
 
-      {/* Loading state */}
+      {/* Loading state - show skeletons */}
       {loading && (
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-gray-400 text-center">
-            Loading historical data...
-          </p>
+        <div className="flex-1 overflow-auto space-y-4">
+          {/* Level Chart Skeleton */}
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-white mb-3">
+              Tank Level vs Setpoint
+            </h3>
+            <div className="animate-pulse bg-gradient-to-r from-gray-700 to-gray-600 h-64 rounded" />
+          </div>
+
+          {/* Flows Chart Skeleton */}
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-white mb-3">
+              Inlet and Outlet Flows
+            </h3>
+            <div className="animate-pulse bg-gradient-to-r from-gray-700 to-gray-600 h-64 rounded" />
+          </div>
+
+          {/* Valve Chart Skeleton */}
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-white mb-3">
+              Controller Output (Valve Position)
+            </h3>
+            <div className="animate-pulse bg-gradient-to-r from-gray-700 to-gray-600 h-64 rounded" />
+          </div>
         </div>
       )}
 

@@ -2,1608 +2,1947 @@
 
 **Generated:** 2026-02-13  
 **Phase:** Phase 7 - Integration and Polish  
-**Previous Phases:** Phase 6 (Trends View) - ✅ COMPLETE, Phase 6.5 (HMI Redesign) - ✅ COMPLETE
+**Previous Phases:** Phase 6 (Trends View) ✅ COMPLETE, Phase 6.5 (HMI Redesign) ✅ COMPLETE
 
 ---
 
-## Completed: Phase 6 - Trends View Enhancement & Polish ✅
+## Project Status Summary
 
-All 14 micro-tasks complete (Tasks 28a-28f polish, Tasks 29a-29h trends).
+**Completed Phases:**
+- ✅ Phase 1: C++ Simulation Core (42/42 tests passing)
+- ✅ Phase 2: Python Bindings (28/28 tests passing)
+- ✅ Phase 3: FastAPI Backend (70+ tests passing)
+- ✅ Phase 4: Next.js Frontend Foundation (Full implementation)
+- ✅ Phase 5: Process View SCADA Interface (Full implementation)
+- ✅ Phase 6: Trends View Enhancement (14 tasks complete)
+- ✅ Phase 6.5: HMI Redesign (ISA-101 compliant)
 
-## Completed: Phase 6.5 - HMI Redesign (ISA-101) ✅
+**Current Phase:** Phase 7 - Integration and Polish
 
-Process View redesigned to follow ISA-101 high-performance HMI standards:
-- P&ID-style landscape schematic with ISA symbols and instrument tags
-- LIC-100 control loop faceplate with inline setpoint input
-- PID tuning via engineer-access popover
-- Upsets tab for disturbance configuration
-- Grayscale baseline, control signal lines
-- See Lesson 15 in `docs/LESSONS_LEARNED.md` for full details
+**System Status:** Production-ready with comprehensive functionality. Phase 7 focuses on quality assurance, testing, documentation, and deployment readiness.
 
 ---
 
 ## Current Phase: Phase 7 - Integration and Polish
 
-### Upcoming Work
-- End-to-end testing with Playwright
-- Performance profiling and optimization
-- Error boundary components
-- Loading states and skeleton screens
-- Data export functionality (CSV download)
-- Advanced chart features (zoom, pan, download as image)
-- Alarm thresholds and notifications
+### Overview
 
-**Total Tasks:** To be broken down by Senior Engineer
+Phase 7 completes the proof-of-concept by ensuring all components work together seamlessly, adding production-grade error handling, implementing comprehensive testing, and preparing deployment documentation. This phase transforms a working prototype into a production-ready system.
 
----
+### Goals
 
-## Phase 6A: Polish Tasks (Address Code Review Feedback)
+1. **End-to-End Testing:** Playwright test suite verifying complete user workflows
+2. **Error Handling:** Comprehensive error boundaries and recovery mechanisms
+3. **Loading States:** Professional loading and skeleton screens
+4. **Documentation:** Complete operator and deployment guides
+5. **Performance:** Profiling and optimization where needed
 
-These tasks address findings from the Phase 5 code review in `docs/feedback.md`. Each task is independent and quick (5-15 minutes).
+### Total Tasks: 12 micro-tasks (~5-6 hours total)
 
 ---
 
-## Task 28a: Conditional Flow Indicator Animation
+## Phase 7A: Error Handling and Resilience (4 tasks, ~90 minutes)
 
-**Phase:** 6A - Polish  
-**Prerequisites:** Phase 5 complete  
-**Estimated Time:** 5 minutes  
-**Files:** 1 file
-
-### File to Modify
-- `frontend/components/TankGraphic.tsx`
-
-### Context and References
-
-This addresses **Major Issue #1** from the code review. Currently, flow indicator arrows use the `animate-pulse` CSS class unconditionally, causing them to pulse even when flows are zero. This creates visual noise and wastes browser resources.
-
-Reference the existing flow indicator code at lines 169 and 190 in TankGraphic.tsx.
-
-### Requirements
-
-Modify the flow indicator arrow line elements to apply the `animate-pulse` class conditionally based on flow state.
-
-**For inlet arrow (currently around line 169):**
-- Apply `animate-pulse` class ONLY when `inletFlow > 0`
-- When `inletFlow === 0`, do NOT include `animate-pulse` in className
-- Keep all other styling unchanged (color coding, stroke width, markers)
-
-**For outlet arrow (currently around line 190):**
-- Apply `animate-pulse` class ONLY when `outletFlow > 0`
-- When `outletFlow === 0`, do NOT include `animate-pulse` in className
-- Keep all other styling unchanged
-
-**Implementation approach:**
-- Use conditional expression in className attribute
-- Pattern: `className={flowValue > 0 ? "animate-pulse" : ""}`
-- Or template literal: `className={\`${flowValue > 0 ? "animate-pulse" : ""}\`}`
-
-### Verification
-
-Run development server:
-```bash
-cd frontend && npm run dev
-```
-
-Open browser to `http://localhost:3000` and navigate to Process View tab.
-
-**Test scenarios:**
-1. When inlet flow is zero: Inlet arrow should be gray and NOT pulsing
-2. When inlet flow is > 0: Inlet arrow should be blue and pulsing
-3. When outlet flow is zero: Outlet arrow should be gray and NOT pulsing  
-4. When outlet flow is > 0: Outlet arrow should be blue and pulsing
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Unclear how to conditionally apply CSS classes in React/JSX
-- Multiple className values need to be combined
-
-**Search for these terms if stuck:**
-- "React conditional className"
-- "JSX conditional CSS class"
-
-### Acceptance Criteria
-- [ ] Inlet arrow only pulses when `inletFlow > 0`
-- [ ] Outlet arrow only pulses when `outletFlow > 0`
-- [ ] Arrows remain visible (gray) when flow is zero
-- [ ] Color coding (blue when flowing, gray when stopped) unchanged
-- [ ] No console errors or warnings
+These tasks add production-grade error handling and recovery mechanisms to make the system robust under failure conditions.
 
 ---
 
-## Task 28b: Extract SVG Magic Numbers to Constants
+## Task 30a: Add Error Boundary Component
 
-**Phase:** 6A - Polish  
-**Prerequisites:** None  
-**Estimated Time:** 15 minutes  
-**Files:** 1 file
-
-### File to Modify
-- `frontend/components/TankGraphic.tsx`
-
-### Context and References
-
-This addresses **Minor Issue #1** from the code review. The SVG currently uses hardcoded coordinate values like `57.5`, `182.5`, `tankLeft + 75`, `tankLeft + 82.5` scattered throughout the file. These magic numbers make it difficult to understand spatial relationships or adjust the layout.
-
-### Requirements
-
-Extract hardcoded SVG coordinates to named constants at the top of the component function (after the props destructuring and before the calculations section).
-
-**Constants to define:**
-- Inlet pipe and arrow positions (currently hardcoded as 57.5 for x-coordinate)
-- Outlet pipe and arrow positions (currently hardcoded as 182.5 for x-coordinate)
-- Arrow vertical positions and offsets
-- Valve symbol dimensions and positions
-
-**Naming pattern:**
-- Use UPPER_SNAKE_CASE for constants
-- Prefix with element name: `INLET_ARROW_X`, `OUTLET_ARROW_X`, etc.
-- Group related constants together with comments
-
-**Example structure:**
-```
-// Inlet flow indicator positions
-const INLET_ARROW_X = ...
-const INLET_ARROW_Y_START = ...
-const INLET_ARROW_Y_END = ...
-
-// Outlet flow indicator positions
-const OUTLET_ARROW_X = ...
-...
-```
-
-Replace all hardcoded numbers in the JSX with these named constants. Add brief comments explaining spatial relationships (e.g., "centered above tank", "aligned with outlet pipe").
-
-### Verification
-
-Run development server:
-```bash
-cd frontend && npm run dev
-```
-
-**Visual verification:**
-- Tank graphic renders identically to before
-- All pipes, arrows, and valves in same positions
-- No layout shifts or misalignments
-
-**Code verification:**
-- No hardcoded coordinate numbers in JSX (except viewBox dimensions)
-- Constants defined at top of component
-- Constants have descriptive names
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Unsure which numbers should become constants vs which are calculations
-- Coordinate system relationships unclear
-
-**Search for these terms if stuck:**
-- "React component constants best practices"
-- "SVG coordinate system"
-
-### Acceptance Criteria
-- [ ] All magic number coordinates replaced with named constants
-- [ ] Constants defined at component top with clear names
-- [ ] Comments explain spatial relationships
-- [ ] Visual appearance unchanged
-- [ ] No layout regressions
-
----
-
-## Task 28c: Add Reverse Acting Help Text
-
-**Phase:** 6A - Polish  
-**Prerequisites:** None  
-**Estimated Time:** 10 minutes  
-**Files:** 1 file
-
-### File to Modify
-- `frontend/components/PIDTuningControl.tsx`
-
-### Context and References
-
-This addresses **Minor Issue #2** from the code review. The "Reverse Acting" checkbox (around line 115-123) has no explanation of what it means or when to use it. Operators unfamiliar with control theory may not understand this term.
-
-### Requirements
-
-Add explanatory help text below the "Reverse Acting" checkbox to explain the concept in plain language for operators.
-
-**Add a new div element** immediately after the checkbox label div, containing:
-- Small gray text (Tailwind: `text-xs text-gray-400`)
-- Plain language explanation suitable for process operators
-- No control theory jargon
-
-**Suggested text (adapt as needed):**
-"Check this box if opening the outlet valve DECREASES tank level. For this tank system, valve opening increases drainage, so reverse acting should be checked."
-
-**Styling:**
-- Use `text-xs` for small font
-- Use `text-gray-400` for muted color
-- Add `mt-1` for small top margin
-- Consider wrapping in `<div className="text-xs text-gray-400 mt-1">...</div>`
-
-**Placement:**
-- Insert after the closing `</label>` tag of the checkbox
-- Before the Kc input section
-
-### Verification
-
-Run development server:
-```bash
-cd frontend && npm run dev
-```
-
-Navigate to Process View tab and scroll to PID Tuning section.
-
-**Check:**
-- Help text appears below "Reverse Acting" checkbox
-- Text is small and gray (not prominent)
-- Text explains concept clearly without jargon
-- Layout not broken (no overflow or wrapping issues)
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Unclear where to insert the help text in JSX structure
-- Tailwind classes not applying correctly
-
-**Search for these terms if stuck:**
-- "Tailwind CSS text sizing"
-- "React JSX text element"
-
-### Acceptance Criteria
-- [ ] Help text appears below checkbox
-- [ ] Text uses small gray styling
-- [ ] Explanation is clear for non-experts
-- [ ] No layout issues or overflow
-- [ ] Checkbox functionality unchanged
-
----
-
-## Task 28d: Reset Brownian Params on Mode Switch
-
-**Phase:** 6A - Polish  
-**Prerequisites:** None  
-**Estimated Time:** 10 minutes  
-**Files:** 1 file
-
-### File to Modify
-- `frontend/components/InletFlowControl.tsx`
-
-### Context and References
-
-This addresses **Minor Issue #3** from the code review. When switching between Constant and Brownian modes, the component preserves pending Brownian parameters in local state. If a user enters Brownian values, switches to Constant, then switches back to Brownian, the old values reappear unexpectedly.
-
-Current `handleModeChange` function is around lines 93-97.
-
-### Requirements
-
-Modify the `handleModeChange` function to reset Brownian parameters to defaults when switching modes.
-
-**Current behavior:**
-```
-User enters: min=0.5, max=1.5, variance=0.1
-User switches to Constant mode (Brownian inputs hidden)
-User switches back to Brownian
-Previous values appear: min=0.5, max=1.5, variance=0.1  ← Can be confusing
-```
-
-**Desired behavior:**
-When mode changes, reset local state for the mode being switched AWAY from.
-
-**Modification approach:**
-In `handleModeChange` function:
-- When switching to Constant mode: No action needed (Brownian params don't affect Constant)
-- When switching to Brownian mode: Reset Brownian params to sensible defaults
-  - `setLocalMin(0.8)`
-  - `setLocalMax(1.2)`
-  - `setLocalVariance(0.05)`
-
-**Alternative (simpler) approach:**
-Always reset to defaults when mode changes, regardless of direction. This provides clearest UX - mode change always gives fresh defaults.
-
-Keep existing logic for:
-- `setHasLocalChanges(true)`
-- `setErrorMessage("")`
-
-### Verification
-
-Run development server:
-```bash
-cd frontend && npm run dev
-```
-
-Navigate to Process View tab, scroll to Inlet Flow Control section.
-
-**Test sequence:**
-1. Select Brownian mode
-2. Enter custom values (e.g., min=0.5, max=1.5, variance=0.1)
-3. Switch to Constant mode
-4. Switch back to Brownian mode
-5. **Verify:** Brownian inputs show defaults (0.8, 1.2, 0.05), NOT custom values from step 2
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Unclear which state setter functions to call
-- Uncertain about when to reset (both directions vs one direction)
-
-**Search for these terms if stuck:**
-- "React useState reset to default"
-- "React component local state"
-
-### Acceptance Criteria
-- [ ] Switching from Constant to Brownian shows default Brownian values
-- [ ] Previously entered Brownian values don't persist after mode switch
-- [ ] hasLocalChanges flag still set correctly
-- [ ] Error messages cleared on mode change
-- [ ] No functional regressions
-
----
-
-## Task 28e: Fetch PID Gains from /api/config
-
-**Phase:** 6A - Polish  
-**Prerequisites:** None  
+**Phase:** 7A - Error Handling  
+**Prerequisites:** Phase 6.5 complete  
 **Estimated Time:** 20 minutes  
 **Files:** 1 file
 
-### File to Modify
-- `frontend/components/ProcessView.tsx`
+### File to Create
+- `frontend/components/ErrorBoundary.tsx`
 
 ### Context and References
 
-This addresses **Minor Issue #4** from the code review. Initial PID gains are currently hardcoded (lines 26-30: `Kc: 1.0, tau_I: 10.0, tau_D: 1.0`). The backend has actual configured gains available via `GET /api/config` endpoint, but the frontend doesn't fetch them.
+React Error Boundaries catch JavaScript errors in component trees and display fallback UI instead of crashing the entire application. This is critical for production applications.
 
-**Backend endpoint:** `GET /api/config`  
-**Returns:** `{ ..., pid_gains: { Kc: number, tau_I: number, tau_D: number }, ... }`
-
-Reference: See `docs/API_REFERENCE.md` for endpoint details.
-
-If unfamiliar with React useEffect hook or fetch API, search for "React useEffect fetch data on mount".
+**Reference:** React Error Boundaries documentation  
+**Search:** "React Error Boundary class component"  
+**Pattern:** Class component with `componentDidCatch` lifecycle method
 
 ### Requirements
 
-Add a useEffect hook to ProcessView component that fetches PID gains from the backend on component mount and updates the `currentPIDGains` state.
+Create a reusable ErrorBoundary component that wraps sections of the application and displays a user-friendly error message when child components throw errors.
 
-**Steps:**
-1. Import useEffect from React (if not already imported)
-2. Add a useEffect hook that runs only on mount (empty dependency array)
-3. Inside useEffect, fetch from `/api/config` endpoint
-4. Extract `pid_gains` from response
-5. Update `currentPIDGains` state with fetched values (take absolute value of Kc for display)
-6. Handle errors gracefully (log to console, fall back to existing hardcoded defaults)
+**Component structure:**
+- TypeScript class component extending `React.Component`
+- Props type including `children` (ReactNode) and optional `fallback` (ReactNode)
+- State type with `hasError` (boolean) and optional `error` (Error object)
+- Implement `static getDerivedStateFromError(error)` to update state
+- Implement `componentDidCatch(error, errorInfo)` to log error details
+- Render method returns children when no error, fallback UI when error caught
 
-**Error handling:**
-- Use try-catch block around fetch
-- On error, log to console but don't show error to user
-- Keep hardcoded defaults as fallback if fetch fails
+**Fallback UI should display:**
+- Friendly error title: "Something went wrong"
+- Brief explanation: "An unexpected error occurred. Please reload the page."
+- Reload button that calls `window.location.reload()`
+- Technical details section (collapsed by default) showing error message and stack trace
+- Use Tailwind classes for styling: red background for error state, white text, padding
 
-**Kc sign handling:**
-- Backend stores Kc as negative (e.g., -2.0) for reverse-acting control
-- Frontend displays positive value (e.g., 2.0) with separate reverseActing checkbox
-- Take absolute value: `Math.abs(pid_gains.Kc)`
-
-**Example pattern:**
-```
-useEffect hook that runs on mount
-  Try to fetch from endpoint
-    Parse JSON response
-    Extract pid_gains object
-    Update currentPIDGains state with abs(Kc), tau_I, tau_D
-    Determine reverseActing based on original Kc sign
-  Catch any errors
-    Log error to console
-    Keep existing hardcoded defaults
-```
+**Error logging:**
+- Log to console.error with full error object and component stack
+- Include timestamp in log message
+- Format: `[ErrorBoundary] Error at ${timestamp}: ${error.message}`
 
 ### Verification
 
-Run full stack:
-```bash
-./scripts/dev.sh
-```
+Create the component, then test by adding a button that throws an error:
 
-Open browser DevTools Network tab and navigate to Process View.
-
-**Check:**
-1. Network tab shows successful GET request to `/api/config`
-2. PID Tuning Control displays the fetched gains (not hardcoded 1.0, 10.0, 1.0)
-3. If backend returns Kc=-2.0, frontend shows Kc=2.0 with "Reverse Acting" checked
-4. If API is unavailable, component still renders with hardcoded defaults
-
-**Console verification:**
-- No fetch errors in console (or error logged gracefully)
-- Component renders without errors
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Unfamiliar with React useEffect hook lifecycle
-- Fetch API usage unclear
-- JSON parsing issues
-
-**Search for these terms if stuck:**
-- "React useEffect fetch on mount"
-- "JavaScript fetch API tutorial"
-- "React fetch data example"
-
-### Acceptance Criteria
-- [ ] useEffect hook fetches from `/api/config` on mount
-- [ ] currentPIDGains state updated with fetched values
-- [ ] Kc displayed as absolute value
-- [ ] reverseActing state updated based on Kc sign
-- [ ] Errors handled gracefully (logged, fallback to defaults)
-- [ ] No breaking changes to existing functionality
-
----
-
-## Task 28f: Improve Error Color Semantics
-
-**Phase:** 6A - Polish  
-**Prerequisites:** None  
-**Estimated Time:** 15 minutes  
-**Files:** 1 file
-
-### File to Modify
-- `frontend/components/SetpointControl.tsx`
-
-### Context and References
-
-This addresses **Minor Issue #5** from the code review. The error display (setpoint - level) currently uses green for positive error and red for negative error (lines 97-102). This might be counterintuitive for operators who associate green=good and red=bad.
-
-Current logic:
-- Positive error (setpoint > level) → Green
-- Negative error (setpoint < level) → Red
-
-### Requirements
-
-Change the error display color scheme to use magnitude-based coloring instead of directional (positive/negative) coloring.
-
-**New color scheme (magnitude-based):**
-- Small error (|error| < 0.2): Gray (good control performance)
-- Medium error (0.2 ≤ |error| < 0.5): Yellow/Amber (attention needed)
-- Large error (|error| ≥ 0.5): Red (action needed)
-
-**Implementation approach:**
-- Calculate absolute error: `Math.abs(error)`
-- Use conditional logic to determine color class
-- Tailwind color classes: `text-gray-400` (small), `text-yellow-400` (medium), `text-red-400` (large)
-
-**Keep existing:**
-- Sign display (+ or -) in the formatted error value
-- "Error (SP - PV):" label
-- Number formatting (2 decimal places)
-
-**Update only:** The color class applied to the error value span.
-
-**Example logic pattern:**
-```
-Calculate absoluteError = Math.abs(error)
-Determine color:
-  If absoluteError < 0.2: use gray
-  Else if absoluteError < 0.5: use yellow
-  Else: use red
-Apply appropriate text-[color]-400 class
-```
-
-### Verification
-
-Run development server:
 ```bash
 cd frontend && npm run dev
 ```
 
-Navigate to Process View tab, observe Setpoint Control error display.
+**Test scenario:**
+1. Wrap a test component with ErrorBoundary
+2. Add button that throws error when clicked
+3. Click button - should see fallback UI, not blank page
+4. Check console for error log
+5. Click reload button - page should refresh
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Unfamiliar with React class components (most examples use function components)
+- Static methods in TypeScript classes are confusing
+- Error boundary lifecycle methods unclear
+
+**Search for these terms if stuck:**
+- "React Error Boundary TypeScript example"
+- "getDerivedStateFromError vs componentDidCatch"
+- "React class component TypeScript"
+
+### Acceptance Criteria
+- [ ] ErrorBoundary.tsx file created in components directory
+- [ ] Component is a TypeScript class extending React.Component
+- [ ] Implements getDerivedStateFromError and componentDidCatch
+- [ ] Displays user-friendly fallback UI when error occurs
+- [ ] Logs errors to console with timestamp
+- [ ] Includes reload button that works
+- [ ] TypeScript types defined for props and state
+
+---
+
+## Task 30b: Wrap Application Sections with Error Boundaries
+
+**Phase:** 7A - Error Handling  
+**Prerequisites:** Task 30a complete  
+**Estimated Time:** 15 minutes  
+**Files:** 2 files
+
+### Files to Modify
+- `frontend/app/page.tsx`
+- `frontend/components/TrendsView.tsx`
+
+### Context and References
+
+Error boundaries should wrap logical sections of the application so that an error in one section doesn't crash the entire page. Wrap charts and the main application independently.
+
+Reference Task 30a for the ErrorBoundary component you just created.
+
+### Requirements
+
+**In page.tsx (main application):**
+- Import the ErrorBoundary component
+- Wrap the entire main content (after ConnectionStatus) with ErrorBoundary
+- Do NOT wrap ConnectionStatus itself (it should always be visible)
+- No custom fallback prop needed (use default)
+
+**In TrendsView.tsx (charts section):**
+- Import ErrorBoundary
+- Wrap each chart component (LevelChart, FlowsChart, ValveChart) individually with ErrorBoundary
+- Use custom fallback for chart errors: A simple div with gray background showing "Chart failed to load"
+- Pattern: `<ErrorBoundary fallback={<div>Chart error UI</div>}><ChartComponent /></ErrorBoundary>`
+- Each chart should fail independently without affecting other charts
+
+**Rationale for separate boundaries:**
+- Main app error: Shows full-page error (total failure)
+- Individual chart error: Shows chart-specific error (partial failure)
+- This provides graceful degradation
+
+### Verification
+
+```bash
+cd frontend && npm run dev
+```
 
 **Test scenarios:**
-1. Set setpoint equal to level → Error ≈ 0 → Should be gray
-2. Set setpoint slightly above level (0.1m difference) → Should be gray
-3. Set setpoint moderately different (0.3m) → Should be yellow
-4. Set setpoint very different (0.8m) → Should be red
-5. Verify sign (+ or -) still displays correctly
+1. Normal operation: All charts load normally, no error boundaries visible
+2. Simulate chart error: Temporarily modify a chart component to throw error in render
+3. Verify only that chart shows error, others continue working
+4. Verify ConnectionStatus remains visible even if main content errors
 
 ### Escalation Hints
 
 **Escalate to Haiku if:**
-- Unclear how to apply conditional Tailwind classes
-- Math.abs() usage unclear
+- Unclear where to place ErrorBoundary tags in JSX
+- Unsure how to create custom fallback components
+- Wrapping multiple levels of components is confusing
 
 **Search for these terms if stuck:**
-- "React conditional className Tailwind"
-- "JavaScript absolute value"
+- "React Error Boundary wrapping components"
+- "Error boundary custom fallback"
 
 ### Acceptance Criteria
-- [ ] Small errors (< 0.2m) display in gray
-- [ ] Medium errors (0.2-0.5m) display in yellow
-- [ ] Large errors (≥ 0.5m) display in red
-- [ ] Sign (+ or -) still displayed correctly
-- [ ] Error value formatted to 2 decimal places unchanged
-- [ ] No layout changes
+- [ ] page.tsx wraps main content with ErrorBoundary
+- [ ] ConnectionStatus NOT wrapped (stays visible during errors)
+- [ ] TrendsView wraps each chart individually with ErrorBoundary
+- [ ] Custom fallback UI implemented for chart errors
+- [ ] Charts fail independently without affecting each other
+- [ ] No TypeScript errors
+- [ ] Application runs without errors in normal operation
 
 ---
 
-## Phase 6B: Trends View Enhancement (Historical Charts)
+## Task 30c: Add WebSocket Reconnection Logic with Exponential Backoff
 
-These tasks implement Recharts visualizations for historical process data. Recharts v3.7.0 is already installed in `package.json`.
-
----
-
-## Task 29a: Create useHistory Hook
-
-**Phase:** 6B - Trends View  
-**Prerequisites:** None  
-**Estimated Time:** 25 minutes  
-**Files:** 1 file
-
-### File to Create
-- `frontend/hooks/useHistory.ts`
-
-### Context and References
-
-This hook will fetch historical data from the backend `/api/history` endpoint and manage it in React state. It provides a clean abstraction for TrendsView and chart components to access historical data.
-
-**Backend endpoint:** `GET /api/history?duration={seconds}`
-- Duration range: 1-7200 seconds (1 second to 2 hours)
-- Default: 3600 seconds (1 hour)
-- Returns: Array of `SimulationState` objects in chronological order (oldest first)
-
-Reference pattern: See `frontend/hooks/useWebSocket.ts` for custom hook structure.
-
-If unfamiliar with custom React hooks, search for "React custom hooks tutorial".
-
-### Requirements
-
-Create a custom React hook that fetches and manages historical simulation data.
-
-**Hook signature:**
-```
-function useHistory(durationSeconds: number): {
-  history: SimulationState[]
-  loading: boolean
-  error: string | null
-  refetch: () => void
-}
-```
-
-**Hook responsibilities:**
-1. Fetch historical data from `/api/history?duration={durationSeconds}` on mount
-2. Refetch when `durationSeconds` parameter changes
-3. Manage loading state while fetching
-4. Handle errors gracefully
-5. Provide refetch function for manual refresh
-
-**State variables needed:**
-- `history`: Array of SimulationState objects (default: empty array)
-- `loading`: Boolean indicating fetch in progress (default: true)
-- `error`: String error message or null (default: null)
-
-**Implementation structure:**
-1. Define state variables with useState hooks
-2. Create fetch function that:
-   - Sets loading to true
-   - Fetches from endpoint with duration parameter
-   - Parses JSON response
-   - Updates history state with response array
-   - Sets loading to false
-   - Handles errors (sets error state, logs to console)
-3. Create useEffect that calls fetch function on mount and when duration changes
-4. Return object with history, loading, error, refetch
-
-**Error handling:**
-- Catch fetch errors and network failures
-- Set error state with user-friendly message
-- Log detailed error to console
-- Don't throw errors (return error state instead)
-
-**Dependencies array:**
-- useEffect should depend on `durationSeconds` parameter
-- Refetch when duration changes
-
-### Verification
-
-Create a test component that uses the hook:
-```bash
-# Add to frontend/app/page.tsx temporarily
-import { useHistory } from '../hooks/useHistory'
-
-// Inside component:
-const { history, loading, error } = useHistory(3600)
-console.log('History:', history.length, 'entries')
-```
-
-Run development server and check console:
-```bash
-cd frontend && npm run dev
-```
-
-**Expected:**
-- Console shows "History: [number] entries"
-- Number should be > 0 if backend has been running
-- No fetch errors in Network tab
-- No React errors in console
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Custom hook pattern unclear
-- useEffect dependency array behavior confusing
-- Fetch error handling unclear
-
-**Search for these terms if stuck:**
-- "React custom hook fetch data"
-- "React useEffect dependencies"
-- "JavaScript fetch API error handling"
-
-### Acceptance Criteria
-- [ ] Hook fetches data on mount
-- [ ] Hook refetches when duration changes
-- [ ] Loading state accurate during fetch
-- [ ] Errors caught and returned in error state
-- [ ] refetch function works manually
-- [ ] No memory leaks or infinite loops
-- [ ] TypeScript types correct (no any types)
-
----
-
-## Task 29b: Create LevelChart Component
-
-**Phase:** 6B - Trends View  
-**Prerequisites:** Task 29a complete  
+**Phase:** 7A - Error Handling  
+**Prerequisites:** Phase 4 complete  
 **Estimated Time:** 30 minutes  
 **Files:** 1 file
 
-### File to Create
-- `frontend/components/LevelChart.tsx`
+### File to Modify
+- `frontend/lib/websocket.ts`
 
 ### Context and References
 
-Create a Recharts LineChart showing tank level and setpoint over time. This is the primary chart for operators to monitor control performance.
+Currently, when the WebSocket connection drops, it may attempt to reconnect immediately and repeatedly, creating a connection storm. Implement exponential backoff to reduce server load during outages.
 
-**Recharts documentation queried:** Used Context7 to confirm v3.7.0 patterns
-- Library ID: `/recharts/recharts`
-- Version installed: 3.7.0 (in package.json)
-- Key note: Recharts v3 does NOT require xAxisId/yAxisId on CartesianGrid (this was documented incorrectly in some sources)
+**Pattern:** Exponential backoff with jitter  
+**Search:** "WebSocket reconnection exponential backoff JavaScript"
 
-**Key Recharts components:**
-- `ResponsiveContainer` - Auto-sizing wrapper
-- `LineChart` - Main chart container
-- `XAxis` - Time axis (bottom)
-- `YAxis` - Value axis (left)
-- `CartesianGrid` - Background grid lines
-- `Tooltip` - Hover information display
-- `Legend` - Series labels
-- `Line` - Data series (two lines: level and setpoint)
-
-Reference: See Context7 query results above for LineChart patterns.
-
-If unfamiliar with Recharts, search for "Recharts LineChart multiple lines tutorial".
+**Current behavior:** Likely no backoff or fixed delay  
+**Desired behavior:** Increasing delay between reconnection attempts
 
 ### Requirements
 
-Create a React component that displays tank level and setpoint as two line series on a time-series chart.
+Add exponential backoff logic to the WebSocketClient class reconnection mechanism.
 
-**Component props:**
-```
-interface LevelChartProps {
-  data: SimulationState[]
-}
-```
+**Add new private fields to WebSocketClient class:**
+- `reconnectAttempts` (number): Counter starting at 0
+- `maxReconnectDelay` (number): Maximum delay in milliseconds (e.g., 30000 for 30 seconds)
+- `baseReconnectDelay` (number): Base delay in milliseconds (e.g., 1000 for 1 second)
 
-**Chart configuration:**
-- Responsive container: 100% width, 300px height
-- Two Line components:
-  - Level line: Blue color (#3b82f6), dataKey="tank_level"
-  - Setpoint line: Red dashed color (#ef4444), dataKey="setpoint", strokeDasharray="5 5"
-- XAxis: Use "time" field, format as "MM:SS" or "HH:MM:SS"
-- YAxis: Domain from 0 to 5 (tank height), label "Level (m)"
-- CartesianGrid: Light gray, dashed
-- Tooltip: Show time, level, setpoint values
-- Legend: Show series names
+**Modify reconnection logic:**
+- On disconnect, calculate delay as: `Math.min(baseReconnectDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay)`
+- Add random jitter: multiply by random factor between 0.5 and 1.5 to prevent thundering herd
+- Formula: `delay * (0.5 + Math.random())`
+- Wait for calculated delay before attempting reconnection
+- Increment `reconnectAttempts` after each failed attempt
+- Reset `reconnectAttempts` to 0 on successful connection
 
-**Data format:**
-The `data` prop is an array of SimulationState objects:
-```
-[
-  { time: 123.5, tank_level: 2.3, setpoint: 2.5, ... },
-  { time: 124.5, tank_level: 2.35, setpoint: 2.5, ... },
-  ...
-]
-```
+**Example sequence:**
+- Attempt 1: 1 second delay
+- Attempt 2: 2 second delay
+- Attempt 3: 4 second delay
+- Attempt 4: 8 second delay
+- Attempt 5: 16 second delay
+- Attempt 6+: 30 second delay (capped at max)
 
-**Time formatting:**
-Time is in seconds (floating point). Format for display:
-- If time < 3600: Format as "MM:SS"
-- If time >= 3600: Format as "HH:MM:SS"
-- Create helper function or use existing formatTime from utils
-
-**Styling:**
-- Dark theme consistent with rest of app
-- Background: bg-gray-800
-- Border: border border-gray-700
-- Rounded corners: rounded-lg
-- Padding: p-4
-
-**Component structure:**
-1. Import Recharts components
-2. Import SimulationState type from lib/types
-3. Define props interface
-4. Create helper function for time formatting (or import from utils)
-5. Return JSX with ResponsiveContainer wrapping LineChart
-6. Configure chart components (XAxis, YAxis, Grid, Tooltip, Legend, Lines)
+**Add logging:**
+- Log reconnection attempts with current delay: `console.log(\`Reconnecting in ${delay}ms (attempt ${attempts})\`)`
+- Log successful reconnection: `console.log('WebSocket reconnected after ${attempts} attempts')`
 
 ### Verification
 
-Run development server:
 ```bash
+# Terminal 1: Start backend
+cd /home/roger/dev/tank_dynamics
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+# Terminal 2: Start frontend
 cd frontend && npm run dev
 ```
 
-Temporarily add LevelChart to ProcessView to test:
-```
-import LevelChart from './LevelChart'
-// In ProcessView JSX, after data display:
-{state && <LevelChart data={[state]} />}
-```
-
-**Check:**
-- Chart renders without errors
-- Two lines visible (blue for level, red dashed for setpoint)
-- Axes labeled correctly
-- Tooltip shows values on hover
-- Legend shows "Level" and "Setpoint"
-- Chart responsive (scales with window resize)
-
-**Remove test code** from ProcessView after verification.
+**Test scenario:**
+1. Open browser to http://localhost:3000
+2. Open browser console to see logs
+3. Kill backend process (Ctrl+C in terminal 1)
+4. Observe reconnection attempts in console with increasing delays
+5. Restart backend: `uvicorn api.main:app --host 0.0.0.0 --port 8000`
+6. Observe successful reconnection message
+7. Verify delays match exponential pattern (1s, 2s, 4s, etc.)
 
 ### Escalation Hints
 
 **Escalate to Haiku if:**
-- Recharts import errors
-- Data format not matching chart expectations
-- Time formatting complex
+- Unclear how to modify existing WebSocket reconnection code
+- setTimeout/clearTimeout with exponential backoff is confusing
+- Math.pow for exponential calculation unclear
+- Random jitter implementation not working
 
 **Search for these terms if stuck:**
-- "Recharts LineChart example"
-- "Recharts time series XAxis"
-- "JavaScript time formatting seconds"
+- "JavaScript exponential backoff implementation"
+- "WebSocket reconnect with backoff"
+- "setTimeout exponential delay pattern"
 
 ### Acceptance Criteria
-- [ ] Chart renders with sample data
-- [ ] Two lines visible (level and setpoint)
-- [ ] XAxis shows formatted time
-- [ ] YAxis shows level values 0-5
-- [ ] Tooltip displays on hover
-- [ ] Legend identifies series
-- [ ] Dark theme styling applied
+- [ ] Exponential backoff implemented in WebSocketClient
+- [ ] Delays follow exponential pattern: 1s, 2s, 4s, 8s, 16s, 30s (capped)
+- [ ] Random jitter added to prevent connection storms
+- [ ] reconnectAttempts counter resets on successful connection
+- [ ] Console logs show reconnection attempts and delays
+- [ ] Successfully reconnects after backend restart
 - [ ] No TypeScript errors
 
 ---
 
-## Task 29c: Create FlowsChart Component
+## Task 30d: Add Loading Skeleton for Charts
 
-**Phase:** 6B - Trends View  
-**Prerequisites:** Task 29b complete  
+**Phase:** 7A - Error Handling  
+**Prerequisites:** Phase 6 complete  
 **Estimated Time:** 25 minutes  
-**Files:** 1 file
-
-### File to Create
-- `frontend/components/FlowsChart.tsx`
-
-### Context and References
-
-Create a Recharts LineChart showing inlet and outlet flows over time. This helps operators understand flow balance and disturbances.
-
-Reference: Use same Recharts pattern as Task 29b (LevelChart), but with different data keys and colors.
-
-### Requirements
-
-Create a React component that displays inlet and outlet flows as two line series on a time-series chart.
-
-**Component props:**
-```
-interface FlowsChartProps {
-  data: SimulationState[]
-}
-```
-
-**Chart configuration:**
-- Responsive container: 100% width, 300px height
-- Two Line components:
-  - Inlet flow line: Cyan color (#06b6d4), dataKey="inlet_flow"
-  - Outlet flow line: Orange color (#f97316), dataKey="outlet_flow"
-- XAxis: Use "time" field, format same as LevelChart
-- YAxis: Domain from 0 to 2 (max flow), label "Flow Rate (m³/s)"
-- CartesianGrid: Light gray, dashed
-- Tooltip: Show time, inlet, outlet values
-- Legend: Show series names
-
-**Data keys:**
-- inlet_flow: Inlet volumetric flow rate (m³/s)
-- outlet_flow: Outlet volumetric flow rate (m³/s)
-
-**Styling:**
-- Same dark theme as LevelChart
-- Background: bg-gray-800
-- Border, rounded, padding consistent
-
-**Component structure:**
-Follow same pattern as LevelChart:
-1. Import Recharts components
-2. Import SimulationState type
-3. Define props interface
-4. Reuse or create time formatting helper
-5. Return JSX with chart configuration
-
-**Differences from LevelChart:**
-- Different dataKey values (inlet_flow, outlet_flow vs tank_level, setpoint)
-- Different colors (cyan/orange vs blue/red)
-- Different Y-axis domain (0-2 vs 0-5)
-- Different Y-axis label ("Flow Rate (m³/s)" vs "Level (m)")
-
-### Verification
-
-Run development server:
-```bash
-cd frontend && npm run dev
-```
-
-Temporarily test in ProcessView:
-```
-import FlowsChart from './FlowsChart'
-{state && <FlowsChart data={[state]} />}
-```
-
-**Check:**
-- Chart renders with two flow lines
-- Cyan line for inlet, orange for outlet
-- Y-axis range 0-2 m³/s
-- Tooltip shows flow values
-- Legend correct
-
-Remove test code after verification.
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Pattern from LevelChart unclear
-- Data key names don't match
-
-**Search for these terms if stuck:**
-- "Recharts multiple line series"
-- "Recharts YAxis domain"
-
-### Acceptance Criteria
-- [ ] Chart renders with flow data
-- [ ] Two lines visible (inlet cyan, outlet orange)
-- [ ] Y-axis range 0-2 m³/s
-- [ ] Tooltip displays flow values
-- [ ] Legend identifies series
-- [ ] Styling consistent with LevelChart
-- [ ] No errors
-
----
-
-## Task 29d: Create ValveChart Component
-
-**Phase:** 6B - Trends View  
-**Prerequisites:** Task 29b complete  
-**Estimated Time:** 20 minutes  
-**Files:** 1 file
-
-### File to Create
-- `frontend/components/ValveChart.tsx`
-
-### Context and References
-
-Create a Recharts LineChart showing valve position (controller output) over time. This shows how the PID controller is responding to level errors.
-
-Reference: Same pattern as previous chart components, but single line instead of two.
-
-### Requirements
-
-Create a React component that displays valve position as a single line series.
-
-**Component props:**
-```
-interface ValveChartProps {
-  data: SimulationState[]
-}
-```
-
-**Chart configuration:**
-- Responsive container: 100% width, 250px height (slightly shorter)
-- Single Line component:
-  - Valve position line: Purple color (#a855f7), dataKey="valve_position"
-- XAxis: Time, formatted same as other charts
-- YAxis: Domain from 0 to 1 (valve range), label "Valve Position"
-- CartesianGrid: Light gray, dashed
-- Tooltip: Show time, valve position
-- Legend: Show "Valve Position"
-
-**Data key:**
-- valve_position: Controller output from 0 (closed) to 1 (fully open)
-
-**Styling:**
-- Same dark theme as other charts
-- Slightly shorter (250px vs 300px) since it's a single series
-
-**Component structure:**
-Follow same pattern as LevelChart and FlowsChart, but simpler (only one Line component).
-
-### Verification
-
-Run development server and test in ProcessView temporarily.
-
-**Check:**
-- Single purple line visible
-- Y-axis range 0-1
-- Values between 0 and 1
-- Tooltip works
-
-Remove test code after verification.
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Pattern unclear from previous charts
-
-**Search for these terms if stuck:**
-- "Recharts single line chart"
-
-### Acceptance Criteria
-- [ ] Chart renders with valve position data
-- [ ] Purple line visible
-- [ ] Y-axis range 0-1
-- [ ] Tooltip displays valve position
-- [ ] Styling consistent
-- [ ] No errors
-
----
-
-## Task 29e: Integrate Charts into TrendsView
-
-**Phase:** 6B - Trends View  
-**Prerequisites:** Tasks 29a, 29b, 29c, 29d complete  
-**Estimated Time:** 25 minutes  
-**Files:** 1 file
-
-### File to Modify
-- `frontend/components/TrendsView.tsx`
-
-### Context and References
-
-Replace the placeholder table in TrendsView with the three chart components, using the useHistory hook to fetch historical data.
-
-Current TrendsView (Phase 5) shows only a table with last 10 WebSocket updates. This task replaces it with historical charts.
-
-### Requirements
-
-Modify TrendsView component to display historical data charts instead of the table.
-
-**Changes needed:**
-
-1. **Import chart components:**
-   - LevelChart from './LevelChart'
-   - FlowsChart from './FlowsChart'
-   - ValveChart from './ValveChart'
-
-2. **Import useHistory hook:**
-   - useHistory from '../hooks/useHistory'
-
-3. **Replace useSimulation with useHistory:**
-   - Remove: `const { history } = useSimulation()`
-   - Add: `const { history, loading, error } = useHistory(3600)` (default 1 hour)
-
-4. **Update component layout:**
-   - Remove placeholder blue message box
-   - Remove table display
-   - Add three chart sections vertically stacked
-   - Each chart in its own div with heading
-
-**New JSX structure:**
-```
-Header section (keep existing)
-
-Loading state (if loading):
-  "Loading historical data..."
-
-Error state (if error):
-  Display error message in red
-
-Main content (if history.length > 0):
-  Section 1: Level Chart
-    Heading: "Tank Level vs Setpoint"
-    LevelChart component with history data
-  
-  Section 2: Flow Rates Chart
-    Heading: "Inlet and Outlet Flows"
-    FlowsChart component with history data
-  
-  Section 3: Valve Position Chart
-    Heading: "Controller Output (Valve Position)"
-    ValveChart component with history data
-
-Empty state (if history.length === 0 and not loading):
-  "No historical data available"
-```
-
-**Styling:**
-- Each chart section in `bg-gray-800 rounded-lg p-4 mb-4`
-- Chart headings: `text-lg font-semibold text-white mb-3`
-- Loading/error messages centered
-- Maintain dark theme consistency
-
-**Remove:**
-- Old table HTML
-- Old history.length === 0 check based on WebSocket history
-- Placeholder message about Phase 4
-
-### Verification
-
-Run full stack:
-```bash
-./scripts/dev.sh
-```
-
-Navigate to Trends View tab.
-
-**Check:**
-1. Three charts display vertically
-2. Each chart shows historical data (if backend has data)
-3. If no data yet, shows "No historical data available"
-4. While loading, shows loading message
-5. Charts update as backend accumulates more data
-6. No console errors
-
-**Test with fresh backend:**
-- Start backend fresh
-- Navigate to Trends View immediately
-- Should show "No historical data available"
-- Wait 30 seconds
-- Refresh page
-- Should now show charts with ~30 data points
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Component composition unclear
-- Conditional rendering logic complex
-
-**Search for these terms if stuck:**
-- "React conditional rendering"
-- "React component composition"
-
-### Acceptance Criteria
-- [ ] Three charts visible in Trends View
-- [ ] Charts display historical data from useHistory hook
-- [ ] Loading state shows while fetching
-- [ ] Error state displays if fetch fails
-- [ ] Empty state shows if no data
-- [ ] Table display removed
-- [ ] Placeholder message removed
-- [ ] No console errors
-
----
-
-## Task 29f: Add Real-Time Data Append to Charts
-
-**Phase:** 6B - Trends View  
-**Prerequisites:** Task 29e complete  
-**Estimated Time:** 25 minutes  
-**Files:** 1 file
-
-### File to Modify
-- `frontend/components/TrendsView.tsx`
-
-### Context and References
-
-Currently, charts show historical data fetched once on mount. This task adds real-time updates by appending new WebSocket state updates to the historical data, creating a continuously updating chart.
-
-Pattern: Combine fetched historical data with real-time WebSocket updates.
-
-### Requirements
-
-Modify TrendsView to append real-time WebSocket state updates to the historical data array shown in charts.
-
-**Changes needed:**
-
-1. **Import useSimulation:**
-   - Add: `const { state } = useSimulation()` (in addition to existing useHistory)
-   - This provides real-time WebSocket updates
-
-2. **Create combined data array:**
-   - Use useMemo or state to combine historical data with real-time updates
-   - Start with historical data from useHistory
-   - Append new state updates from WebSocket
-
-3. **Append logic:**
-   - When new `state` arrives from WebSocket, add to end of history array
-   - Prevent duplicates (check if state.time already exists in array)
-   - Limit total length (keep last 7200 entries = 2 hours at 1Hz)
-
-**Implementation approach:**
-
-Create a local state that combines both data sources:
-- Initialize with history from useHistory
-- Use useEffect to watch for new state from WebSocket
-- When state updates, append if time is newer than last entry
-- Trim array if exceeds 7200 entries (oldest entries removed)
-
-**Example pattern:**
-```
-const { history, loading, error } = useHistory(3600)
-const { state } = useSimulation()
-const [chartData, setChartData] = useState([])
-
-useEffect to initialize chartData from history when history loads
-
-useEffect to append new state when it arrives:
-  Check if state is newer than last chartData entry
-  If yes, append to chartData
-  Trim to last 7200 entries
-```
-
-**Data flow:**
-1. Component mounts → useHistory fetches historical data (3600 seconds)
-2. Historical data → chartData state
-3. WebSocket provides new state every second → append to chartData
-4. Charts render with chartData (growing over time)
-
-### Verification
-
-Run full stack:
-```bash
-./scripts/dev.sh
-```
-
-Navigate to Trends View tab and observe charts.
-
-**Check:**
-1. Charts initially show historical data
-2. Charts update every second with new data point
-3. Lines extend to the right as time progresses
-4. No jumps or discontinuities in data
-5. Console shows no duplicate entries or errors
-
-**Test continuous operation:**
-- Leave Trends View open for 2 minutes
-- Verify charts show continuous data from start to current time
-- Change setpoint in Process View
-- Verify Trends View charts update to show the change
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Combining two data sources unclear
-- useEffect for appending logic complex
-- Array manipulation issues
-
-**Search for these terms if stuck:**
-- "React combine multiple data sources"
-- "React useEffect append to array"
-- "JavaScript array push and slice"
-
-### Acceptance Criteria
-- [ ] Charts show historical data on mount
-- [ ] Charts update in real-time (every second)
-- [ ] No duplicate data points
-- [ ] Array limited to 7200 entries max
-- [ ] Smooth continuous lines (no gaps)
-- [ ] Changes in Process View reflected in Trends View
-- [ ] No performance issues or memory leaks
-
----
-
-## Task 29g: Add Time Range Selector
-
-**Phase:** 6B - Trends View  
-**Prerequisites:** Task 29f complete  
-**Estimated Time:** 20 minutes  
-**Files:** 1 file
-
-### File to Modify
-- `frontend/components/TrendsView.tsx`
-
-### Context and References
-
-Add a time range selector to TrendsView that allows users to choose how much historical data to display: 1 minute, 5 minutes, 30 minutes, 1 hour, or 2 hours.
-
-Currently, useHistory is hardcoded to 3600 seconds (1 hour). This task makes it configurable.
-
-### Requirements
-
-Add a time range selector UI control above the charts that changes the duration parameter passed to useHistory hook.
-
-**UI component:**
-- Radio buttons or button group for time range selection
-- Options: "1 min" (60s), "5 min" (300s), "30 min" (1800s), "1 hr" (3600s), "2 hr" (7200s)
-- Default selected: 1 hr (3600s)
-- Styled consistently with dark theme
-
-**Changes needed:**
-
-1. **Add state for selected duration:**
-   - `const [duration, setDuration] = useState(3600)`
-
-2. **Update useHistory call:**
-   - Change `useHistory(3600)` to `useHistory(duration)`
-
-3. **Add selector UI:**
-   - Position: Below header, above charts
-   - Layout: Horizontal row of buttons
-   - Active button: Highlighted with blue background
-   - Inactive buttons: Gray background, hover effect
-
-**Button styling (Tailwind):**
-- Container: `flex gap-2 mb-6`
-- Active button: `bg-blue-600 text-white`
-- Inactive button: `bg-gray-700 text-gray-300 hover:bg-gray-600`
-- All buttons: `px-4 py-2 rounded font-medium transition-colors cursor-pointer`
-
-**Implementation pattern:**
-```
-Create duration state
-Create array of time range options: [60, 300, 1800, 3600, 7200]
-Create labels: ["1 min", "5 min", "30 min", "1 hr", "2 hr"]
-
-Render button group:
-  For each time range option:
-    Button with label
-    onClick sets duration state
-    Conditional styling (active vs inactive)
-
-Pass duration to useHistory(duration)
-```
-
-### Verification
-
-Run development server:
-```bash
-cd frontend && npm run dev
-```
-
-Navigate to Trends View tab.
-
-**Check:**
-1. Five time range buttons visible
-2. "1 hr" button highlighted by default
-3. Clicking different buttons changes duration
-4. Charts refetch with new duration
-5. Active button styling updates on click
-6. Charts display appropriate time range
-
-**Test sequence:**
-- Click "1 min" → Charts show last 60 seconds
-- Click "2 hr" → Charts show last 2 hours (if available)
-- Click "30 min" → Charts show last 30 minutes
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Button group styling unclear
-- State management for active selection confusing
-
-**Search for these terms if stuck:**
-- "React button group active state"
-- "Tailwind CSS button group"
-
-### Acceptance Criteria
-- [ ] Five time range buttons visible
-- [ ] Default selection is "1 hr"
-- [ ] Clicking buttons changes selected duration
-- [ ] Active button visually highlighted
-- [ ] Charts refetch with new duration
-- [ ] Styling consistent with dark theme
-- [ ] No console errors
-
----
-
-## Task 29h: Add Chart Interactions
-
-**Phase:** 6B - Trends View  
-**Prerequisites:** Tasks 29b, 29c, 29d complete  
-**Estimated Time:** 25 minutes  
-**Files:** 3 files
+**Files:** 2 files
 
 ### Files to Modify
-- `frontend/components/LevelChart.tsx`
-- `frontend/components/FlowsChart.tsx`
-- `frontend/components/ValveChart.tsx`
+- `frontend/components/TrendsView.tsx`
+- `frontend/lib/hooks/useHistory.ts`
 
 ### Context and References
 
-Enhance chart components with better tooltips and interactive legend toggles that allow hiding/showing individual lines.
+Currently when charts load, they may show empty or jump when data arrives. Add skeleton screens to show placeholder UI during loading.
 
-Recharts provides built-in support for interactive legends and custom tooltips.
-
-Reference: See Context7 query results for interactive legend pattern.
+**Reference:** Tailwind CSS skeleton screens (using animate-pulse utility)  
+**Search:** "React skeleton screen Tailwind CSS"
 
 ### Requirements
 
-Add two enhancements to each chart component:
+**In useHistory.ts hook:**
+- Add `loading` boolean to the hook's return value
+- Set `loading = true` when fetch starts
+- Set `loading = false` when fetch completes (success or error)
+- Return type should be: `{ data, loading, error }`
 
-**Enhancement 1: Custom Tooltip**
-- Replace default Tooltip with custom styled version
-- Dark theme tooltip (dark background, white text, border)
-- Show formatted values with units
-- Display time in readable format
+**In TrendsView.tsx:**
+- Import the updated useHistory hook
+- Destructure `loading` from hook: `const { data, loading, error } = useHistory(...)`
+- Create skeleton component inline or as separate component
+- Show skeleton when `loading === true`
+- Show chart when `loading === false && !error`
+- Show error message when `error !== null`
 
-**Enhancement 2: Interactive Legend**
-- Allow clicking legend items to toggle line visibility
-- Use React state to track which lines are hidden
-- Apply `hide` prop to Line components based on state
+**Skeleton design:**
+- Same dimensions as actual chart (width/height match)
+- Use Tailwind's `animate-pulse` class for pulsing effect
+- Background: gray gradient (e.g., `bg-gradient-to-r from-gray-200 to-gray-300`)
+- Rounded corners to match chart container
+- Padding to match chart padding
 
-**For each chart component:**
-
-1. **Add state for hidden lines:**
-   - LevelChart: Track visibility of "tank_level" and "setpoint"
-   - FlowsChart: Track visibility of "inlet_flow" and "outlet_flow"
-   - ValveChart: Only one line, but still add for consistency
-
-2. **Create custom Tooltip component:**
-   - Function component accepting `active`, `payload`, `label` props
-   - Return null if not active
-   - Display dark-themed box with formatted values
-   - Include units in display (m for level, m³/s for flow, unitless for valve)
-
-3. **Add onClick handler to Legend:**
-   - Handle legend click to toggle line visibility
-   - Update hidden state
-   - Style legend with cursor pointer
-
-4. **Apply hide prop to Line components:**
-   - Based on hidden state
-
-**Example pattern for custom tooltip:**
+**Pattern:**
 ```
-Custom tooltip component:
-  If not active, return null
-  Return div with:
-    Dark background (bg-gray-900)
-    White text
-    Border (border-gray-600)
-    Padding and rounded corners
-    Display label (time)
-    Map over payload to display each series value with unit
-```
-
-**Example pattern for interactive legend:**
-```
-State: hiddenLines object { dataKey: boolean }
-Handler: Toggle boolean for clicked dataKey
-Legend: Add onClick prop with handler
-Line: Add hide prop based on hiddenLines[dataKey]
+{loading ? (
+  <div className="animate-pulse bg-gray-200 h-64 rounded" />
+) : error ? (
+  <div className="text-red-500">Error loading chart</div>
+) : (
+  <ChartComponent data={data} />
+)}
 ```
 
 ### Verification
 
-Run development server:
 ```bash
 cd frontend && npm run dev
 ```
 
-Navigate to Trends View tab.
-
-**Test custom tooltips:**
-1. Hover over each chart
-2. Verify dark-themed tooltip appears
-3. Verify values show correct units
-4. Verify time formatted readably
-
-**Test interactive legends:**
-1. Click "Level" in legend → Level line hides
-2. Click "Setpoint" in legend → Setpoint line hides
-3. Click both → Both lines hide, chart axes remain
-4. Click again → Lines reappear
-5. Repeat for other charts
+**Test scenario:**
+1. Open browser to http://localhost:3000, navigate to Trends tab
+2. On page load, should see pulsing skeleton screens briefly
+3. Charts should appear after data loads
+4. Refresh page (Cmd+R / Ctrl+R) to see skeleton again
+5. Verify skeleton has same dimensions as loaded chart
+6. Simulate slow network in browser DevTools (throttling) to see skeleton longer
 
 ### Escalation Hints
 
 **Escalate to Haiku if:**
-- Custom tooltip pattern unclear
-- State management for legend toggles complex
-- Recharts Tooltip/Legend props confusing
+- Unclear how to add loading state to custom hooks
+- Conditional rendering pattern is confusing
+- Tailwind animate-pulse not working as expected
 
 **Search for these terms if stuck:**
-- "Recharts custom tooltip"
-- "Recharts interactive legend toggle"
-- "Recharts hide line"
+- "React loading skeleton screen"
+- "Tailwind CSS animate pulse"
+- "React conditional rendering loading state"
 
 ### Acceptance Criteria
-- [ ] All charts have custom dark-themed tooltips
-- [ ] Tooltips show formatted values with units
-- [ ] Clicking legend items toggles line visibility
-- [ ] Legend cursor changes to pointer on hover
-- [ ] Hidden lines don't appear on chart
-- [ ] Charts remain functional when all lines hidden
-- [ ] Styling consistent across all charts
-- [ ] No console errors
+- [ ] useHistory hook returns loading boolean
+- [ ] loading state correctly reflects fetch status
+- [ ] Skeleton screens display while data is loading
+- [ ] Skeleton dimensions match chart dimensions
+- [ ] Skeleton uses animate-pulse effect
+- [ ] Charts display after loading completes
+- [ ] No TypeScript errors
+- [ ] Loading → Chart transition is smooth
 
 ---
 
-## Summary of Phase 6 Tasks
+## Phase 7C: End-to-End Testing (3 tasks, ~90 minutes)
 
-### Phase 6A: Polish (6 tasks, ~75 minutes)
-| Task | Description | Time | File |
-|------|-------------|------|------|
-| 28a | Conditional flow animation | 5 min | TankGraphic.tsx |
-| 28b | Extract SVG magic numbers | 15 min | TankGraphic.tsx |
-| 28c | Add Reverse Acting help text | 10 min | PIDTuningControl.tsx |
-| 28d | Reset Brownian params on mode switch | 10 min | InletFlowControl.tsx |
-| 28e | Fetch PID gains from /api/config | 20 min | ProcessView.tsx |
-| 28f | Improve error color semantics | 15 min | SetpointControl.tsx |
-
-### Phase 6B: Trends View (8 tasks, ~3 hours 35 minutes)
-| Task | Description | Time | File |
-|------|-------------|------|------|
-| 29a | Create useHistory hook | 25 min | hooks/useHistory.ts (NEW) |
-| 29b | Create LevelChart component | 30 min | LevelChart.tsx (NEW) |
-| 29c | Create FlowsChart component | 25 min | FlowsChart.tsx (NEW) |
-| 29d | Create ValveChart component | 20 min | ValveChart.tsx (NEW) |
-| 29e | Integrate charts into TrendsView | 25 min | TrendsView.tsx |
-| 29f | Add real-time data append | 25 min | TrendsView.tsx |
-| 29g | Add time range selector | 20 min | TrendsView.tsx |
-| 29h | Add chart interactions | 25 min | 3 chart files |
-
-**Total: 14 tasks, ~4 hours 50 minutes estimated**
+Implement Playwright test suite for automated end-to-end testing of user workflows.
 
 ---
 
-## Upcoming Work (After Phase 6 Complete)
+## Task 32a: Setup Playwright Configuration
 
-### Phase 7: Integration and Polish
-- End-to-end testing with Playwright
-- Performance profiling and optimization
-- Error boundary components
-- Loading states and skeleton screens
-- Data export functionality (CSV download)
-- Advanced chart features (zoom, pan, download as image)
-- Alarm thresholds and notifications
-- System identification tools
+**Phase:** 7C - Testing  
+**Prerequisites:** Frontend complete  
+**Estimated Time:** 15 minutes  
+**Files:** 2 files
 
-### Phase 8: Deployment and Documentation
-- Production build optimization
-- Docker containerization
-- Deployment guide updates
-- User manual creation
-- Video tutorials
+### Files to Create
+- `frontend/playwright.config.ts`
+- `frontend/tests/e2e/setup.ts`
+
+### Context and References
+
+Playwright is a modern end-to-end testing framework that automates browser interactions to verify application behavior.
+
+**Reference:** Playwright documentation for Next.js  
+**Search:** "Playwright Next.js setup configuration"
+
+**Do NOT use npm to install** - use uv for consistency with project:
+
+```bash
+cd frontend
+uv add --dev @playwright/test
+npx playwright install chromium
+```
+
+### Requirements
+
+**Create playwright.config.ts in frontend directory:**
+- Import `defineConfig` and `devices` from '@playwright/test'
+- Set `testDir` to './tests/e2e'
+- Set `fullyParallel` to false (run tests sequentially)
+- Set `forbidOnly` to true in CI (prevent .only in committed tests)
+- Set `retries` to 1 (retry failed tests once)
+- Set `workers` to 1 (single worker for sequential execution)
+- Configure reporter: use 'html' for local, 'list' for CI
+- Set `use.baseURL` to 'http://localhost:3000'
+- Set `use.trace` to 'on-first-retry' (capture trace on failures)
+- Configure single project for Chromium browser
+- Add webServer configuration:
+  - command: 'npm run dev'
+  - url: 'http://localhost:3000'
+  - reuseExistingServer: true (for local development)
+  - timeout: 120000 (2 minutes for startup)
+
+**Create tests/e2e/setup.ts:**
+- Export a `beforeAll` function that verifies backend is running
+- Make request to http://localhost:8000/api/health
+- If health check fails, throw error with message: "Backend not running. Start with: uvicorn api.main:app"
+- Add 2 second wait after successful health check (give backend time to stabilize)
+
+**Add to package.json scripts:**
+```json
+"test:e2e": "playwright test",
+"test:e2e:ui": "playwright test --ui",
+"test:e2e:debug": "playwright test --debug"
+```
+
+### Verification
+
+```bash
+# Verify Playwright installed
+cd frontend
+npx playwright --version
+
+# Run test command (should show "no tests found" - we'll add tests next)
+npm run test:e2e
+```
+
+**Verify:**
+1. Playwright CLI available
+2. Config file has no TypeScript errors
+3. Running test command doesn't crash (even with no tests)
+4. Chromium browser installed (check for downloads in ~/.cache/ms-playwright)
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Playwright configuration options are overwhelming
+- webServer configuration unclear
+- TypeScript types for playwright.config.ts confusing
+
+**Search for these terms if stuck:**
+- "Playwright configuration Next.js"
+- "Playwright webServer configuration"
+- "Playwright TypeScript setup"
+
+### Acceptance Criteria
+- [ ] @playwright/test installed via uv
+- [ ] Chromium browser installed
+- [ ] playwright.config.ts created with correct settings
+- [ ] tests/e2e/setup.ts created with health check
+- [ ] package.json includes test:e2e scripts
+- [ ] No TypeScript errors
+- [ ] Running npm run test:e2e works (no crashes)
+
+---
+
+## Task 32b: Write Basic Connection Test
+
+**Phase:** 7C - Testing  
+**Prerequisites:** Task 32a complete  
+**Estimated Time:** 30 minutes  
+**Files:** 1 file
+
+### File to Create
+- `frontend/tests/e2e/connection.spec.ts`
+
+### Context and References
+
+Write first Playwright test verifying basic application connectivity and WebSocket connection.
+
+**Reference:** Playwright test writing guide  
+**Search:** "Playwright test syntax expect assertions"
+
+### Requirements
+
+Create a test file with a single test suite covering basic connection scenarios.
+
+**Test file structure:**
+- Import `test` and `expect` from '@playwright/test'
+- Use `test.describe` for test suite: "WebSocket Connection"
+- Write 3 test cases (see below)
+
+**Test 1: "should load home page successfully"**
+- Navigate to '/' (baseURL configured in playwright.config.ts)
+- Wait for page to load
+- Expect page title to contain "Tank Dynamics"
+- Expect page to have visible element with text "Process" (tab name)
+- Expect page to have visible element with text "Trends" (tab name)
+
+**Test 2: "should establish WebSocket connection"**
+- Navigate to '/'
+- Wait 2 seconds (allow WebSocket to connect)
+- Expect connection status indicator to be visible
+- Expect status text to contain "Connected" or show green indicator
+- Use page.getByTestId if you add data-testid to ConnectionStatus component
+- Alternative: use page.getByText or page.locator with appropriate selector
+
+**Test 3: "should receive real-time data updates"**
+- Navigate to '/'
+- Wait 2 seconds for initial connection
+- Get initial tank level value
+- Wait 2 seconds for at least one WebSocket update (1 Hz rate)
+- Get updated tank level value
+- Expect values to be different OR verify time has changed (data is updating)
+- This verifies WebSocket is streaming data
+
+**Test helpers:**
+- Add `test.beforeEach(async ({ page }) => { ... })` to navigate to home page
+- This avoids repeating navigation in each test
+- Use `page.waitForTimeout(2000)` for delays (WebSocket connection time)
+
+### Verification
+
+**Start both backend and frontend before running tests:**
+
+```bash
+# Terminal 1: Backend
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+# Terminal 2: Frontend
+cd frontend && npm run dev
+
+# Terminal 3: Run tests
+cd frontend && npm run test:e2e
+```
+
+**Expected output:**
+- All 3 tests should pass
+- Test execution time: ~10-15 seconds
+- No timeout errors
+- HTML report generated in playwright-report directory
+
+**View HTML report:**
+```bash
+npx playwright show-report
+```
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Playwright selector syntax is confusing
+- Async/await in test functions unclear
+- Assertions with expect() not working as expected
+- Test timeouts occurring
+
+**Search for these terms if stuck:**
+- "Playwright selectors getByText getByRole"
+- "Playwright expect assertions"
+- "Playwright wait for element visible"
+- "Playwright async test functions"
+
+### Acceptance Criteria
+- [ ] connection.spec.ts file created in tests/e2e
+- [ ] Test suite with 3 tests defined
+- [ ] Test 1: Page loads with correct title and tabs
+- [ ] Test 2: WebSocket connection establishes
+- [ ] Test 3: Real-time data updates verified
+- [ ] All tests pass when backend/frontend running
+- [ ] No timeout errors
+- [ ] Test execution time < 30 seconds
+- [ ] No TypeScript errors
+
+---
+
+## Task 32c: Write Control Command Test
+
+**Phase:** 7C - Testing  
+**Prerequisites:** Task 32b complete  
+**Estimated Time:** 45 minutes  
+**Files:** 1 file
+
+### File to Create
+- `frontend/tests/e2e/controls.spec.ts`
+
+### Context and References
+
+Test user interactions with controls: changing setpoint, adjusting PID parameters, toggling inlet mode.
+
+**Reference:** Playwright user interaction methods  
+**Search:** "Playwright fill input click button"
+
+### Requirements
+
+Create test file with test suite covering control interactions.
+
+**Test file structure:**
+- Import test and expect from '@playwright/test'
+- Test suite: "Control Commands"
+- Write 4 test cases (see below)
+- Use beforeEach to navigate to home page
+
+**Test 1: "should update tank level setpoint"**
+- Navigate to Process View (ensure correct tab selected)
+- Find setpoint input field (use data-testid="setpoint-input" if you add it, or appropriate selector)
+- Get current setpoint value
+- Clear input field: `await page.getByLabel('Setpoint').clear()`
+- Fill with new value: 3.5 meters
+- Press Enter or click outside to trigger update
+- Wait 1 second for WebSocket command
+- Verify setpoint displayed updates to 3.5
+- Alternative: check WebSocket message sent (advanced)
+
+**Test 2: "should update PID controller gains"**
+- Navigate to Process View
+- Find PID control panel
+- Locate Kc (controller gain) input field
+- Change Kc from default (e.g., 2.0) to 5.0
+- Locate tau_I (integral time) input field
+- Change tau_I from default to 15.0
+- Click outside inputs or press Tab to trigger updates
+- Wait 1 second
+- Verify inputs show new values
+- Values should persist (not reset)
+
+**Test 3: "should toggle inlet flow mode"**
+- Navigate to Process View
+- Find inlet flow mode toggle (Manual/Brownian)
+- If currently Manual, click to switch to Brownian
+- Wait 500ms for mode change
+- Verify toggle state changed (checkbox checked or button active)
+- If Brownian mode shows parameters, verify they're visible
+- Toggle back to Manual
+- Verify parameters hidden again
+
+**Test 4: "should navigate between tabs"**
+- Start on Process View (default)
+- Click Trends tab
+- Wait 500ms for tab switch
+- Verify charts are visible
+- Expect to see "Level vs Setpoint" chart title
+- Click Process tab
+- Wait 500ms
+- Verify tank graphic is visible
+- Tab switching should be smooth (no errors)
+
+**Helper: Add data-testid attributes**
+- If selectors are difficult, add data-testid attributes to key controls
+- Example: `<input data-testid="setpoint-input" .../>`
+- Then use: `page.getByTestId('setpoint-input')`
+- Document which components need data-testid added
+
+### Verification
+
+```bash
+# Ensure backend and frontend running
+# Terminal 1: uvicorn api.main:app --host 0.0.0.0 --port 8000
+# Terminal 2: cd frontend && npm run dev
+
+# Terminal 3: Run tests
+cd frontend && npm run test:e2e
+
+# Or run in UI mode for debugging
+npm run test:e2e:ui
+```
+
+**Expected results:**
+- All 4 tests pass
+- No timeout errors
+- Test execution time: ~20-30 seconds
+- Controls respond correctly to user actions
+- Application remains stable (no crashes)
+
+**If tests fail:**
+- Run in debug mode: `npm run test:e2e:debug`
+- Check Playwright trace viewer
+- Verify backend is responding to commands
+- Check browser console for errors
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Playwright input interactions (fill, clear, type) not working
+- Selector specificity too complex (can't find elements reliably)
+- Test timing issues (race conditions, flakiness)
+- Assertions for dynamic content failing
+
+**Search for these terms if stuck:**
+- "Playwright fill input clear type"
+- "Playwright click button checkbox"
+- "Playwright wait for element stable"
+- "Playwright data-testid best practices"
+
+### Acceptance Criteria
+- [ ] controls.spec.ts file created
+- [ ] Test 1: Setpoint update works correctly
+- [ ] Test 2: PID gains update correctly
+- [ ] Test 3: Inlet mode toggle works
+- [ ] Test 4: Tab navigation works smoothly
+- [ ] All tests pass reliably
+- [ ] No flaky tests (consistent pass rate)
+- [ ] Test execution time < 45 seconds
+- [ ] No TypeScript errors
+- [ ] HTML report shows detailed results
+
+---
+
+## Phase 7D: Documentation and Deployment (5 tasks, ~2.5 hours)
+
+Complete operator documentation and deployment guides for production use.
+
+---
+
+## Task 33a: Write Operator Quick Start Guide
+
+**Phase:** 7D - Documentation  
+**Prerequisites:** All features complete  
+**Estimated Time:** 30 minutes  
+**Files:** 1 file
+
+### File to Create
+- `docs/OPERATOR_QUICKSTART.md`
+
+### Context and References
+
+Create a concise guide for process operators to start using the tank simulator without needing technical background.
+
+**Audience:** Process operators, not developers  
+**Tone:** Clear, simple, jargon-free  
+**Format:** Step-by-step with screenshots (placeholders for now)
+
+### Requirements
+
+Create operator guide with the following sections:
+
+**Section 1: Getting Started (What is this?)**
+- Brief description: "Tank level control simulator for PID tuning practice"
+- Who should use it: Process operators, control engineers, students
+- What you can do: Monitor tank level, adjust PID settings, view trends
+- System requirements: Web browser (Chrome, Firefox, Safari)
+
+**Section 2: Launching the Application**
+- Step-by-step instructions to open application
+- Default URL: http://localhost:3000 (or production URL if deployed)
+- What you should see: Process View with tank graphic
+- Connection status indicator explanation
+
+**Section 3: Understanding the Process View**
+- Tank graphic explanation:
+  - Blue level indicator shows current tank height
+  - Inlet flow (top) brings liquid in
+  - Outlet valve (bottom) controls liquid out
+  - Numbers show current values
+- Control panel:
+  - Setpoint: desired tank level
+  - PID parameters: controller tuning
+  - Inlet flow: manual or automatic disturbances
+- Real-time updates: values update once per second
+
+**Section 4: Basic Operations**
+
+**How to change the setpoint:**
+1. Locate "Setpoint" input field
+2. Click field and enter desired level (0 to 5 meters)
+3. Press Enter or click elsewhere
+4. Watch tank level move toward new setpoint
+
+**How to adjust PID tuning:**
+1. Locate PID control panel
+2. Adjust Kc (controller gain): higher = more aggressive
+3. Adjust tau_I (integral time): lower = faster setpoint tracking
+4. Adjust tau_D (derivative time): usually keep at 0
+5. Observe response in tank level
+
+**How to create disturbances:**
+1. Find inlet flow control
+2. Toggle between Manual and Brownian mode
+3. Manual: set constant inlet flow
+4. Brownian: random fluctuations test controller
+
+**Section 5: Using the Trends View**
+- Click "Trends" tab
+- See three charts:
+  - Level vs Setpoint: how well controller tracks target
+  - Inlet vs Outlet Flow: flow balance
+  - Valve Position: controller output over time
+- Time range selector: choose how much history to display
+- Export button: download data as CSV for Excel
+
+**Section 6: Common Tasks**
+
+**Task: Find good PID settings**
+1. Start with Kc=2.0, tau_I=10.0, tau_D=0.0
+2. Change setpoint from 2.5m to 3.5m
+3. Watch Trends View: does level overshoot? oscillate?
+4. Increase Kc if response too slow
+5. Decrease Kc if response oscillates
+6. Adjust tau_I to fine-tune
+
+**Task: Test controller with disturbances**
+1. Enable Brownian inlet mode
+2. Watch controller compensate for flow changes
+3. Good tuning = level stays near setpoint despite disturbances
+
+**Task: Export data for analysis**
+1. Let simulation run for desired time
+2. Click "Export CSV" in Trends View
+3. Open CSV in Excel or Google Sheets
+4. Analyze response characteristics
+
+**Section 7: Troubleshooting**
+
+**Problem: Connection status shows "Disconnected"**
+- Solution: Backend server not running. Contact system administrator.
+
+**Problem: Values not updating**
+- Solution: Check connection status. Refresh page (F5 or Cmd+R).
+
+**Problem: Control changes don't take effect**
+- Solution: Verify you pressed Enter after changing values.
+
+**Problem: Charts not displaying**
+- Solution: Wait a few seconds for data to accumulate. Refresh page if needed.
+
+### Verification
+
+After writing the guide:
+1. Read through as if you're an operator (not developer)
+2. Check for technical jargon - replace with plain language
+3. Verify every step is actionable (clear "click this, type that")
+4. Ensure screenshots placeholders are marked clearly
+5. Test instructions by following them yourself
+
+### Escalation Hints
+
+**Escalate to Haiku if:**
+- Unsure what level of detail operators need
+- Struggling to explain technical concepts simply
+- Guide structure unclear
+
+**Search for these terms if stuck:**
+- "Technical writing for non-technical users"
+- "Operator manual best practices"
+
+### Acceptance Criteria
+- [ ] OPERATOR_QUICKSTART.md created in docs directory
+- [ ] All 7 sections included
+- [ ] Language is clear and non-technical
+- [ ] Step-by-step instructions actionable
+- [ ] Common tasks documented
+- [ ] Troubleshooting section included
+- [ ] Screenshot placeholders marked
+- [ ] No technical jargon unexplained
+- [ ] File is well-formatted (headings, lists, emphasis)
+
+---
+
+## Task 33b: Write Deployment Guide for Production
+
+**Phase:** 7D - Documentation  
+**Prerequisites:** All components complete  
+**Estimated Time:** 40 minutes  
+**Files:** 1 file
+
+### File to Create
+- `docs/DEPLOYMENT.md`
+
+### Context and References
+
+Create comprehensive deployment guide for setting up the tank simulator in production environments.
+
+**Audience:** System administrators, DevOps engineers  
+**Tone:** Technical, detailed, complete  
+**Format:** Step-by-step with configuration examples
+
+### Requirements
+
+Create deployment guide with these sections:
+
+**Section 1: System Requirements**
+
+**Minimum Requirements:**
+- CPU: 2 cores
+- RAM: 4GB (2GB for backend, 2GB for frontend)
+- Storage: 500MB
+- OS: Linux (Ubuntu 22.04+, Arch Linux) or macOS
+- Python: 3.10 or higher
+- Node.js: 18 or higher
+
+**Recommended for Production:**
+- CPU: 4 cores
+- RAM: 8GB
+- Storage: 1GB (for logs)
+- OS: Ubuntu 22.04 LTS (long-term support)
+
+**Section 2: Dependencies Installation**
+
+**Ubuntu 22.04:**
+```bash
+# System packages
+sudo apt update
+sudo apt install -y build-essential cmake libeigen3-dev libgsl-dev
+
+# Python uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Node.js
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S base-devel cmake eigen gsl nodejs npm
+yay -S uv  # or install from AUR
+```
+
+**Section 3: Building the Application**
+
+**Clone repository:**
+```bash
+git clone https://github.com/yourusername/tank_dynamics.git
+cd tank_dynamics
+```
+
+**Build C++ core:**
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel $(nproc)
+```
+
+**Install Python package:**
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install -e .
+```
+
+**Build frontend:**
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+**Section 4: Production Configuration**
+
+**Backend (FastAPI):**
+- Create production config file: `api/config.prod.py`
+- Environment variables:
+  - `ENVIRONMENT=production`
+  - `LOG_LEVEL=INFO`
+  - `CORS_ORIGINS=https://yourdomain.com`
+- Logging: Configure structured JSON logging
+- Error handling: Don't expose stack traces in production
+
+**Frontend (Next.js):**
+- Create `.env.production` file:
+  - `NEXT_PUBLIC_API_URL=https://api.yourdomain.com`
+  - `NEXT_PUBLIC_WS_URL=wss://api.yourdomain.com/ws`
+- Build optimization: Enable minification, tree-shaking
+- Static asset CDN: Consider serving from CDN for performance
+
+**Section 5: Running in Production**
+
+**Option 1: Systemd Services (Recommended)**
+
+Create `/etc/systemd/system/tank-simulator-backend.service`:
+```ini
+[Unit]
+Description=Tank Simulator Backend
+After=network.target
+
+[Service]
+Type=simple
+User=tanksim
+WorkingDirectory=/opt/tank_dynamics
+Environment="PATH=/opt/tank_dynamics/.venv/bin"
+ExecStart=/opt/tank_dynamics/.venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Create `/etc/systemd/system/tank-simulator-frontend.service`:
+```ini
+[Unit]
+Description=Tank Simulator Frontend
+After=network.target
+
+[Service]
+Type=simple
+User=tanksim
+WorkingDirectory=/opt/tank_dynamics/frontend
+Environment="PATH=/usr/bin:/bin"
+Environment="PORT=3000"
+ExecStart=/usr/bin/npm run start
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Enable and start services:**
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable tank-simulator-backend tank-simulator-frontend
+sudo systemctl start tank-simulator-backend tank-simulator-frontend
+```
+
+**Check status:**
+```bash
+sudo systemctl status tank-simulator-backend
+sudo systemctl status tank-simulator-frontend
+```
+
+**Option 2: Docker (Alternative)**
+- Provide Dockerfile for backend
+- Provide Dockerfile for frontend
+- Include docker-compose.yml for orchestration
+- Document volume mounts for logs
+
+**Section 6: Reverse Proxy Setup (Nginx)**
+
+Example Nginx configuration for production:
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com;
+    
+    # Frontend
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+    
+    # Backend API
+    location /api {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    
+    # WebSocket
+    location /ws {
+        proxy_pass http://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+**Section 7: Monitoring and Maintenance**
+
+**Logs:**
+- Backend logs: `/var/log/tank-simulator/backend.log`
+- Frontend logs: `/var/log/tank-simulator/frontend.log`
+- Systemd logs: `journalctl -u tank-simulator-backend -f`
+
+**Health checks:**
+- Backend: `curl http://localhost:8000/api/health`
+- Frontend: `curl http://localhost:3000`
+- Expected: 200 OK responses
+
+**Maintenance tasks:**
+- Restart services: `sudo systemctl restart tank-simulator-*`
+- View logs: `journalctl -u tank-simulator-backend --since today`
+- Update application: Pull latest code, rebuild, restart services
+
+**Section 8: Security Considerations**
+
+- Run services as non-root user (tanksim)
+- Use firewall to restrict access (ufw or iptables)
+- Enable HTTPS with Let's Encrypt SSL certificates
+- Set appropriate CORS origins (don't use "*" in production)
+- Regularly update dependencies (npm audit, pip-audit)
+- Monitor for unusual activity (failed connections, high CPU)
+
+**Section 9: Backup and Recovery**
+
+**What to backup:**
+- Application code: git repository
+- Configuration files: .env files, service files
+- Logs (if needed for compliance)
+
+**Recovery procedure:**
+1. Restore code from git
+2. Restore configuration files
+3. Rebuild application
+4. Restart services
+5. Verify health checks pass
+
+**Section 10: Troubleshooting**
+
+**Service won't start:**
+- Check logs: `journalctl -u tank-simulator-backend -n 50`
+- Verify dependencies installed
+- Check file permissions
+- Ensure ports not already in use
+
+**High CPU usage:**
+- Check number of connected WebSocket clients
+- Verify simulation not running too fast (should be 1 Hz)
+- Monitor with htop or top
+
+**Connection errors:**
+- Verify firewall rules allow ports 8000, 3000
+- Check Nginx configuration
+- Test WebSocket connection directly: `wscat -c ws://localhost:8000/ws`
+
+### Verification
+
+After writing guide:
+1. Test instructions on clean Ubuntu 22.04 system (VM or container)
+2. Follow every step exactly as written
+3. Verify application starts and runs correctly
+4. Document any missing steps or errors encountered
+5. Update guide based on testing
+
+### Escalation Hints
+
+**Escalate to Sonnet if:**
+- Complex systemd configuration unclear
+- Nginx reverse proxy setup difficult
+- Docker configuration needed but unfamiliar
+- Production security best practices uncertain
+
+**Search for these terms if stuck:**
+- "systemd service file Python application"
+- "Nginx reverse proxy WebSocket"
+- "FastAPI production deployment"
+- "Next.js production deployment"
+
+### Acceptance Criteria
+- [ ] DEPLOYMENT.md created in docs directory
+- [ ] All 10 sections complete
+- [ ] System requirements documented
+- [ ] Installation steps for Ubuntu and Arch
+- [ ] Build instructions complete
+- [ ] Systemd service files provided
+- [ ] Nginx configuration example included
+- [ ] Monitoring and logging documented
+- [ ] Security considerations addressed
+- [ ] Troubleshooting section included
+- [ ] Verified on clean system (if possible)
+
+---
+
+## Task 33c: Create Development Workflow Guide
+
+**Phase:** 7D - Documentation  
+**Prerequisites:** None  
+**Estimated Time:** 30 minutes  
+**Files:** 1 file
+
+### File to Create
+- `docs/DEVELOPMENT.md`
+
+### Context and References
+
+Document the development workflow for future contributors or yourself when returning to the project after time away.
+
+**Audience:** Software developers  
+**Tone:** Technical, concise, complete  
+**Format:** Quick reference with commands
+
+### Requirements
+
+Create development guide with these sections:
+
+**Section 1: Development Environment Setup**
+
+**Prerequisites:**
+- CMake 3.20+
+- C++17 compiler (GCC 11+ or Clang 14+)
+- Python 3.10+
+- Node.js 18+
+- uv package manager
+
+**Quick setup:**
+```bash
+# Clone repository
+git clone https://github.com/yourusername/tank_dynamics.git
+cd tank_dynamics
+
+# Install system dependencies (Ubuntu)
+sudo apt install build-essential cmake libeigen3-dev libgsl-dev
+
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Section 2: Building Components**
+
+**C++ Core:**
+```bash
+# Configure with CMake
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+
+# Build
+cmake --build build
+
+# Run C++ tests
+ctest --test-dir build --output-on-failure
+```
+
+**Python Bindings:**
+```bash
+# Create virtual environment
+uv venv
+
+# Activate (Linux/macOS)
+source .venv/bin/activate
+
+# Install in editable mode with dev dependencies
+uv pip install -e ".[dev]"
+
+# Run Python tests
+uv run pytest -v
+```
+
+**Frontend:**
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+**Section 3: Running the Full Stack**
+
+**Method 1: Manual (3 terminals)**
+
+Terminal 1 - Backend:
+```bash
+source .venv/bin/activate
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Terminal 2 - Frontend:
+```bash
+cd frontend
+npm run dev
+```
+
+Terminal 3 - Access:
+```bash
+# Open browser to http://localhost:3000
+```
+
+**Method 2: Script (recommended)**
+```bash
+./scripts/dev.sh
+```
+
+**Section 4: Testing**
+
+**Run all tests:**
+```bash
+# C++ tests
+ctest --test-dir build --output-on-failure
+
+# Python tests
+uv run pytest api/tests/ -v
+
+# Python bindings tests
+uv run pytest tests/python/ -v
+
+# Frontend E2E tests (requires backend/frontend running)
+cd frontend && npm run test:e2e
+```
+
+**Run specific test:**
+```bash
+# Single C++ test
+ctest --test-dir build -R TankModel
+
+# Single Python test file
+uv run pytest api/tests/test_api.py -v
+
+# Single E2E test
+cd frontend && npx playwright test connection.spec.ts
+```
+
+**Section 5: Code Organization**
+
+**Directory structure:**
+```
+tank_dynamics/
+├── src/               # C++ core (Model, PID, Stepper, Simulator)
+├── bindings/          # pybind11 Python bindings
+├── tests/             # C++ unit tests
+├── api/               # FastAPI backend
+│   ├── main.py        # Application entry point
+│   ├── simulation.py  # Simulation manager
+│   └── tests/         # API tests
+├── frontend/          # Next.js frontend
+│   ├── app/           # Next.js pages (App Router)
+│   ├── components/    # React components
+│   ├── lib/           # Utilities and hooks
+│   └── tests/e2e/     # Playwright tests
+└── docs/              # Documentation
+```
+
+**Section 6: Development Workflow**
+
+**Making changes:**
+1. Create feature branch: `git checkout -b feature/your-feature`
+2. Make changes
+3. Run relevant tests
+4. Commit with descriptive message
+5. Push and create pull request
+
+**Testing changes:**
+- C++ changes: Run C++ tests + Python binding tests
+- Python changes: Run Python tests + API tests
+- Frontend changes: Manual testing + E2E tests (if applicable)
+- Always test full stack integration for significant changes
+
+**Section 7: Common Development Tasks**
+
+**Add new C++ class:**
+1. Create header in `src/your_class.h`
+2. Create implementation in `src/your_class.cpp`
+3. Add to `src/CMakeLists.txt`
+4. Create tests in `tests/test_your_class.cpp`
+5. Update bindings in `bindings/bindings.cpp`
+6. Add Python tests in `tests/python/test_your_class.py`
+
+**Add new API endpoint:**
+1. Define endpoint in `api/main.py`
+2. Add Pydantic models if needed in `api/models.py`
+3. Update API reference docs
+4. Add tests in `api/tests/test_api.py`
+5. Update frontend types if needed
+
+**Add new React component:**
+1. Create component in `frontend/components/YourComponent.tsx`
+2. Define TypeScript types
+3. Import and use in appropriate page/component
+4. Add E2E test if user-facing feature
+5. Test manually in development server
+
+**Section 8: Troubleshooting**
+
+**C++ build fails:**
+- Clear build directory: `rm -rf build && cmake -B build`
+- Verify dependencies installed: `cmake --version`, `gcc --version`
+- Check CMake output for missing libraries
+
+**Python import errors:**
+- Verify virtual environment activated: `which python`
+- Reinstall package: `uv pip install -e .`
+- Check pybind11 module built: `ls .venv/lib/python3.*/site-packages/tank_sim/`
+
+**Frontend not connecting to backend:**
+- Verify backend running: `curl http://localhost:8000/api/health`
+- Check WebSocket URL in frontend code
+- Check CORS configuration in `api/main.py`
+- Inspect browser console for errors
+
+**Tests failing unexpectedly:**
+- Run tests in isolation: `ctest --test-dir build --output-on-failure`
+- Check for race conditions in concurrent tests
+- Verify test setup/teardown working correctly
+- Clear caches: `rm -rf build` and `rm -rf frontend/.next`
+
+**Section 9: Code Style and Standards**
+
+**C++:**
+- Follow Google C++ Style Guide
+- Use descriptive variable names
+- Add comments for complex logic
+- All public methods documented
+
+**Python:**
+- Follow PEP 8
+- Type hints on all functions
+- Docstrings for public APIs
+- Use uv for dependency management (never pip directly)
+
+**TypeScript/React:**
+- Use functional components with hooks
+- Proper TypeScript types (no `any`)
+- Descriptive component and variable names
+- Extract reusable logic into custom hooks
+
+**Section 10: Resources**
+
+**Documentation:**
+- Project Spec: `docs/specs.md`
+- Implementation Plan: `docs/plan.md`
+- Lessons Learned: `docs/LESSONS_LEARNED.md`
+- API Reference: `docs/API_REFERENCE.md`
+
+**External Resources:**
+- CMake: https://cmake.org/documentation/
+- pybind11: https://pybind11.readthedocs.io/
+- FastAPI: https://fastapi.tiangolo.com/
+- Next.js: https://nextjs.org/docs
+- Playwright: https://playwright.dev/
+
+### Verification
+
+After writing guide:
+1. Test all commands work as written
+2. Verify directory structure matches actual project
+3. Check all file paths are correct
+4. Ensure common tasks are actionable
+5. Test troubleshooting solutions actually solve problems
+
+### Escalation Hints
+
+**Escalate if:**
+- Complex build system explanations needed
+- Git workflow unclear
+- Code style standards need team discussion
+
+### Acceptance Criteria
+- [ ] DEVELOPMENT.md created in docs directory
+- [ ] All 10 sections complete
+- [ ] Setup instructions clear and tested
+- [ ] Build commands verified working
+- [ ] Test commands documented
+- [ ] Common tasks actionable
+- [ ] Troubleshooting covers known issues
+- [ ] Code style guidelines included
+- [ ] Resource links provided
+- [ ] File paths and structure accurate
+
+---
+
+## Task 33d: Update Main README with Phase 7 Completion
+
+**Phase:** 7D - Documentation  
+**Prerequisites:** Phase 7 tasks complete  
+**Estimated Time:** 20 minutes  
+**Files:** 1 file
+
+### File to Modify
+- `README.md`
+
+### Context and References
+
+Update the project README to reflect completion of Phase 7 and production readiness.
+
+Current README may be outdated - update status, features, testing, and documentation sections.
+
+### Requirements
+
+**Update these sections in README.md:**
+
+**1. Project Status section:**
+- Change status from "In Development" to "Production Ready"
+- Update phase completion list:
+  - ✅ Phase 1: C++ Core
+  - ✅ Phase 2: Python Bindings
+  - ✅ Phase 3: FastAPI Backend
+  - ✅ Phase 4: Next.js Frontend
+  - ✅ Phase 5: Process View
+  - ✅ Phase 6: Trends View
+  - ✅ Phase 7: Integration and Polish ⭐ NEW
+- Add test statistics: "140+ tests passing (42 C++, 28 Python, 70+ API, E2E)"
+
+**2. Features section:**
+- Add new features from Phase 7:
+  - Error boundaries for graceful failure handling
+  - WebSocket reconnection with exponential backoff
+  - Loading skeletons for better UX
+  - CSV data export functionality
+  - Time range selector for trend analysis
+  - Comprehensive E2E test suite
+
+**3. Testing section:**
+- Add E2E testing information:
+  - Playwright test suite
+  - Connection tests
+  - Control command tests
+  - Run command: `cd frontend && npm run test:e2e`
+- Update test counts (include E2E tests)
+
+**4. Documentation section:**
+- Add links to new docs:
+  - Operator Quick Start: `docs/OPERATOR_QUICKSTART.md`
+  - Deployment Guide: `docs/DEPLOYMENT.md`
+  - Development Workflow: `docs/DEVELOPMENT.md`
+- Keep existing doc links (plan, specs, API reference, etc.)
+
+**5. Quick Start section:**
+- Simplify to point to detailed guides:
+  - For operators: See `docs/OPERATOR_QUICKSTART.md`
+  - For developers: See `docs/DEVELOPMENT.md`
+  - For deployment: See `docs/DEPLOYMENT.md`
+- Keep basic "run the system" commands
+
+**6. Add Production Deployment section (new):**
+```markdown
+## Production Deployment
+
+This application is production-ready and can be deployed to:
+- On-premise servers (Linux/Ubuntu recommended)
+- Cloud platforms (AWS, GCP, Azure)
+- Docker containers
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed deployment instructions.
+```
+
+**7. Update Contributing section (if exists):**
+- Reference DEVELOPMENT.md for development workflow
+- Keep or add standard contribution guidelines
+
+**Do NOT remove:**
+- Architecture overview
+- Technology stack
+- License information
+- Author/contributor information
+
+### Verification
+
+After updating:
+1. Read README from top to bottom as if you're a new user
+2. Verify all internal links work (point to existing files)
+3. Check markdown formatting renders correctly (headers, lists, code blocks)
+4. Ensure status accurately reflects project state
+5. Confirm no broken links or outdated information
+
+```bash
+# Check markdown rendering (if you have markdown preview tool)
+# Or just push and view on GitHub
+
+# Verify internal links exist
+ls docs/OPERATOR_QUICKSTART.md
+ls docs/DEPLOYMENT.md
+ls docs/DEVELOPMENT.md
+```
+
+### Escalation Hints
+
+**Escalate if:**
+- Unsure what level of detail README needs
+- Conflicting information between README and other docs
+- Markdown formatting complex (tables, nested lists)
+
+### Acceptance Criteria
+- [ ] README.md updated
+- [ ] Status changed to "Production Ready"
+- [ ] Phase 7 marked complete with ⭐ indicator
+- [ ] New features listed
+- [ ] E2E testing documented
+- [ ] New doc links added and working
+- [ ] Production deployment section added
+- [ ] Test counts updated
+- [ ] Markdown renders correctly
+- [ ] No broken internal links
+- [ ] Information accurate and current
+
+---
+
+## Task 33e: Create Release Checklist
+
+**Phase:** 7D - Documentation  
+**Prerequisites:** All Phase 7 tasks complete  
+**Estimated Time:** 20 minutes  
+**Files:** 1 file
+
+### File to Create
+- `docs/RELEASE_CHECKLIST.md`
+
+### Context and References
+
+Create a comprehensive checklist for verifying the system is ready for production release.
+
+**Purpose:** Ensure nothing is forgotten before deploying or sharing the system  
+**Format:** Checkbox list organized by category
+
+### Requirements
+
+Create release checklist with these sections:
+
+**Section 1: Code Quality**
+```markdown
+- [ ] All C++ tests passing (42/42)
+- [ ] All Python tests passing (28/28)
+- [ ] All API tests passing (70+/70+)
+- [ ] All E2E tests passing (6/6)
+- [ ] No compiler warnings in Release build
+- [ ] No linter errors in Python code
+- [ ] No TypeScript errors in frontend
+- [ ] No ESLint warnings in frontend
+- [ ] Code review completed (if applicable)
+```
+
+**Section 2: Functionality**
+```markdown
+- [ ] WebSocket connection establishes successfully
+- [ ] Real-time data updates at 1 Hz
+- [ ] Setpoint changes take effect
+- [ ] PID parameter updates work correctly
+- [ ] Inlet mode toggle (Manual/Brownian) works
+- [ ] Charts display data correctly
+- [ ] Time range selector filters data
+- [ ] CSV export downloads successfully
+- [ ] Error boundaries catch and display errors gracefully
+- [ ] WebSocket reconnection with exponential backoff works
+- [ ] Loading skeletons display during data fetch
+```
+
+**Section 3: Documentation**
+```markdown
+- [ ] README.md updated with current status
+- [ ] OPERATOR_QUICKSTART.md complete
+- [ ] DEPLOYMENT.md includes all setup steps
+- [ ] DEVELOPMENT.md covers development workflow
+- [ ] API_REFERENCE.md accurate
+- [ ] LESSONS_LEARNED.md updated
+- [ ] Code comments updated
+- [ ] Docstrings complete for public APIs
+```
+
+**Section 4: Performance**
+```markdown
+- [ ] C++ step time < 2ms (target: ~0.5ms)
+- [ ] Python binding overhead < 0.5ms
+- [ ] WebSocket latency < 500ms
+- [ ] Chart render time < 500ms
+- [ ] API response time < 100ms
+- [ ] Frontend bundle size < 200KB gzipped
+- [ ] No memory leaks over 1 hour run
+- [ ] CPU usage reasonable (< 20% on typical hardware)
+```
+
+**Section 5: Security**
+```markdown
+- [ ] CORS configuration set appropriately
+- [ ] Input validation on all API endpoints
+- [ ] No sensitive data in error messages (production)
+- [ ] No debug logs in production build
+- [ ] Dependencies up to date (no critical vulnerabilities)
+- [ ] HTTPS configuration ready (if deploying)
+```
+
+**Section 6: Deployment**
+```markdown
+- [ ] Build succeeds on clean Ubuntu 22.04 system
+- [ ] Build succeeds on clean Arch Linux system
+- [ ] Systemd service files tested
+- [ ] Nginx configuration tested (if using)
+- [ ] Firewall rules documented
+- [ ] Backup procedure documented
+- [ ] Recovery procedure tested
+```
+
+**Section 7: User Experience**
+```markdown
+- [ ] Application loads without errors
+- [ ] UI is responsive (no lag or stuttering)
+- [ ] Tab navigation smooth
+- [ ] Form inputs work on first try
+- [ ] Error messages are user-friendly
+- [ ] Loading states provide feedback
+- [ ] Connection status indicator visible and accurate
+- [ ] Tested on Chrome, Firefox, Safari
+- [ ] Tested on desktop and tablet (if applicable)
+```
+
+**Section 8: Operational**
+```markdown
+- [ ] Health check endpoint responds correctly
+- [ ] Logs are structured and informative
+- [ ] Log rotation configured (production)
+- [ ] Monitoring alerts configured (production)
+- [ ] Graceful shutdown works correctly
+- [ ] Restart recovery works (simulation state resets properly)
+```
+
+**Section 9: Version Control**
+```markdown
+- [ ] All changes committed
+- [ ] Commit messages descriptive
+- [ ] No uncommitted changes
+- [ ] Branch merged to main (if feature branch)
+- [ ] Version tag created (e.g., v1.0.0)
+- [ ] CHANGELOG.md updated (if exists)
+```
+
+**Section 10: Final Verification**
+```markdown
+- [ ] Run full test suite one final time
+- [ ] Manual smoke test of entire application
+- [ ] Review all documentation for accuracy
+- [ ] Verify all checklist items above completed
+- [ ] Sign-off from reviewers (if applicable)
+```
+
+**At the bottom, add:**
+```markdown
+---
+
+## Release Sign-Off
+
+**Version:** 1.0.0  
+**Date:** YYYY-MM-DD  
+**Released By:** [Name]  
+**Reviewed By:** [Name] (if applicable)
+
+**Notes:**
+- [Any special notes about this release]
+- [Known limitations or issues]
+- [Future work planned]
+
+**Deployment Target:**
+- [ ] Development
+- [ ] Staging
+- [ ] Production
+
+**Status:** ✅ Ready for Release | ⏸️ Hold | ❌ Not Ready
+```
+
+### Verification
+
+After creating checklist:
+1. Go through entire checklist yourself
+2. Check every box you can verify
+3. Note any items that fail
+4. Update docs/code to address failures
+5. Recheck until all boxes checked
+
+### Escalation Hints
+
+**Escalate if:**
+- Unsure what constitutes "passing" for certain criteria
+- Performance benchmarks need verification
+- Security items unclear
+
+### Acceptance Criteria
+- [ ] RELEASE_CHECKLIST.md created
+- [ ] All 10 sections included
+- [ ] Checklist items specific and verifiable
+- [ ] Sign-off template included at end
+- [ ] Markdown formatting correct
+- [ ] Items correspond to actual project state
+- [ ] Checklist is actionable (clear what to verify)
+
+---
+
+## Summary of Phase 7 Tasks
+
+### Phase 7A: Error Handling (4 tasks, ~90 minutes)
+1. Task 30a: Create ErrorBoundary component (20 min)
+2. Task 30b: Wrap app sections with error boundaries (15 min)
+3. Task 30c: Add WebSocket exponential backoff (30 min)
+4. Task 30d: Add loading skeletons for charts (25 min)
+
+### Phase 7C: Testing (3 tasks, ~90 minutes)
+5. Task 32a: Setup Playwright configuration (15 min)
+6. Task 32b: Write connection test (30 min)
+7. Task 32c: Write control command test (45 min)
+
+### Phase 7D: Documentation (5 tasks, ~150 minutes)
+8. Task 33a: Operator quick start guide (30 min)
+9. Task 33b: Deployment guide (40 min)
+10. Task 33c: Development workflow guide (30 min)
+11. Task 33d: Update main README (20 min)
+12. Task 33e: Create release checklist (20 min)
+
+**Total: 12 tasks, ~330 minutes (~5.5 hours)**
+
+---
+
+## Post-Phase 7: System Complete
+
+After completing Phase 7, the Tank Dynamics Simulator will be:
+
+✅ **Production Ready:**
+- Comprehensive error handling and resilience
+- Complete end-to-end test coverage
+- Professional loading states and UX
+- Data export capability for analysis
+
+✅ **Well Documented:**
+- Operator quick start guide
+- Complete deployment documentation
+- Development workflow guide
+- Up-to-date README
+
+✅ **Quality Assured:**
+- 140+ automated tests passing
+- E2E tests verify user workflows
+- Performance benchmarked
+- Security considerations addressed
+
+✅ **Deployment Ready:**
+- Systemd service files
+- Nginx configuration examples
+- Monitoring and logging setup
+- Backup and recovery procedures
+
+---
+
+## Next Steps (Optional Future Work)
+
+### Phase 8: Advanced Features (Future)
+
+See `docs/PHASE4_CONTINUATION_ROADMAP.md` for:
+- Configuration save/load
+- Process alarms and alerts
+- Advanced chart features (zoom, pan)
+- Touch-optimized controls
+- Theme customization
+- Real-time control analysis (Bode plots)
+
+These features are enhancements beyond the proof-of-concept scope. The system is fully functional and production-ready after Phase 7.
 
 ---
 
 ## Development Workflow Notes
 
-### Context Preservation
+### Git Workflow for Phase 7
+```bash
+# Create feature branch for each task or small group of tasks
+git checkout -b phase7-error-handling    # Tasks 30a-30d
+git checkout -b phase7-e2e-tests         # Tasks 32a-32c
+git checkout -b phase7-documentation     # Tasks 33a-33e
 
-When working on chart components (Tasks 29b-29d):
-- Each chart follows the same pattern
-- Reference LevelChart when creating FlowsChart and ValveChart
-- Reuse time formatting logic across all charts
-- Keep consistent styling (dark theme, colors, spacing)
+# After completing each group, merge to main
+git checkout main
+git merge phase7-error-handling
+# ... repeat for each feature branch
+```
+
+### Task Execution Best Practices
+
+1. **Read task completely before starting**
+2. **Check prerequisites are actually complete**
+3. **Follow verification steps exactly**
+4. **Commit after each task:** `git commit -m "Task 30a: Add ErrorBoundary component"`
+5. **Test integration after related tasks** (e.g., after 30a-30d, test error handling fully)
+6. **Update next.md to mark tasks complete**
+
+### When to Escalate
+
+Escalate to Haiku when:
+- Stuck for > 15 minutes on implementation detail
+- Task requirements unclear after re-reading
+- Verification fails repeatedly
+- Framework/library pattern unfamiliar
+
+Escalate to Sonnet when:
+- Task itself seems incorrect or incomplete
+- Requirements conflict with existing code
+- Major architectural decision needed
 
 ### Testing Strategy
 
-**After each polish task (28a-28f):**
-- Run `npm run dev`
-- Navigate to Process View tab
-- Verify specific component changed
-- Check for regressions in other components
+**After each task:**
+- Run verification steps in task description
+- Check for console errors
+- Verify no TypeScript errors
+- Test in browser manually
 
-**After each Trends View task (29a-29h):**
-- Run `./scripts/dev.sh` (full stack)
-- Navigate to Trends View tab
-- Verify chart functionality
-- Check browser console for errors
+**After each phase section (7A, 7B, etc.):**
+- Run full test suite
+- Manual smoke test of entire application
+- Check all related functionality works together
 
-### Git Workflow
-
-Commit after each completed task:
-```bash
-git add [modified files]
-git commit -m "Task [number]: [brief description]"
-```
-
-Example commit messages:
-- `Task 28a: Add conditional flow animation to TankGraphic`
-- `Task 29b: Create LevelChart component with Recharts`
-- `Task 29g: Add time range selector to TrendsView`
-
-### Recharts Version Notes
-
-**Important:** This project uses Recharts v3.7.0, which has breaking changes from v2.x:
-
-1. **CartesianGrid does NOT require xAxisId/yAxisId** (some docs incorrectly say it does)
-2. **Custom components** can be nested directly (no Customized wrapper needed)
-3. **Tooltip/Legend** API unchanged from v2
-4. **Line hide prop** works the same as v2
-
-If documentation seems contradictory, trust the official Recharts v3 migration guide and the Context7 query results provided in tasks.
+**After completing all Phase 7:**
+- Run RELEASE_CHECKLIST.md
+- Full integration test (all features working)
+- Performance check (no degradation)
+- Documentation review (all docs current)
 
 ---
 
-## Key Principles for Local LLM Success
+## Key Principles for Phase 7
 
-### 1. Task Independence
-Each task can be completed without referencing others (except stated prerequisites). Charts share patterns but are separate files.
+### 1. Production Quality Focus
+Phase 7 is about polish and readiness, not new features. Prioritize:
+- Robustness over features
+- Documentation over code
+- Testing over implementation
+- User experience over developer convenience
 
-### 2. Reference-First Design
-Tasks provide:
-- Links to existing patterns (LevelChart for other charts)
-- Search keywords for external research
-- Context7 query results for Recharts
+### 2. Incremental Verification
+Every task has verification steps. Follow them precisely:
+- Don't skip verification
+- If verification fails, fix before next task
+- Document any deviations from expected behavior
 
-### 3. Escalation Clarity
-Every task specifies:
-- When to escalate (unfamiliar patterns, repeated errors)
-- What to search (specific keywords)
-- Simpler alternatives if stuck
+### 3. Documentation as Code
+Documentation is as important as code in Phase 7:
+- Write docs as if for someone else
+- Test all instructions yourself
+- Keep docs updated as you work
+- Clear, concise, actionable
 
-### 4. Verification at Scale
-Each task has:
-- Exact command to verify
-- Expected outcome described
-- Visual checks for UI tasks
+### 4. Test-Driven Quality
+E2E tests verify the system works end-to-end:
+- Tests should pass reliably
+- No flaky tests allowed
+- If test fails, fix the code or the test (not both)
+- Tests document expected behavior
 
-### 5. Structure Over Flexibility
-Tasks describe:
-- Component structure (sections, props, hooks)
-- Styling classes (exact Tailwind classes)
-- Implementation patterns (not code, but clear guidance)
-
----
-
-## Notes on Architecture Decisions
-
-### Why useHistory Hook Instead of Extending useSimulation?
-
-**Decision:** Create separate useHistory hook rather than adding history fetching to useSimulation.
-
-**Reasoning:**
-- useSimulation provides real-time WebSocket data (last 10 entries)
-- useHistory provides bulk historical data (up to 7200 entries)
-- Separation of concerns: real-time vs historical
-- TrendsView needs both: historical baseline + real-time append
-- ProcessView doesn't need historical data (uses current state only)
-
-### Why Three Separate Chart Components?
-
-**Decision:** Create LevelChart, FlowsChart, ValveChart as separate components instead of one configurable chart.
-
-**Reasoning:**
-- Each chart has different data keys, colors, Y-axis ranges
-- Separate components are easier to understand for local LLMs
-- Future customization per chart type (e.g., reference lines on level chart)
-- Clear task boundaries (one chart per task)
-- Pattern reuse is explicit (copy and modify)
-
-### Why Fetch Historical Data Instead of Building from WebSocket?
-
-**Decision:** Fetch from /api/history on mount rather than accumulating from WebSocket over time.
-
-**Reasoning:**
-- Immediate data availability (don't wait to accumulate)
-- Works after page refresh (data preserved on backend)
-- Backend ring buffer stores 2 hours (7200 entries at 1Hz)
-- WebSocket only provides last 10 entries
-- Operator needs historical context immediately when opening Trends View
-
-### Why Time Range Selector Instead of Zoom/Pan?
-
-**Decision:** Implement time range selector (preset buttons) before zoom/pan controls.
-
-**Reasoning:**
-- Simpler to implement (state + refetch)
-- Common use case: "show me last 5 minutes"
-- Preset ranges clearer for operators than free-form zoom
-- Zoom/pan can be added later (Task 29h enhancement or Phase 7)
-- Works well with backend duration parameter
+### 5. Operator-Centric Thinking
+Remember the end user (operator, not developer):
+- Error messages should be friendly
+- Loading states prevent confusion
+- Export functionality enables offline work
+- Documentation helps them succeed
 
 ---
 
-**End of Phase 6 Task Breakdown**
+**Phase 7 Ready to Begin!**
 
-Next steps after Phase 6 complete:
-1. Senior Engineer reviews Phase 6 implementation
-2. Code Reviewer provides feedback
-3. Senior Engineer creates Phase 7 task breakdown
+Start with Task 30a (ErrorBoundary component) and work through sequentially. Each task builds toward a production-ready, well-documented, thoroughly tested system.
+
+**Estimated completion time:** 6-8 hours across all 15 tasks, depending on familiarity with tools and frameworks.
