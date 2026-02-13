@@ -10,7 +10,7 @@ import ValveChart from "./ValveChart";
 
 /**
  * TrendsView component displays historical simulation state updates
- * as interactive charts spanning up to 1 hour of historical data.
+ * as interactive charts with configurable time ranges (1 min to 2 hours).
  *
  * Fetches historical data from the backend via useHistory hook
  * and displays three charts:
@@ -18,12 +18,24 @@ import ValveChart from "./ValveChart";
  * - Inlet and outlet flow rates over time
  * - Controller output (valve position) over time
  *
+ * Features a time range selector to control how much historical data
+ * to display (1 min, 5 min, 30 min, 1 hr, or 2 hr).
+ *
  * Handles loading, error, and empty states appropriately.
  */
 export function TrendsView() {
-  const { history, loading, error } = useHistory(3600);
+  const [duration, setDuration] = useState(3600); // Default: 1 hour
+  const { history, loading, error } = useHistory(duration);
   const { state } = useSimulation();
   const [chartData, setChartData] = useState<SimulationState[]>([]);
+
+  const TIME_RANGES = [
+    { label: "1 min", value: 60 },
+    { label: "5 min", value: 300 },
+    { label: "30 min", value: 1800 },
+    { label: "1 hr", value: 3600 },
+    { label: "2 hr", value: 7200 },
+  ];
 
   // Initialize chartData with historical data when it loads
   useEffect(() => {
@@ -56,6 +68,28 @@ export function TrendsView() {
         <p className="text-sm text-gray-400">
           Historical process trends and analytics
         </p>
+      </div>
+
+      {/* Time Range Selector */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Time Range
+        </label>
+        <div className="flex gap-2">
+          {TIME_RANGES.map((range) => (
+            <button
+              key={range.value}
+              onClick={() => setDuration(range.value)}
+              className={`px-4 py-2 rounded font-medium transition-colors cursor-pointer ${
+                duration === range.value
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Loading state */}
