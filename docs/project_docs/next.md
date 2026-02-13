@@ -34,11 +34,10 @@ Phase 7 completes the proof-of-concept by ensuring all components work together 
 1. **End-to-End Testing:** Playwright test suite verifying complete user workflows
 2. **Error Handling:** Comprehensive error boundaries and recovery mechanisms
 3. **Loading States:** Professional loading and skeleton screens
-4. **Data Export:** CSV download functionality for trend data
-5. **Documentation:** Complete operator and deployment guides
-6. **Performance:** Profiling and optimization where needed
+4. **Documentation:** Complete operator and deployment guides
+5. **Performance:** Profiling and optimization where needed
 
-### Total Tasks: 15 micro-tasks (~6-8 hours total)
+### Total Tasks: 12 micro-tasks (~5-6 hours total)
 
 ---
 
@@ -379,320 +378,6 @@ cd frontend && npm run dev
 - [ ] Charts display after loading completes
 - [ ] No TypeScript errors
 - [ ] Loading → Chart transition is smooth
-
----
-
-## Phase 7B: Data Export Functionality (3 tasks, ~80 minutes)
-
-Add ability to export trend data as CSV files for offline analysis.
-
----
-
-## Task 31a: Create CSV Export Utility Function
-
-**Phase:** 7B - Data Export  
-**Prerequisites:** Phase 6 complete  
-**Estimated Time:** 20 minutes  
-**Files:** 1 file
-
-### File to Create
-- `frontend/lib/export.ts`
-
-### Context and References
-
-Create a utility function that converts simulation data to CSV format and triggers browser download.
-
-**Reference:** Browser File Download API (using Blob and URL.createObjectURL)  
-**Search:** "JavaScript CSV export download Blob"
-
-### Requirements
-
-Create a utility module with a single exported function: `exportToCSV`.
-
-**Function signature:**
-```
-exportToCSV(
-  data: Array<{ time: string, [key: string]: number | string }>,
-  filename: string
-): void
-```
-
-**Function behavior:**
-1. Convert data array to CSV string format
-2. First row: column headers (comma-separated)
-3. Subsequent rows: data values (comma-separated)
-4. Handle numeric precision: round numbers to 4 decimal places
-5. Create Blob with CSV content (MIME type: 'text/csv;charset=utf-8;')
-6. Create object URL from Blob
-7. Create temporary anchor element
-8. Set anchor href to object URL
-9. Set anchor download attribute to filename
-10. Programmatically click anchor
-11. Cleanup: revoke object URL after download
-
-**Column headers should be derived from data object keys:**
-- Extract keys from first data object
-- Use keys as column names in header row
-- Iterate through all data rows using same key order
-
-**Error handling:**
-- If data array is empty, log warning and return early (no download)
-- If data array contains inconsistent keys, use union of all keys
-- Missing values should be represented as empty string in CSV
-
-**Example:**
-```
-Input data: [
-  { time: "10:00:00", level: 2.5, flow: 1.0 },
-  { time: "10:00:01", level: 2.51, flow: 1.02 }
-]
-
-Output CSV:
-time,level,flow
-10:00:00,2.5000,1.0000
-10:00:01,2.5100,1.0200
-```
-
-### Verification
-
-Create the utility, then test by calling it from browser console:
-
-```bash
-cd frontend && npm run dev
-```
-
-**Test in browser console:**
-```javascript
-// Import the function (may need to expose it for testing)
-// Or create a test button that calls it
-
-const testData = [
-  { time: "10:00:00", level: 2.5, flow: 1.0, valve: 0.5 },
-  { time: "10:00:01", level: 2.51, flow: 1.02, valve: 0.51 }
-];
-
-// Should trigger download of simulation_data.csv
-exportToCSV(testData, 'simulation_data.csv');
-```
-
-**Verify:**
-1. CSV file downloads successfully
-2. Open file in text editor: headers and data match expected format
-3. Open file in spreadsheet app (Excel/Google Sheets): data imports correctly
-4. Numbers rounded to 4 decimals
-5. Time strings preserved (not converted to numbers)
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Blob API is unfamiliar
-- Object URL creation/revocation unclear
-- CSV formatting (escaping special characters) is complex
-- Temporary anchor element pattern confusing
-
-**Search for these terms if stuck:**
-- "JavaScript export CSV Blob download"
-- "createObjectURL download file"
-- "JavaScript CSV escape comma quotes"
-
-### Acceptance Criteria
-- [ ] export.ts file created in lib directory
-- [ ] exportToCSV function exported
-- [ ] Function accepts data array and filename
-- [ ] Generates valid CSV format
-- [ ] Triggers browser download
-- [ ] Numbers rounded to 4 decimals
-- [ ] Handles empty data array gracefully
-- [ ] No TypeScript errors
-- [ ] Downloaded CSV opens correctly in spreadsheet apps
-
----
-
-## Task 31b: Add Export Button to TrendsView
-
-**Phase:** 7B - Data Export  
-**Prerequisites:** Task 31a complete  
-**Estimated Time:** 20 minutes  
-**Files:** 1 file
-
-### File to Modify
-- `frontend/components/TrendsView.tsx`
-
-### Context and References
-
-Add a button to the TrendsView header that exports currently displayed trend data to CSV.
-
-Reference the exportToCSV function from Task 31a.
-
-### Requirements
-
-**In TrendsView.tsx:**
-- Import the exportToCSV function from `lib/export`
-- Import Download icon from lucide-react: `import { Download } from 'lucide-react'`
-- Add export button to the header section (same area as title)
-- Position button on right side using flexbox: `justify-between` on header container
-
-**Button component:**
-- Use Tailwind styling matching existing buttons in ProcessView
-- Pattern: `className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"`
-- Include Download icon (size 18)
-- Button text: "Export CSV"
-- onClick handler calls handleExport function
-
-**handleExport function:**
-- Get historical data from useHistory hook
-- Transform data format for CSV:
-  - Convert timestamp to readable time string (use `new Date(timestamp).toLocaleTimeString()`)
-  - Include columns: time, level, setpoint, inlet_flow, outlet_flow, valve_position
-  - Round numeric values to 4 decimals (exportToCSV handles this)
-- Generate filename with current date: `tank_data_${new Date().toISOString().split('T')[0]}.csv`
-- Call exportToCSV with transformed data and filename
-- If data is empty, show console warning: "No data to export"
-
-**Data transformation example:**
-```
-Backend data: { time: 1234567890, tank_level: 2.5, ... }
-CSV data: { time: "10:00:00 AM", level: 2.5, ... }
-```
-
-### Verification
-
-```bash
-cd frontend && npm run dev
-```
-
-**Test scenario:**
-1. Navigate to Trends View tab
-2. Wait for charts to load with data
-3. Click "Export CSV" button
-4. Verify CSV file downloads
-5. Open CSV file: should contain time, level, setpoint, inlet_flow, outlet_flow, valve_position columns
-6. Verify timestamps are readable (not Unix timestamps)
-7. Verify numeric precision (4 decimals)
-8. Test with empty data (before backend connects): should log warning, no download
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Unclear how to transform data format for CSV
-- Date/time formatting in JavaScript is confusing
-- Button layout with Tailwind flexbox unclear
-- Mapping object keys to different column names complex
-
-**Search for these terms if stuck:**
-- "JavaScript Date toLocaleTimeString"
-- "JavaScript transform array of objects"
-- "Tailwind flexbox justify-between"
-
-### Acceptance Criteria
-- [ ] Export button added to TrendsView header
-- [ ] Button includes Download icon
-- [ ] Button positioned on right side of header
-- [ ] onClick calls handleExport function
-- [ ] Data transformed to CSV-friendly format
-- [ ] Timestamps converted to readable time strings
-- [ ] Filename includes current date
-- [ ] Empty data handled gracefully (warning logged)
-- [ ] CSV file downloads successfully
-- [ ] No TypeScript errors
-
----
-
-## Task 31c: Add Time Range Selector for Export
-
-**Phase:** 7B - Data Export  
-**Prerequisites:** Task 31b complete  
-**Estimated Time:** 40 minutes  
-**Files:** 2 files
-
-### Files to Modify
-- `frontend/components/TrendsView.tsx`
-- `frontend/lib/hooks/useHistory.ts`
-
-### Context and References
-
-Allow users to select custom time ranges for export: Last 30 minutes, 1 hour, 2 hours, or custom duration.
-
-**Pattern:** Dropdown select with preset options  
-**Search:** "React select dropdown Tailwind CSS"
-
-### Requirements
-
-**In useHistory.ts hook:**
-- Modify hook to accept duration parameter (in seconds)
-- Default duration: 3600 (1 hour)
-- Update fetch URL to include duration: `/api/history?duration=${duration}`
-- Return duration in hook return value: `{ data, loading, error, duration }`
-
-**In TrendsView.tsx:**
-- Add state for selected duration: `const [duration, setDuration] = useState(3600)`
-- Pass duration to useHistory hook: `useHistory(duration)`
-- Add dropdown selector above charts (below header, above chart grid)
-- Dropdown options:
-  - "Last 30 minutes" (1800 seconds)
-  - "Last 1 hour" (3600 seconds) - default
-  - "Last 2 hours" (7200 seconds)
-  - "All data" (no limit, pass very large number like 999999)
-
-**Dropdown component:**
-- Use native HTML select element with Tailwind styling
-- Pattern: `className="px-3 py-2 border rounded bg-white dark:bg-gray-800"`
-- Label: "Time Range:" positioned before select
-- onChange updates duration state
-- Selected value reflects current duration
-
-**Update export function:**
-- Export only data within selected time range
-- Filter data array before passing to exportToCSV
-- Update filename to include time range: `tank_data_${rangeName}_${date}.csv`
-- Range names: "30min", "1hour", "2hours", "all"
-
-**Layout:**
-- Position time range selector and export button on same row
-- Use flexbox: `justify-between` to space them apart
-- Selector on left, export button on right
-- Add margin-bottom to create space before charts
-
-### Verification
-
-```bash
-cd frontend && npm run dev
-```
-
-**Test scenario:**
-1. Navigate to Trends View tab
-2. See time range dropdown (default: "Last 1 hour")
-3. Select "Last 30 minutes" - charts should update
-4. Verify backend request includes `?duration=1800`
-5. Select "Last 2 hours" - charts should update
-6. Export CSV - filename should include "2hours"
-7. Open CSV - verify data matches selected range
-8. Test all dropdown options
-
-### Escalation Hints
-
-**Escalate to Haiku if:**
-- Unclear how to pass parameters to custom hooks
-- Dropdown onChange handler pattern is confusing
-- Date filtering logic is complex
-- URL parameter construction unclear
-
-**Search for these terms if stuck:**
-- "React select onChange TypeScript"
-- "JavaScript filter array by date range"
-- "React custom hook with parameters"
-
-### Acceptance Criteria
-- [ ] useHistory hook accepts duration parameter
-- [ ] Hook makes API request with duration query param
-- [ ] Time range dropdown added to TrendsView
-- [ ] Dropdown includes all required options
-- [ ] Selecting range updates charts
-- [ ] Export filename includes selected range name
-- [ ] Exported data matches selected time range
-- [ ] Default selection is 1 hour
-- [ ] No TypeScript errors
-- [ ] Dropdown styling matches application theme
 
 ---
 
@@ -2098,24 +1783,19 @@ After creating checklist:
 3. Task 30c: Add WebSocket exponential backoff (30 min)
 4. Task 30d: Add loading skeletons for charts (25 min)
 
-### Phase 7B: Data Export (3 tasks, ~80 minutes)
-5. Task 31a: Create CSV export utility (20 min)
-6. Task 31b: Add export button to TrendsView (20 min)
-7. Task 31c: Add time range selector for export (40 min)
-
 ### Phase 7C: Testing (3 tasks, ~90 minutes)
-8. Task 32a: Setup Playwright configuration (15 min)
-9. Task 32b: Write connection test (30 min)
-10. Task 32c: Write control command test (45 min)
+5. Task 32a: Setup Playwright configuration (15 min)
+6. Task 32b: Write connection test (30 min)
+7. Task 32c: Write control command test (45 min)
 
 ### Phase 7D: Documentation (5 tasks, ~150 minutes)
-11. Task 33a: Operator quick start guide (30 min)
-12. Task 33b: Deployment guide (40 min)
-13. Task 33c: Development workflow guide (30 min)
-14. Task 33d: Update main README (20 min)
-15. Task 33e: Create release checklist (20 min)
+8. Task 33a: Operator quick start guide (30 min)
+9. Task 33b: Deployment guide (40 min)
+10. Task 33c: Development workflow guide (30 min)
+11. Task 33d: Update main README (20 min)
+12. Task 33e: Create release checklist (20 min)
 
-**Total: 15 tasks, ~410 minutes (~6.8 hours)**
+**Total: 12 tasks, ~330 minutes (~5.5 hours)**
 
 ---
 
@@ -2171,7 +1851,6 @@ These features are enhancements beyond the proof-of-concept scope. The system is
 ```bash
 # Create feature branch for each task or small group of tasks
 git checkout -b phase7-error-handling    # Tasks 30a-30d
-git checkout -b phase7-data-export       # Tasks 31a-31c
 git checkout -b phase7-e2e-tests         # Tasks 32a-32c
 git checkout -b phase7-documentation     # Tasks 33a-33e
 
