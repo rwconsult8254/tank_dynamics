@@ -153,7 +153,7 @@ export default function TankGraphic({
           stroke={inletColor}
           strokeWidth="2"
           markerEnd={inletMarker}
-          className="animate-pulse"
+          className={inletFlow > 0 ? "animate-pulse" : ""}
         />
 
         {/* Inlet flow label */}
@@ -177,7 +177,7 @@ export default function TankGraphic({
           stroke={outletColor}
           strokeWidth="2"
           markerEnd={outletMarker}
-          className="animate-pulse"
+          className={outletFlow > 0 ? "animate-pulse" : ""}
         />
 
         {/* Outlet flow label */}
