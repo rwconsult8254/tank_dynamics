@@ -22,41 +22,33 @@ test.describe("WebSocket Connection", () => {
   });
 
   test("should establish WebSocket connection", async ({ page }) => {
-    // Wait for connection to establish (2 seconds)
-    await page.waitForTimeout(2000);
+    // Wait for connection status to show "Connected"
+    const connectionStatus = page.getByText(/connected/i);
 
-    // Look for connection status indicator
-    // It could be displayed as text or as a visual indicator
-    const connectionStatus = page.getByText(/connected|connecting/i);
-
-    // At least one connection status should be visible
-    await expect(connectionStatus).toBeVisible();
+    // Playwright will auto-retry until element is visible (default 30s timeout)
+    await expect(connectionStatus).toBeVisible({ timeout: 10000 });
   });
 
   test("should receive real-time data updates", async ({ page }) => {
-    // Wait for initial connection and data fetch
-    await page.waitForTimeout(2000);
+    // Wait for connection to be established first
+    await expect(page.getByText(/connected/i)).toBeVisible({ timeout: 10000 });
 
     // Navigate to Process tab to see real-time data
     await page.getByRole("button", { name: /process/i }).click();
-    await page.waitForTimeout(500);
 
-    // Get initial tank level display (look for numeric values in the page)
-    const levelElements = page.locator("text=/^[0-9.]+\\s*m?$/");
-    const initialCount = await levelElements.count();
-
-    // Wait for at least one WebSocket update (1 second at 1 Hz)
-    await page.waitForTimeout(2000);
-
-    // Get updated tank level display
-    const updatedCount = await levelElements.count();
-
-    // At minimum, we should have elements on the page (tank level values)
-    expect(initialCount).toBeGreaterThan(0);
-    expect(updatedCount).toBeGreaterThan(0);
-
-    // The data should be updating - verify some content is present and visible
+    // Wait for tank graphic or level display to be visible
+    // This ensures the process view has loaded
     const mainContent = page.locator("main");
     await expect(mainContent).toBeVisible();
+
+    // Look for numeric values in the page (tank level, flow rates)
+    const levelElements = page.locator("text=/^[0-9.]+\\s*m?$/");
+
+    // Verify we have process data displayed
+    await expect(levelElements.first()).toBeVisible({ timeout: 5000 });
+
+    // Count should be > 0, confirming data is present
+    const count = await levelElements.count();
+    expect(count).toBeGreaterThan(0);
   });
 });

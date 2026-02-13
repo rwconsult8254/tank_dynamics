@@ -10,6 +10,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 1,
   workers: 1,
   reporter: "html",
+  globalSetup: "./tests/e2e/setup.ts",
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
@@ -18,7 +19,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["desktop_chrome"] },
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
 

@@ -6,7 +6,7 @@
 
 ```bash
 # Clone and enter directory
-git clone https://github.com/yourusername/tank_dynamics.git
+git clone YOUR_REPOSITORY_URL  # Replace with actual repository URL
 cd tank_dynamics
 
 # Install system dependencies (Ubuntu)
@@ -183,13 +183,13 @@ npm run lint
 **Terminal 1 - Backend:**
 ```bash
 source .venv/bin/activate
-cd /home/roger/dev/tank_dynamics
+cd $PROJECT_ROOT  # Or navigate to your tank_dynamics directory
 uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Terminal 2 - Frontend:**
 ```bash
-cd /home/roger/dev/tank_dynamics/frontend
+cd $PROJECT_ROOT/frontend  # Or navigate to your tank_dynamics/frontend directory
 npm run dev
 ```
 
@@ -197,7 +197,7 @@ npm run dev
 ```bash
 # Open browser to http://localhost:3000
 # Or run tests from here
-cd /home/roger/dev/tank_dynamics
+cd $PROJECT_ROOT  # Or navigate to your tank_dynamics directory
 uv run pytest api/tests/ -v
 ```
 

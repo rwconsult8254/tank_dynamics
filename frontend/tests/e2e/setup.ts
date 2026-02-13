@@ -1,5 +1,3 @@
-import { test as base } from "@playwright/test";
-
 /**
  * Health check to verify backend is running before tests start
  */
@@ -9,9 +7,15 @@ async function globalSetup() {
 
   while (retries > 0) {
     try {
+      // Use AbortController for proper timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const response = await fetch("http://localhost:8000/api/health", {
-        timeout: 5000,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         // Give backend a moment to stabilize
@@ -33,8 +37,8 @@ async function globalSetup() {
 
   throw new Error(
     `Backend not running. Start with: uvicorn api.main:app --host 0.0.0.0 --port 8000\n` +
-      `Last error: ${lastError?.message}`
+      `Last error: ${lastError?.message}`,
   );
 }
 
-export { globalSetup };
+export default globalSetup;

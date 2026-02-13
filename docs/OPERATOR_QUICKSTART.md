@@ -24,7 +24,7 @@ Think of it as a physics-based practice system for tuning PID (Proportional-Inte
 - **Adjust PID tuning parameters** to improve controller response
 - **Create process disturbances** to test controller robustness
 - **View historical trends** showing how the system responds over time
-- **Export data** for analysis in Excel or other tools
+- **View trends** for analysis with interactive charts
 
 ## System Requirements
 
@@ -244,17 +244,16 @@ Look at the trends chart after a setpoint change:
 
 **Success criteria**: Level stays within ±0.2m of setpoint despite flow variations
 
-### Task 3: Export Data for Analysis
+### Task 3: Observe Trends View
 
 1. Run simulation for desired time (10 minutes recommended)
-2. Click **"Export CSV"** button (when available)
-3. File downloads as `tank_data.csv`
-4. Open in Excel or Google Sheets
-5. Analyze:
-   - Peak overshoot (%)
-   - Settling time (seconds)
-   - Steady-state error
-   - Response speed
+2. Switch to **Trends** tab
+3. Use time range selector to view different periods (1 min, 5 min, 30 min, 1 hr, 2 hr)
+4. Observe charts:
+   - Tank Level vs Setpoint (identify peak overshoot and settling time)
+   - Inlet and Outlet Flows (see disturbances and response)
+   - Controller Output (valve position changes)
+5. Use legend to toggle lines on/off for clearer view
 
 ### Task 4: Compare Different Tuning Methods
 
@@ -337,7 +336,7 @@ Look at the trends chart after a setpoint change:
 - ✓ Change one parameter at a time
 - ✓ Wait 30-60 seconds between changes
 - ✓ Use Trends View to visualize effects
-- ✓ Export data for analysis if needed
+- ✓ View trends charts for analysis if needed
 
 ### After Tuning
 - ✓ Test with disturbances (Brownian mode)

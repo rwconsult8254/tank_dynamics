@@ -7,121 +7,107 @@ test.describe("Control Commands", () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to home page before each test
     await page.goto("/");
-    // Wait for initial connection and data load
-    await page.waitForTimeout(2000);
+    // Wait for connection to be established
+    await expect(page.getByText(/connected/i)).toBeVisible({ timeout: 10000 });
   });
 
   test("should update tank level setpoint", async ({ page }) => {
     // Ensure we're on Process View
     const processTab = page.getByRole("button", { name: /process/i });
     await processTab.click();
-    await page.waitForTimeout(500);
 
     // Find the setpoint input in the SVG foreignObject
     // Look for an input that might contain a setpoint value
     const inputs = page.locator("input[type='text']");
+
+    // Verify at least one text input exists
+    await expect(inputs.first()).toBeVisible({ timeout: 5000 });
     const count = await inputs.count();
+    expect(count).toBeGreaterThan(0);
 
-    if (count > 0) {
-      // Get the first text input (likely setpoint input)
-      const setpointInput = inputs.first();
+    // Get the first text input (likely setpoint input)
+    const setpointInput = inputs.first();
 
-      // Get current value
-      const currentValue = await setpointInput.inputValue();
+    // Clear and set new value
+    await setpointInput.clear();
+    await setpointInput.fill("3.5");
+    await setpointInput.press("Enter");
 
-      // Clear and set new value
-      await setpointInput.clear();
-      await setpointInput.fill("3.5");
-      await setpointInput.press("Enter");
-
-      // Wait for update to take effect
-      await page.waitForTimeout(1000);
-
-      // Verify the input shows the new value
-      const newValue = await setpointInput.inputValue();
-      expect(newValue).toBe("3.5");
-    }
+    // Verify the input shows the new value
+    await expect(setpointInput).toHaveValue("3.5");
   });
 
   test("should update PID controller gains", async ({ page }) => {
     // Ensure we're on Process View
     const processTab = page.getByRole("button", { name: /process/i });
     await processTab.click();
-    await page.waitForTimeout(500);
 
     // Look for PID button or popover trigger - search for text containing "PID" or similar
-    const pidElements = page.locator('text=/PID|Tuning/i');
+    const pidElements = page.locator("text=/PID|Tuning/i");
+
+    // Verify PID elements exist
+    await expect(pidElements.first()).toBeVisible({ timeout: 5000 });
     const pidCount = await pidElements.count();
+    expect(pidCount).toBeGreaterThan(0);
 
-    if (pidCount > 0) {
-      // Click to open PID popover if it exists
-      await pidElements.first().click();
-      await page.waitForTimeout(500);
+    // Click to open PID popover
+    await pidElements.first().click();
 
-      // Find number inputs (for Kc, tau_I, tau_D)
-      const numberInputs = page.locator("input[type='number']");
-      const inputCount = await numberInputs.count();
+    // Find number inputs (for Kc, tau_I, tau_D)
+    const numberInputs = page.locator("input[type='number']");
 
-      if (inputCount >= 2) {
-        // Update first number input (Kc)
-        const kcInput = numberInputs.nth(0);
-        await kcInput.clear();
-        await kcInput.fill("5.0");
-        await kcInput.press("Tab");
+    // Wait for inputs to be visible and verify we have at least 2
+    await expect(numberInputs.first()).toBeVisible({ timeout: 5000 });
+    const inputCount = await numberInputs.count();
+    expect(inputCount).toBeGreaterThanOrEqual(2);
 
-        // Update second number input (tau_I)
-        const tauInput = numberInputs.nth(1);
-        await tauInput.clear();
-        await tauInput.fill("15.0");
-        await tauInput.press("Tab");
+    // Update first number input (Kc)
+    const kcInput = numberInputs.nth(0);
+    await kcInput.clear();
+    await kcInput.fill("5.0");
 
-        // Wait for updates
-        await page.waitForTimeout(1000);
+    // Update second number input (tau_I)
+    const tauInput = numberInputs.nth(1);
+    await tauInput.clear();
+    await tauInput.fill("15.0");
 
-        // Verify values persisted
-        const updatedKc = await kcInput.inputValue();
-        const updatedTau = await tauInput.inputValue();
-        expect(updatedKc).toBe("5.0");
-        expect(updatedTau).toBe("15.0");
-      }
-    }
+    // Verify values persisted
+    await expect(kcInput).toHaveValue("5.0");
+    await expect(tauInput).toHaveValue("15.0");
   });
 
   test("should toggle inlet flow mode", async ({ page }) => {
     // Ensure we're on Process View
     const processTab = page.getByRole("button", { name: /process/i });
     await processTab.click();
-    await page.waitForTimeout(500);
 
     // Look for Brownian mode option
     const brownianLabel = page.locator("text=/Brownian/i");
 
-    if (await brownianLabel.isVisible()) {
-      // Find the radio button for Brownian mode
-      const brownianRadio = brownianLabel.locator("input[type='radio']").first();
+    // Verify element exists before proceeding
+    await expect(brownianLabel).toBeVisible({ timeout: 5000 });
 
-      // Get initial state
-      const initialChecked = await brownianRadio.isChecked();
+    // Find the radio button for Brownian mode
+    const brownianRadio = brownianLabel.locator("input[type='radio']").first();
 
-      // Click to toggle
-      await brownianRadio.click();
-      await page.waitForTimeout(500);
+    // Get initial state
+    const initialChecked = await brownianRadio.isChecked();
 
-      // Verify state changed
-      const newChecked = await brownianRadio.isChecked();
-      expect(newChecked).not.toBe(initialChecked);
+    // Click to toggle
+    await brownianRadio.click();
 
-      // Toggle back
-      const manualLabel = page.locator("text=/Manual/i");
-      if (await manualLabel.isVisible()) {
-        const manualRadio = manualLabel.locator("input[type='radio']").first();
-        await manualRadio.click();
-        await page.waitForTimeout(500);
+    // Verify state changed
+    await expect(brownianRadio).toBeChecked({ checked: !initialChecked });
 
-        const finalChecked = await manualRadio.isChecked();
-        expect(finalChecked).toBe(initialChecked);
-      }
-    }
+    // Toggle back to manual
+    const manualLabel = page.locator("text=/Manual/i");
+    await expect(manualLabel).toBeVisible();
+
+    const manualRadio = manualLabel.locator("input[type='radio']").first();
+    await manualRadio.click();
+
+    // Verify we're back to initial state
+    await expect(manualRadio).toBeChecked({ checked: initialChecked });
   });
 
   test("should navigate between tabs", async ({ page }) => {
@@ -132,7 +118,6 @@ test.describe("Control Commands", () => {
     // Click Trends tab
     const trendsTab = page.getByRole("button", { name: /trends/i });
     await trendsTab.click();
-    await page.waitForTimeout(500);
 
     // Verify we're on Trends View
     const trendsHeader = page.getByText(/Trends View|Historical/i);
@@ -147,7 +132,6 @@ test.describe("Control Commands", () => {
 
     // Click back to Process tab
     await processTab.click();
-    await page.waitForTimeout(500);
 
     // Verify we're back on Process View
     const processHeader = page.getByText(/Process/i).first();

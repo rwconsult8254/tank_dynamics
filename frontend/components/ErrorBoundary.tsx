@@ -48,7 +48,7 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error(
       `[ErrorBoundary] Error at ${timestamp}: ${error.message}`,
       error,
-      errorInfo
+      errorInfo,
     );
 
     // Update state with error info for display
@@ -57,6 +57,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
   handleReload = () => {
     window.location.reload();
+  };
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
   render() {
@@ -92,40 +96,50 @@ export class ErrorBoundary extends Component<Props, State> {
               An unexpected error occurred. Please reload the page to try again.
             </p>
 
-            {/* Technical details (collapsed by default) */}
-            <details className="mb-6">
-              <summary className="cursor-pointer text-sm font-semibold text-gray-600 hover:text-gray-900 mb-2">
-                Technical Details
-              </summary>
-              <div className="bg-gray-100 rounded p-3 text-xs font-mono text-gray-800 max-h-48 overflow-auto">
-                <div className="mb-2">
-                  <strong>Error:</strong> {this.state.error?.message}
+            {/* Technical details (only in development) */}
+            {process.env.NODE_ENV === "development" && (
+              <details className="mb-6">
+                <summary className="cursor-pointer text-sm font-semibold text-gray-600 hover:text-gray-900 mb-2">
+                  Technical Details
+                </summary>
+                <div className="bg-gray-100 rounded p-3 text-xs font-mono text-gray-800 max-h-48 overflow-auto">
+                  <div className="mb-2">
+                    <strong>Error:</strong> {this.state.error?.message}
+                  </div>
+                  {this.state.error?.stack && (
+                    <div>
+                      <strong>Stack:</strong>
+                      <pre className="text-xs mt-1 whitespace-pre-wrap break-words">
+                        {this.state.error.stack}
+                      </pre>
+                    </div>
+                  )}
+                  {this.state.errorInfo?.componentStack && (
+                    <div className="mt-2">
+                      <strong>Component Stack:</strong>
+                      <pre className="text-xs mt-1 whitespace-pre-wrap break-words">
+                        {this.state.errorInfo.componentStack}
+                      </pre>
+                    </div>
+                  )}
                 </div>
-                {this.state.error?.stack && (
-                  <div>
-                    <strong>Stack:</strong>
-                    <pre className="text-xs mt-1 whitespace-pre-wrap break-words">
-                      {this.state.error.stack}
-                    </pre>
-                  </div>
-                )}
-                {this.state.errorInfo?.componentStack && (
-                  <div className="mt-2">
-                    <strong>Component Stack:</strong>
-                    <pre className="text-xs mt-1 whitespace-pre-wrap break-words">
-                      {this.state.errorInfo.componentStack}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            </details>
+              </details>
+            )}
 
-            <button
-              onClick={this.handleReload}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors"
-            >
-              Reload Page
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={this.handleReset}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={this.handleReload}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                Reload Page
+              </button>
+            </div>
           </div>
         </div>
       );

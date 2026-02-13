@@ -135,7 +135,7 @@ export function TrendsView() {
             <h3 className="text-lg font-semibold text-white mb-3">
               Tank Level vs Setpoint
             </h3>
-            <div className="animate-pulse bg-gradient-to-r from-gray-200 to-gray-300 h-64 rounded" />
+            <div className="animate-pulse bg-gradient-to-r from-gray-700 to-gray-600 h-64 rounded" />
           </div>
 
           {/* Flows Chart Skeleton */}
@@ -143,7 +143,7 @@ export function TrendsView() {
             <h3 className="text-lg font-semibold text-white mb-3">
               Inlet and Outlet Flows
             </h3>
-            <div className="animate-pulse bg-gradient-to-r from-gray-200 to-gray-300 h-64 rounded" />
+            <div className="animate-pulse bg-gradient-to-r from-gray-700 to-gray-600 h-64 rounded" />
           </div>
 
           {/* Valve Chart Skeleton */}
@@ -151,7 +151,7 @@ export function TrendsView() {
             <h3 className="text-lg font-semibold text-white mb-3">
               Controller Output (Valve Position)
             </h3>
-            <div className="animate-pulse bg-gradient-to-r from-gray-200 to-gray-300 h-64 rounded" />
+            <div className="animate-pulse bg-gradient-to-r from-gray-700 to-gray-600 h-64 rounded" />
           </div>
         </div>
       )}

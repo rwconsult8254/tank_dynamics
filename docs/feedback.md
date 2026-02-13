@@ -1,844 +1,431 @@
-# Code Review: Phase 6 - Trends View Enhancement & Polish
+# Code Review: Phase 7 - Integration and Polish
 
-**Review Date:** 2026-02-13  
-**Branch:** phase6-trends-enhancement  
-**Commits Reviewed:** 16 commits (569058e through b50dc9b)  
-**Files Changed:** 20 files, +3,841 lines, -1,356 lines
+**Review Date:** 2026-02-13
+**Branch:** phase7-next-planning
+**Commits Reviewed:** 3 commits (9372134 through 64a570f)
+**Files Changed:** 16 files, +4,081 lines, -1,929 lines
 
 ---
 
 ## Summary
 
-Phase 6 successfully delivers historical trend visualization with three professional-quality Recharts components and comprehensive data management. The implementation demonstrates strong React patterns (memoization, custom hooks, proper state management) and excellent error handling. However, **one critical issue must be fixed before merge**: chart line interpolation causes visual instability during real-time updates, especially with Brownian motion enabled.
+Phase 7 delivers error handling improvements (ErrorBoundary, WebSocket reconnection with jitter, loading skeletons), a Playwright E2E test suite, and comprehensive documentation (Operator Quick Start, Deployment Guide, Development Guide, Release Checklist, updated README). The code changes are well-structured and the documentation is thorough. However, **two critical bugs exist in the E2E test infrastructure that will prevent tests from running**, and one major design concern should be addressed regarding error boundary coverage. Documentation has several medium-severity inaccuracies that should be corrected before merge.
 
-**Key Achievements:**
-- Three well-structured chart components (Level, Flows, Valve)
-- Robust useHistory hook with proper error handling and input validation
-- Smart downsampling strategy (500-point limit) for SVG performance
-- Real-time data append with memory management (7200-entry ring buffer)
-- Time range selector with clean UI
-- Interactive chart features (custom tooltips, clickable legends)
-- All 14 tasks (28a-28f polish, 29a-29h trends) completed
-
-**Recommendation:** ✅ **All issues resolved** - Ready to merge to main.
+**Recommendation:** Fix critical issues before merge. Major and minor items can be addressed post-merge.
 
 ---
 
 ## Critical Issues
 
-### ✅ Issue 1: Chart Line Interpolation Causes Visual Instability [RESOLVED]
+### Issue 1: Playwright Device Name is Wrong
 
-**Severity:** Critical  
-**Status:** ✅ FIXED (commits 91f2a52, 0ffff1a, 52168cc)  
-**Locations:** 
-- `frontend/components/LevelChart.tsx:95, 105`
-- `frontend/components/FlowsChart.tsx:99, 109`
-- `frontend/components/ValveChart.tsx:97`
+**Severity:** Critical
+**Location:** `frontend/playwright.config.ts:21`
 
-**Problem:** All three chart components use `type="monotone"` for Recharts Line components. This causes monotone cubic interpolation, which creates smooth curves that continuously adjust as new data points arrive. During real-time updates (especially with Brownian motion), this causes the entire chart line to "move all over the place" as the fitting algorithm recalculates.
-
-**Why it matters:**
-- **Poor UX:** Charts appear unstable and unreliable
-- **Misleading visualization:** Process data should show actual measured values, not interpolated curves
-- **Unusable for Brownian testing:** Makes it impossible to observe real disturbances
-- **Process control convention:** SCADA systems traditionally use linear (point-to-point) or step interpolation, not curve fitting
+**Problem:** The Playwright config uses `devices["desktop_chrome"]` but the correct Playwright device name is `"Desktop Chrome"` (title case, with a space). This will cause Playwright to use `undefined` device settings, meaning tests will run with no viewport, user agent, or other device emulation settings applied. Tests may fail or behave unpredictably.
 
 **Current code:**
 ```typescript
-// LevelChart.tsx:95
-<Line
-  type="monotone"  // ❌ WRONG: Causes curve fitting
-  dataKey="tank_level"
-  stroke="#3b82f6"
-  strokeWidth={2}
-  dot={false}
-  name="Level"
-  hide={hiddenLines.tank_level}
-/>
+projects: [
+  {
+    name: "chromium",
+    use: { ...devices["desktop_chrome"] },  // WRONG
+  },
+],
 ```
 
-**Recommended fix:**
+**Why it matters:** This silently spreads `undefined` into the project config. Tests may technically run but without proper viewport dimensions, leading to flaky or misleading results.
+
+**Suggested approach:** Change the device string to `"Desktop Chrome"` which is the canonical name in Playwright's device descriptors. Verify by checking `playwright.devices` in the Playwright documentation or source.
+
+### Issue 2: `fetch()` Timeout Option is Invalid
+
+**Severity:** Critical
+**Location:** `frontend/tests/e2e/setup.ts:13`
+
+**Problem:** The health check function passes `{ timeout: 5000 }` to `fetch()`. The standard `fetch()` API (and Node.js `fetch`) does not accept a `timeout` property in `RequestInit`. This option is silently ignored, meaning the health check has no timeout protection and could hang indefinitely if the backend is unresponsive.
+
+**Current code:**
 ```typescript
-<Line
-  type="linear"  // ✅ CORRECT: Point-to-point interpolation
-  dataKey="tank_level"
-  stroke="#3b82f6"
-  strokeWidth={2}
-  dot={false}
-  name="Level"
-  hide={hiddenLines.tank_level}
-/>
+const response = await fetch("http://localhost:8000/api/health", {
+  timeout: 5000,  // NOT A VALID FETCH OPTION
+});
 ```
 
-**Alternative (step interpolation for discrete signals):**
+**Why it matters:** If the backend is partially up (accepting TCP connections but not responding), the health check will hang indefinitely, blocking the entire test suite with no error message.
+
+**Suggested approach:** Use `AbortController` with `setTimeout` to implement proper timeout behavior:
 ```typescript
-type="stepAfter"  // Shows held values (appropriate for valve position)
+const controller = new AbortController();
+const timeoutId = setTimeout(() => controller.abort(), 5000);
+const response = await fetch("http://localhost:8000/api/health", {
+  signal: controller.signal,
+});
+clearTimeout(timeoutId);
 ```
 
-**Resolution:**
-1. ✅ Changed all 5 Line components from `type="monotone"` to `type="linear"` (commit 91f2a52)
-2. ✅ Identified secondary issue: downsampling algorithm was recalculating point selection
-3. ✅ Replaced variable downsampling with fixed decimation factor (14) for stable rendering (commit 52168cc)
-4. ✅ Tested with Brownian motion - charts now completely stable
+### Issue 3: Global Setup Not Wired Into Playwright Config
 
-**Technical details:**
-- Initial fix: Changed interpolation from monotone cubic to linear
-- Root cause: Downsampling recalculated which points to display on each update
-- Final solution: Fixed decimation (every 14th point) ensures rendered points never shift
-- Result: Strip-chart behavior - new data appends right, old scrolls left
+**Severity:** Critical
+**Location:** `frontend/playwright.config.ts` and `frontend/tests/e2e/setup.ts`
+
+**Problem:** The `setup.ts` file exports a `globalSetup` function, but `playwright.config.ts` never references it. The config has no `globalSetup` property, so the health check function is dead code that never executes. Tests will attempt to run even if the backend is down, leading to confusing WebSocket connection failures rather than a clear "backend not running" error.
+
+**Why it matters:** The health check was clearly intended as a prerequisite gate. Without it wired in, the E2E tests lose their safety net and will produce confusing failures when the backend isn't running.
+
+**Suggested approach:** Either add `globalSetup: './tests/e2e/setup.ts'` to the Playwright config (after converting the export to a default export as Playwright expects), or use Playwright's `webServer` array to start both frontend and backend.
 
 ---
 
 ## Major Issues
 
-**None found.** The code demonstrates solid engineering practices throughout.
+### Issue 4: ErrorBoundary Placement Leaves Header and Navigation Unprotected
+
+**Severity:** Major
+**Location:** `frontend/app/page.tsx:33-39`
+
+**Problem:** The `ErrorBoundary` wraps only the tab content area. If `ConnectionStatus` (in the header) or `TabNavigation` throws an error, the entire application will crash with an unhandled error. These components read from the `useSimulation` context and could fail if the provider has issues.
+
+**Current structure:**
+```tsx
+<main>
+  <div>  {/* Header - UNPROTECTED */}
+    <ConnectionStatus />
+  </div>
+  <TabNavigation />  {/* UNPROTECTED */}
+  <ErrorBoundary>
+    <div>{/* Tab content - protected */}</div>
+  </ErrorBoundary>
+</main>
+```
+
+**Why it matters:** The ErrorBoundary was added to provide graceful degradation, but the coverage gap means any error in the header or navigation still crashes the whole app. This undermines the purpose of the error boundary.
+
+**Suggested approach:** Either wrap the entire `<main>` content in the ErrorBoundary, or add a second lightweight ErrorBoundary around the header section. The existing `ChartErrorBoundary` pattern (with a "Try Again" button that resets state) could be adapted for this purpose.
+
+### Issue 5: ErrorBoundary Exposes Stack Traces in Production
+
+**Severity:** Major
+**Location:** `frontend/components/ErrorBoundary.tsx:98-116`
+
+**Problem:** The default fallback UI includes a "Technical Details" section that displays the full error message, stack trace, and component stack. While this is hidden in a `<details>` element, it is still present in the DOM and accessible to any user. In a production deployment, this could expose internal file paths, component names, and implementation details.
+
+**Why it matters:** Information disclosure is an OWASP concern. Stack traces reveal internal architecture (file paths, component hierarchy, library versions) that could assist attackers in crafting targeted exploits. For a proof-of-concept this is low risk, but the deployment guide positions this as "production ready."
+
+**Suggested approach:** Conditionally render technical details based on `NODE_ENV`. In production, show only the user-friendly message and reload button. Log full details to the console (which is already done in `componentDidCatch`). In development, show the full details panel.
+
+### Issue 6: E2E Tests Rely Heavily on `waitForTimeout` (Brittle)
+
+**Severity:** Major
+**Location:** `frontend/tests/e2e/connection.spec.ts` and `controls.spec.ts` (throughout)
+
+**Problem:** The E2E tests use `page.waitForTimeout(2000)` and `page.waitForTimeout(500)` extensively as the primary synchronization mechanism. Playwright's own documentation explicitly discourages this pattern because:
+
+1. **Flaky in CI:** Slower machines need longer waits; faster machines waste time
+2. **Non-deterministic:** There's no guarantee the expected state is reached in the timeout
+3. **Slow:** Each 2-second wait adds up across the test suite
+
+**Examples of problematic patterns:**
+```typescript
+// connection.spec.ts:30
+await page.waitForTimeout(2000);  // "Wait for connection to establish"
+
+// controls.spec.ts:8
+await page.waitForTimeout(2000);  // "Wait for initial connection and data load"
+```
+
+**Why it matters:** These tests will be flaky in CI environments and on slower machines. They'll also be unnecessarily slow on fast machines.
+
+**Suggested approach:** Replace `waitForTimeout` with Playwright's built-in waiting mechanisms:
+- `await page.waitForSelector('[data-testid="connected"]')` for connection status
+- `await expect(page.locator(...)).toBeVisible()` with Playwright's auto-retry
+- `await page.waitForResponse(url => url.includes('/api/'))` for API calls
+- `await page.waitForEvent('websocket')` for WebSocket connections
+
+### Issue 7: DEPLOYMENT.md Docker Build Has Layer Activation Bug
+
+**Severity:** Major
+**Location:** `docs/DEPLOYMENT.md`, Docker section
+
+**Problem:** The `Dockerfile.backend` activates a virtual environment in one `RUN` layer but the activation doesn't persist to subsequent layers or the `CMD`:
+
+```dockerfile
+RUN pip install uv && \
+    uv venv --python 3.10 && \
+    . .venv/bin/activate && \
+    uv pip install -e .
+
+# This CMD won't use the venv because activation was in a previous layer
+CMD [".venv/bin/uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+**Why it matters:** The CMD uses the explicit `.venv/bin/uvicorn` path (which is correct and works around the activation issue), but the RUN command also uses `pip install uv` at the system level rather than installing from the official uv installer. This is inconsistent with the project's standard uv installation method.
+
+**Suggested approach:** The Dockerfile should either use the full venv path consistently or set `ENV PATH="/app/.venv/bin:$PATH"` to make the venv active for all subsequent layers. Also replace `pip install uv` with the official curl installer.
 
 ---
 
 ## Minor Issues
 
-### ✅ Issue 1: Duplicate Code Across Chart Components [RESOLVED]
+### Issue 8: `import { test as base }` is Unused in setup.ts
 
-**Severity:** Minor  
-**Status:** ✅ FIXED (commit ec77cf9)  
-**Locations:** LevelChart.tsx, FlowsChart.tsx, ValveChart.tsx
+**Severity:** Minor
+**Location:** `frontend/tests/e2e/setup.ts:1`
 
-**Problem:** The three chart components share significant structural similarity:
-- Identical CustomTooltip implementation (lines vary slightly in formatting)
-- Same memoization pattern
-- Same legend click handling
-- Same hiddenLines state management
-- Same Recharts configuration patterns
+**Problem:** The file imports `test as base` from Playwright but never uses it. The `globalSetup` function is a plain async function, not a Playwright test fixture.
 
-**Why it matters:**
-- Changes must be made in three places (e.g., the interpolation fix)
-- Inconsistencies can creep in (tooltip styling, colors, etc.)
-- More code to maintain and test
+**Why it matters:** Dead imports are confusing and suggest the file was partially implemented from a template. It may cause lint warnings.
 
-**Suggested approach (not urgent):**
-Consider extracting common patterns into:
+**Suggested approach:** Remove the unused import.
 
-1. **Shared CustomTooltip component** with formatting function parameter:
+### Issue 9: ErrorBoundary Has No Reset/Recovery Mechanism
+
+**Severity:** Minor
+**Location:** `frontend/components/ErrorBoundary.tsx`
+
+**Problem:** Once the ErrorBoundary catches an error, the only recovery is a full page reload (`window.location.reload()`). The existing `ChartErrorBoundary` has a "Try Again" button that resets the error state and re-renders children - this is a better pattern for transient errors.
+
+**Why it matters:** Many errors are transient (e.g., a momentary data issue). A page reload loses all application state (tab position, PID settings, chart view). The `ChartErrorBoundary` already demonstrates the better pattern.
+
+**Suggested approach:** Add a "Try Again" button alongside the "Reload Page" button that calls `this.setState({ hasError: false, error: null, errorInfo: null })`. This allows recovery from transient errors without losing state.
+
+### Issue 10: Skeleton Loading Colors Clash with Dark Theme
+
+**Severity:** Minor
+**Location:** `frontend/components/TrendsView.tsx:133, 142, 151`
+
+**Problem:** The loading skeleton uses `bg-gradient-to-r from-gray-200 to-gray-300` which are very light colors. The rest of the application uses a dark theme (`bg-gray-800`, `bg-gray-950`). The bright white skeletons are visually jarring against the dark background.
+
+**Why it matters:** The skeleton should approximate the appearance of the content it replaces. Light skeletons on a dark background flash brightly during loading, which is poor UX.
+
+**Suggested approach:** Use dark-themed skeleton colors: `from-gray-700 to-gray-600` to match the dark background.
+
+### Issue 11: E2E Tests Use Conditional Logic That Silently Passes
+
+**Severity:** Minor
+**Location:** `frontend/tests/e2e/controls.spec.ts:25-38, 55-85, 97-127`
+
+**Problem:** Multiple tests check for element existence with `if (count > 0)` or `if (await element.isVisible())` and only execute assertions inside the conditional. If the element doesn't exist (e.g., due to a UI change), the test passes silently without actually testing anything.
+
+**Example:**
 ```typescript
-// utils/ChartTooltip.tsx
-function ChartTooltip({ 
-  active, payload, label, 
-  formatter 
-}: TooltipProps) {
-  if (!active || !payload) return null;
-  return (
-    <div className="bg-gray-900 border border-gray-600 rounded p-3">
-      <p className="text-gray-400 text-sm mb-2">{formatTime(label)}</p>
-      {payload.map((entry, index) => (
-        <div key={index} className="flex items-center gap-2 text-sm">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-          <span className="text-white">
-            {entry.name}: {formatter(entry.value)}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
+const inputs = page.locator("input[type='text']");
+const count = await inputs.count();
+
+if (count > 0) {
+  // All assertions are inside this block
+  // If count is 0, test passes with NO assertions
 }
 ```
 
-2. **Chart wrapper component** or custom hook for legend interaction:
-```typescript
-function useChartLegend(dataKeys: string[]) {
-  const [hiddenLines, setHiddenLines] = useState(
-    Object.fromEntries(dataKeys.map(key => [key, false]))
-  );
-  const handleLegendClick = useCallback((e: any) => {
-    setHiddenLines(prev => ({ ...prev, [e.dataKey]: !prev[e.dataKey] }));
-  }, []);
-  return { hiddenLines, handleLegendClick };
-}
-```
+**Why it matters:** Tests that can pass without executing their core assertions provide false confidence. A UI regression that removes the setpoint input would not be caught.
 
-**Resolution:**
-✅ Created shared `ChartTooltip.tsx` component with proper TypeScript types
-✅ Eliminated ~60 lines of duplicate code across three charts
-✅ Single formatter function parameter for value formatting flexibility
-✅ All charts now use shared component with consistent styling
+**Suggested approach:** Either assert that the expected elements exist (making the test fail if they don't), or use `test.skip()` with a clear message if the feature is conditionally present. Prefer the former: `expect(count).toBeGreaterThan(0)` before the conditional block.
 
-### ✅ Issue 2: "any" Type in Custom Tooltip [RESOLVED]
+### Issue 12: OPERATOR_QUICKSTART.md References CSV Export Feature
 
-**Severity:** Minor  
-**Status:** ✅ FIXED (commit ec77cf9)  
-**Locations:** LevelChart.tsx:24, FlowsChart.tsx:24, ValveChart.tsx:24
+**Severity:** Minor
+**Location:** `docs/OPERATOR_QUICKSTART.md`
 
-**Problem:** Custom tooltip functions use `any` type for parameters:
-```typescript
-function CustomTooltip({ active, payload, label }: any) { ... }
-```
+**Problem:** The operator guide references an "Export CSV" feature, but this feature was explicitly removed from Phase 7 scope (commit f8f80ab: "Remove Phase 7B: CSV export tasks per user request"). The documentation references a feature that doesn't exist.
 
-**Why it's somewhat acceptable:**
-- Recharts doesn't export strong TypeScript types for tooltip props
-- The function performs runtime checks (`if (!active || !payload)`)
-- Alternative is verbose manual type definitions
+**Why it matters:** Operators following the guide will look for a button or feature that isn't there, causing confusion.
 
-**Why it could be better:**
-- TypeScript `any` defeats the purpose of type checking
-- Could lead to runtime errors if Recharts API changes
+**Suggested approach:** Remove or clearly mark the CSV export reference as a planned future feature.
 
-**Suggested approach:**
-Define a minimal interface based on observed Recharts behavior:
-```typescript
-interface RechartsTooltipProps {
-  active?: boolean;
-  payload?: Array<{
-    name: string;
-    value: number;
-    color: string;
-    dataKey: string;
-  }>;
-  label?: number;
-}
+### Issue 13: Documentation Uses Placeholder Repository URLs
 
-function CustomTooltip({ active, payload, label }: RechartsTooltipProps) {
-  if (!active || !payload || !payload.length) return null;
-  // ... rest of implementation
-}
-```
+**Severity:** Minor
+**Location:** `docs/DEPLOYMENT.md`, `docs/DEVELOPMENT.md`
 
-**Resolution:**
-✅ Created proper TypeScript interface `RechartsTooltipProps` in ChartTooltip.tsx
-✅ No more `any` types - fully type-safe tooltip implementation
-✅ Based on observed Recharts behavior with proper type definitions
+**Problem:** Multiple documentation files use `https://github.com/yourusername/tank_dynamics.git` as the clone URL. This should either reference the actual repository URL or be more clearly marked as a placeholder that must be replaced.
 
-### ✅ Issue 3: Downsampling Algorithm Could Be More Sophisticated [RESOLVED]
+**Why it matters:** Copy-paste deployment could fail at the first step. Users may not realize they need to change the URL.
 
-**Severity:** Minor  
-**Status:** ✅ FIXED (commit 52168cc) - Different approach than suggested  
-**Location:** frontend/lib/utils.ts:84-97
+**Suggested approach:** Either use the actual repository URL or add a clear `<!-- REPLACE WITH YOUR REPO URL -->` comment and bold text noting this must be customized.
 
-**Problem:** The current downsampling algorithm uses evenly-spaced index selection:
-```typescript
-export function downsample<T>(data: T[], maxPoints: number = 500): T[] {
-  if (data.length <= maxPoints) return data;
-  
-  const result: T[] = [data[0]];
-  const step = (data.length - 1) / (maxPoints - 1);
-  
-  for (let i = 1; i < maxPoints - 1; i++) {
-    result.push(data[Math.round(i * step)]);
-  }
-  
-  result.push(data[data.length - 1]);
-  return result;
-}
-```
+### Issue 14: DEVELOPMENT.md Contains Hardcoded User Path
 
-**Why it works well enough:**
-- Fast O(maxPoints) complexity
-- Preserves first and last points (good!)
-- Evenly distributed samples
+**Severity:** Minor
+**Location:** `docs/DEVELOPMENT.md`
 
-**Why it could be better:**
-- Doesn't preserve peaks, valleys, or sharp transitions
-- Misses important features in high-variability regions
-- Equal weighting across time (doesn't adapt to data density)
+**Problem:** The development guide contains the path `/home/roger/dev/tank_dynamics` which is specific to the developer's machine. Other developers cloning the repo will have different paths.
 
-**Suggested approach (future enhancement):**
-Consider Largest-Triangle-Three-Buckets (LTTB) algorithm, which preserves visual fidelity better:
-- Keeps visually significant points
-- Preserves trend changes
-- Industry standard for time-series downsampling
+**Why it matters:** Confusing for new contributors who will have a different path structure.
 
-**Example library:** `downsample-lttb` npm package
-
-**Resolution:**
-✅ Implemented fixed decimation factor (14) instead of variable downsampling
-✅ This actually solved the critical instability issue (was root cause)
-✅ Provides better solution than LTTB for real-time strip chart visualization
-✅ Every 14th point always selected - stable, predictable, performant
-
-**Note:** The suggested LTTB algorithm was not needed. Fixed decimation provides superior stability for real-time process data.
-
-### ✅ Issue 4: No Error Boundary Around Charts [RESOLVED]
-
-**Severity:** Minor  
-**Status:** ✅ FIXED (commit 4f73288)  
-**Locations:** TrendsView.tsx:121-159
-
-**Problem:** If a chart component throws an error (e.g., Recharts bug, malformed data), it will crash the entire TrendsView and possibly propagate up to crash the app.
-
-**Why it matters:**
-- Charts are complex third-party components (Recharts)
-- SVG rendering can fail in edge cases
-- Better UX to show "Chart error" than white screen
-
-**Suggested approach:**
-Wrap charts in React Error Boundary:
-```typescript
-import { ErrorBoundary } from 'react-error-boundary';
-
-function ChartErrorFallback({ error }: { error: Error }) {
-  return (
-    <div className="bg-gray-800 rounded-lg p-4">
-      <p className="text-red-400">Chart failed to render: {error.message}</p>
-    </div>
-  );
-}
-
-// In TrendsView:
-<ErrorBoundary FallbackComponent={ChartErrorFallback}>
-  <LevelChart data={displayData} />
-</ErrorBoundary>
-```
-
-**Resolution:**
-✅ Created `ChartErrorBoundary.tsx` - React error boundary class component
-✅ Wrapped all three charts in TrendsView with error boundaries
-✅ User-friendly error display with chart name and "Try Again" button
-✅ Errors logged to console for debugging
-✅ Chart failures isolated - one error doesn't crash entire view
+**Suggested approach:** Use relative paths or `$PROJECT_ROOT` placeholder.
 
 ---
 
 ## Notes
 
-### Note 1: Excellent Use of useRef for Timestamp Tracking
+### Note 1: WebSocket Reconnection with Jitter is Well-Implemented
 
-**Location:** TrendsView.tsx:44-50
+**Location:** `frontend/lib/websocket.ts:145-185`
 
-The `latestTimeRef` pattern is **exactly the right approach**:
+The exponential backoff with jitter implementation is mathematically sound:
+
 ```typescript
-const latestTimeRef = useRef<number>(-Infinity);
-
-useEffect(() => {
-  if (state && state.time > latestTimeRef.current) {
-    latestTimeRef.current = state.time;
-    setChartData(prev => [...prev, state]);
-  }
-}, [state]);
+let delay = this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts);
+delay = Math.min(delay, this.maxReconnectDelay);  // Cap at 30s
+const jitter = 0.5 + Math.random();  // 0.5x to 1.5x
+const finalDelay = Math.floor(delay * jitter);
 ```
 
-**Why this is excellent:**
-- Prevents duplicate appends if WebSocket sends same state twice
-- useRef doesn't trigger re-renders (efficient)
-- Initialized to -Infinity means first real timestamp always succeeds
-- No need for prev state comparison (faster)
+This follows industry best practices:
+- Exponential growth prevents connection storms
+- Cap prevents unreasonably long waits
+- Jitter prevents the "thundering herd" problem where multiple clients reconnect simultaneously
+- Logging on each attempt aids debugging
 
-This is a professional pattern for real-time data streams.
+The reconnect counter reset on successful connection (with the informative log message) is a nice touch.
 
-### Note 2: Smart Separation of chartData vs displayData
+### Note 2: ErrorBoundary and ChartErrorBoundary Are Complementary
 
-**Location:** TrendsView.tsx:59-62
+**Location:** `frontend/components/ErrorBoundary.tsx` and `frontend/components/ChartErrorBoundary.tsx`
 
-Keeping full resolution `chartData` separate from downsampled `displayData` is brilliant:
-```typescript
-const displayData = useMemo(
-  () => downsample(chartData, MAX_CHART_POINTS),
-  [chartData],
-);
-```
+These two components serve different purposes and the layered approach is architecturally sound:
 
-**Why this matters:**
-- Charts render downsampled data (performance)
-- Full data preserved for accurate appends
-- No information loss in real-time updates
-- Clear separation of concerns
+- **ChartErrorBoundary:** Granular, wraps individual charts, has "Try Again" reset, shows inline error
+- **ErrorBoundary:** Catches unhandled errors that escape chart boundaries, full-page fallback
 
-This demonstrates understanding of both performance and data integrity.
+This defense-in-depth pattern means a chart error is caught by ChartErrorBoundary (graceful inline recovery), while a catastrophic error in the view layer itself is caught by the outer ErrorBoundary.
 
-### Note 3: Duration Clamping with Informative Warnings
+### Note 3: Documentation Quality is Excellent Overall
 
-**Location:** frontend/hooks/useHistory.ts:11-33
+The four new documentation files (OPERATOR_QUICKSTART, DEPLOYMENT, DEVELOPMENT, RELEASE_CHECKLIST) are comprehensive and well-structured. Notable strengths:
 
-The `clampDuration` function provides excellent developer experience:
-```typescript
-function clampDuration(duration: number): number {
-  if (!Number.isFinite(duration)) {
-    console.warn(`Duration is not a finite number (${duration}), clamping to ${DEFAULT_DURATION}`);
-    return DEFAULT_DURATION;
-  }
-  
-  if (duration < MIN_DURATION) {
-    console.warn(`Duration ${duration} is below minimum...`);
-    return MIN_DURATION;
-  }
-  // ... etc
-}
-```
-
-**Why this is good design:**
-- Defensive programming (handles NaN, Infinity, negative, out-of-range)
-- Informative console warnings help debugging
-- Falls back to safe defaults rather than crashing
-- Clear const declarations (MIN_DURATION, MAX_DURATION)
-
-### Note 4: Proper Memoization Pattern
-
-**Location:** All three chart components
-
-All charts correctly use React.memo and useCallback:
-```typescript
-export default memo(function LevelChart({ data }: LevelChartProps) {
-  const [hiddenLines, setHiddenLines] = useState<Record<string, boolean>>({...});
-  
-  const handleLegendClick = useCallback((e: any) => {
-    setHiddenLines(prev => ({ ...prev, [e.dataKey]: !prev[e.dataKey] }));
-  }, []); // Empty deps array - stable reference
-  
-  // ... chart rendering
-});
-```
-
-**Why this is correct:**
-- `memo` prevents re-render when parent updates but data prop unchanged
-- `useCallback` with empty deps array creates stable function reference
-- Lambda in setState uses prev state (no external dependencies)
-- No unnecessary re-renders of expensive SVG charts
-
-This is textbook React performance optimization.
-
-### Note 5: Time Range Selector UX is Polished
-
-**Location:** TrendsView.tsx:74-92
-
-The time range selector provides excellent UX:
-```typescript
-const TIME_RANGES = [
-  { label: "1 min", value: 60 },
-  { label: "5 min", value: 300 },
-  { label: "30 min", value: 1800 },
-  { label: "1 hr", value: 3600 },
-  { label: "2 hr", value: 7200 },
-];
-```
-
-**Well-designed aspects:**
-- Clear progression: 1m → 5m → 30m → 1h → 2h
-- Active button visually distinct (blue vs gray)
-- Hover states on inactive buttons
-- Human-readable labels
-- Maps cleanly to backend's history range (1-7200 seconds)
-
-### Note 6: PID Gains Fetch on Mount is Clean
-
-**Location:** ProcessView.tsx:22-43
-
-The PID configuration fetch demonstrates good practices:
-```typescript
-React.useEffect(() => {
-  const fetchPIDGains = async () => {
-    try {
-      const response = await fetch("/api/config");
-      if (!response.ok) {
-        console.error("Failed to fetch config:", response.status, response.statusText);
-        return; // Keep defaults
-      }
-      const data = await response.json();
-      if (data.pid_gains) {
-        const { Kc, tau_I, tau_D } = data.pid_gains;
-        setCurrentPIDGains({
-          Kc: Math.abs(Kc),
-          tau_I,
-          tau_D,
-        });
-        setReverseActing(Kc < 0);
-      }
-    } catch (error) {
-      console.error("Error fetching PID gains:", error);
-      // Keep default hardcoded values if fetch fails
-    }
-  };
-  
-  fetchPIDGains();
-}, []); // Empty deps - run once on mount
-```
-
-**Why this is well-implemented:**
-- Runs once on mount (empty dependency array)
-- Graceful error handling (console logging, falls back to defaults)
-- Validates response before using (if data.pid_gains check)
-- Correct reverse acting detection (sign of Kc)
-- Clear comments explaining fallback behavior
-
-### Note 7: Memory Management Strategy is Sound
-
-**Location:** TrendsView.tsx:48
-
-The 7200-entry limit prevents unbounded memory growth:
-```typescript
-setChartData((prev) => {
-  const updated = [...prev, state];
-  if (updated.length > 7200) {
-    return updated.slice(-7200); // Keep most recent 2 hours
-  }
-  return updated;
-});
-```
-
-**Why this works:**
-- 7200 entries = 2 hours at 1 Hz (matches backend ring buffer)
-- `.slice(-7200)` keeps most recent data
-- Old data automatically discarded (garbage collected)
-- Constant memory usage after 2 hours of operation
-
-**Potential optimization (not urgent):**
-Using a proper ring buffer data structure would avoid the array copy on every append after 7200 entries. But for 1 Hz updates, the current approach is perfectly fine.
+- **OPERATOR_QUICKSTART** is genuinely non-technical and task-focused
+- **DEPLOYMENT** covers systemd, Docker, and Nginx with real configuration files
+- **DEVELOPMENT** includes complete build instructions for all three components
+- **RELEASE_CHECKLIST** is thorough and covers security, performance, and operational readiness
+- All documents correctly use `uv` as the package manager (per project standards)
 
 ---
 
 ## Positive Observations
 
-### 1. Outstanding Error Handling in useHistory Hook
+### 1. Skeleton Loading is a Strong UX Pattern
 
-**Location:** frontend/hooks/useHistory.ts:54-76
+**Location:** `frontend/components/TrendsView.tsx:130-155`
 
-The error handling is comprehensive and user-friendly:
+Replacing the generic "Loading historical data..." text with skeleton screens that mirror the actual chart layout is a significant UX improvement. The skeletons have the correct chart titles, matching backgrounds, and appropriate height, giving users a preview of what's coming.
 
+### 2. WebSocket Reconnection Logging is Production-Quality
+
+**Location:** `frontend/lib/websocket.ts:80-84`
+
+The reconnection success log with attempt count is excellent for debugging:
 ```typescript
-try {
-  setLoading(true);
-  setError(null);
-  
-  const validDuration = clampDuration(durationSeconds);
-  const url = `/api/history?duration=${validDuration}`;
-  
-  const response = await fetch(url);
-  
-  if (!response.ok) {
-    const statusText = response.statusText || "Unknown error";
-    throw new Error(`Server error: ${response.status} ${statusText}`);
-  }
-  
-  const data: unknown = await response.json();
-  
-  if (!Array.isArray(data)) {
-    throw new Error("Invalid response format: expected array...");
-  }
-  
-  setHistory(data as SimulationState[]);
-} catch (e) {
-  const errorMsg = e instanceof Error ? e.message : "Unknown error";
-  console.error("Failed to fetch history:", e);
-  setError(`Failed to fetch history: ${errorMsg}`);
-} finally {
-  setLoading(false);
+if (attempts > 0) {
+  console.log(`WebSocket reconnected after ${attempts} attempts`);
 }
 ```
 
-**Excellent aspects:**
-- Input validation before fetch (clampDuration)
-- Loading state set before async operation
-- Error state cleared at start of attempt
-- HTTP status code checking
-- Response format validation (Array check)
-- Type narrowing (`e instanceof Error`)
-- Console logging for debugging
-- User-friendly error messages
-- finally block ensures loading always cleared
+Only logging when reconnection actually happened (not on first connect) keeps the console clean during normal operation.
 
-This is production-quality error handling.
+### 3. Playwright Infrastructure is Well-Structured
 
-### 2. Utility Functions Are Well-Designed
+**Location:** `frontend/playwright.config.ts`
 
-**Location:** frontend/lib/utils.ts
+The Playwright configuration shows good practices:
+- `fullyParallel: false` with `workers: 1` is correct for tests that share WebSocket state
+- `forbidOnly: !!process.env.CI` prevents `.only` from accidentally running in CI
+- `retries: process.env.CI ? 2 : 1` accounts for CI flakiness
+- `webServer` configuration with `reuseExistingServer: true` supports both manual and automated test runs
+- HTML reporter for easy result inspection
 
-All formatting functions handle null/undefined gracefully:
+### 4. README Updates Are Comprehensive
 
-```typescript
-export function formatLevel(value: number | null | undefined): string {
-  if (value === null || value === undefined) return "N/A";
-  return value.toFixed(2);
-}
+**Location:** `README.md`
 
-export function formatTime(seconds: number | null | undefined): string {
-  if (seconds === null || seconds === undefined) return "N/A";
-  
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, "0")}:${minutes...}`;
-  } else {
-    return `${minutes.toString().padStart(2, "0")}:${secs...}`;
-  }
-}
-```
+The README correctly:
+- Updates the current phase status to Phase 7 complete
+- Reorganizes documentation links into "For Operators" and "For Developers" sections
+- Lists all Phase 7 deliverables with task numbers
+- Updates the system completion status section
 
-**Why this is excellent:**
-- Explicit null/undefined handling (no crashes on missing data)
-- Consistent "N/A" for missing values
-- Zero-padding for time display (HH:MM:SS format)
-- Smart hour display (only shows hours if > 0)
-- Clear, readable code
+### 5. E2E Test Coverage is Well-Scoped
 
-### 3. Chart Components Are Properly Isolated
+**Location:** `frontend/tests/e2e/connection.spec.ts` and `controls.spec.ts`
 
-**Location:** All three chart components
+The test files cover the right scenarios for a first E2E pass:
+- Page load and title verification
+- WebSocket connection establishment
+- Real-time data updates
+- Setpoint control interaction
+- PID tuning interaction
+- Inlet flow mode toggle
+- Tab navigation
 
-Each chart is a self-contained, reusable component with:
-- Clear TypeScript interface (`LevelChartProps`, `FlowsChartProps`, etc.)
-- No external dependencies except data prop
-- Internal state management (hiddenLines)
-- Memoization for performance
-- Consistent structure
-
-**Benefits:**
-- Easy to test in isolation
-- Can be reused in other views
-- Changes to one chart don't affect others
-- Clear component contracts
-
-### 4. TrendsView State Management is Exemplary
-
-**Location:** TrendsView.tsx
-
-The component demonstrates advanced React patterns:
-
-- **useRef for side effects** (latestTimeRef)
-- **useMemo for expensive computations** (downsampling)
-- **Proper useEffect dependencies** (history, loading, state)
-- **Controlled component pattern** (duration state, TIME_RANGES)
-- **Conditional rendering** (loading, error, empty, success states)
-
-This is senior-level React code.
-
-### 5. Constants Extraction in TankGraphic
-
-**Location:** TankGraphic.tsx:27-56
-
-**Task 28b delivered as specified:**
-All magic numbers extracted to well-named constants:
-
-```typescript
-const INLET_ARROW_X = 57.5;
-const INLET_ARROW_Y_START = 35;
-const INLET_ARROW_Y_END = 50;
-const INLET_LABEL_Y = 25;
-
-const OUTLET_PIPE_X_OFFSET = 75;
-const OUTLET_PIPE_WIDTH = 15;
-const OUTLET_PIPE_HEIGHT = 40;
-// ... etc
-```
-
-**Why this is good:**
-- SCREAMING_SNAKE_CASE convention for constants
-- Descriptive names (INLET_ARROW_Y_START vs magic number 35)
-- Easier to adjust layout without hunting through JSX
-- Self-documenting code
-
-### 6. Conditional Animation Implementation
-
-**Location:** TankGraphic.tsx:169, 190
-
-**Task 28a delivered perfectly:**
-
-```typescript
-<line
-  x1={INLET_ARROW_X}
-  y1={INLET_ARROW_Y_START}
-  x2={INLET_ARROW_X}
-  y2={INLET_ARROW_Y_END}
-  stroke={inletColor}
-  strokeWidth="2"
-  markerEnd={inletMarker}
-  className={inletFlow > 0 ? "animate-pulse" : ""}  // ✅ Conditional!
-/>
-```
-
-**Benefits:**
-- No pulsing when flow is zero (reduced visual noise)
-- Browser doesn't waste cycles animating static elements
-- Cleaner, more professional appearance
-- Follows SCADA convention (animations indicate activity)
+These are the highest-value integration tests for a SCADA application.
 
 ---
 
 ## Recommended Actions
 
-### Priority 1: Fix Chart Interpolation (CRITICAL - Before Merge)
+### Priority 1: Fix Critical Bugs (Before Merge)
 
-**Timeline:** 5 minutes  
-**Files:** LevelChart.tsx, FlowsChart.tsx, ValveChart.tsx
+1. **Fix Playwright device name:** Change `devices["desktop_chrome"]` to `devices["Desktop Chrome"]` in `playwright.config.ts`
+2. **Fix fetch timeout:** Replace `{ timeout: 5000 }` with `AbortController` pattern in `setup.ts`
+3. **Wire globalSetup into config:** Add `globalSetup` property to `playwright.config.ts` or remove dead code
 
-Change all 5 instances of `type="monotone"` to `type="linear"`:
+### Priority 2: Address Major Issues (Before or Shortly After Merge)
 
-1. Open LevelChart.tsx, change lines 95 and 105
-2. Open FlowsChart.tsx, change lines 99 and 109
-3. Open ValveChart.tsx, change line 97
-4. Test with Brownian motion enabled
-5. Verify charts no longer "jump around" with new data
-6. Commit: "Fix: Change chart interpolation from monotone to linear for stable real-time display"
+4. **Extend ErrorBoundary coverage** to wrap header and navigation in `page.tsx`
+5. **Conditionally hide stack traces** in ErrorBoundary based on environment
+6. **Remove CSV export reference** from OPERATOR_QUICKSTART.md
+7. **Fix Docker layer activation** in DEPLOYMENT.md
 
-### Priority 2: Merge to Main (After P1 Fix)
+### Priority 3: Improve Test Quality (Post-Merge)
 
-The code is otherwise production-ready. All 14 tasks completed successfully.
+8. **Replace `waitForTimeout`** with proper Playwright waiting mechanisms
+9. **Add assertions before conditional blocks** in control tests
+10. **Remove unused import** from setup.ts
 
-### Priority 3: Consider Minor Improvements (Post-Merge)
+### Priority 4: Polish (When Convenient)
 
-**Optional enhancements for future:**
-- Extract shared chart patterns (CustomTooltip, legend handling)
-- Add explicit TypeScript types for Recharts tooltip props
-- Implement error boundaries around charts
-- Consider LTTB downsampling algorithm for higher fidelity
-
-**Priority:** Low - current implementation is solid
+11. **Fix skeleton colors** to match dark theme
+12. **Add "Try Again" button** to ErrorBoundary alongside reload
+13. **Replace placeholder repository URLs** in documentation
+14. **Remove hardcoded user path** from DEVELOPMENT.md
 
 ---
 
 ## Comparison with Specification
 
-### Polish Tasks (28a-28f) ✅
+### Phase 7A: Error Handling and Resilience
 
-All 6 polish tasks from Phase 5 code review addressed:
+| Task | Status | Notes |
+|------|--------|-------|
+| 30a: ErrorBoundary component | Implemented | Works but exposes stack traces (Issue 5) |
+| 30b: Wrap app sections | Partially done | Content wrapped, header/nav not covered (Issue 4) |
+| 30c: WebSocket backoff + jitter | Excellent | Clean implementation, well-tested pattern |
+| 30d: Loading skeletons | Implemented | Colors clash with dark theme (Issue 10) |
 
-- ✅ **Task 28a:** Conditional flow indicator animation (TankGraphic.tsx)
-- ✅ **Task 28b:** SVG constants extraction (TankGraphic.tsx)
-- ✅ **Task 28c:** Reverse acting help text (PIDTuningControl.tsx)
-- ✅ **Task 28d:** Brownian params reset (InletFlowControl.tsx)
-- ✅ **Task 28e:** PID gains fetch from /api/config (ProcessView.tsx)
-- ✅ **Task 28f:** Error color semantics (SetpointControl.tsx)
+### Phase 7C: E2E Testing
 
-### Trends Tasks (29a-29h) ✅
+| Task | Status | Notes |
+|------|--------|-------|
+| 32a: Playwright config | Has bugs | Wrong device name, setup not wired in (Issues 1, 3) |
+| 32b: Connection tests | Implemented | Relies on waitForTimeout (Issue 6) |
+| 32c: Control tests | Implemented | Silent pass risk with conditionals (Issue 11) |
 
-All 8 trends tasks delivered as specified:
+### Phase 7D: Documentation
 
-- ✅ **Task 29a:** useHistory hook with clamping and error handling
-- ✅ **Task 29b:** LevelChart component (tank level vs setpoint)
-- ✅ **Task 29c:** FlowsChart component (inlet and outlet)
-- ✅ **Task 29d:** ValveChart component (controller output)
-- ✅ **Task 29e:** Charts integrated into TrendsView
-- ✅ **Task 29f:** Real-time data append with ring buffer
-- ✅ **Task 29g:** Time range selector (1min to 2hr)
-- ✅ **Task 29h:** Custom tooltips and interactive legends
-
-**Only issue:** Task 29b, 29c, 29d all used `type="monotone"` instead of `type="linear"`. This is easily corrected.
-
----
-
-## Test Coverage Assessment
-
-**Observation:** No frontend unit tests exist for the new components.
-
-**Current testing approach:**
-- Manual testing via browser (npm run dev)
-- Visual verification of chart rendering
-- Interactive testing (clicking legends, changing time ranges)
-
-**Suggestion for future phases:**
-Consider adding:
-- React Testing Library tests for chart components
-- useHistory hook tests (mocking fetch)
-- TrendsView integration tests
-- Visual regression tests (Percy, Chromatic)
-
-**Priority:** Low - for a proof-of-concept SCADA interface, manual testing is acceptable. Production systems would benefit from automated tests.
+| Task | Status | Notes |
+|------|--------|-------|
+| 33a: Operator Quick Start | Complete | References removed CSV export (Issue 12) |
+| 33b: Deployment guide | Complete | Docker layer bug (Issue 7) |
+| 33c: Development guide | Complete | Hardcoded path (Issue 14) |
+| 33d: Updated README | Excellent | Comprehensive, well-organized |
+| 33e: Release checklist | Complete | Thorough coverage |
 
 ---
 
-## Architectural Observations
-
-### Clean Separation of Concerns
-
-The phase maintains excellent architecture:
-
-- **Data layer:** useHistory hook (fetching, caching, error handling)
-- **Presentation layer:** Chart components (pure, memoized)
-- **Orchestration layer:** TrendsView (state management, real-time append)
-- **Utilities layer:** Format and downsample functions
-
-This makes the code:
-- Easy to reason about
-- Simple to test in isolation
-- Maintainable long-term
-
-### Real-Time Update Strategy is Well-Designed
-
-The combination of:
-1. Historical fetch (useHistory hook)
-2. Real-time append (WebSocket state)
-3. Downsampling (useMemo)
-4. Memoized charts (React.memo)
-
-...creates a performant, scalable solution that can handle hours of continuous data at 1 Hz with no performance degradation.
-
----
-
-## Security Considerations
-
-**No security issues identified.**
-
-All API calls use relative URLs (`/api/history`, `/api/config`). No user input is directly interpolated into queries. Recharts handles SVG rendering safely (no dangerouslySetInnerHTML).
-
----
-
-## Performance Assessment
-
-**Excellent performance characteristics:**
-
-- **Downsampling:** Limits SVG to 500 points (good for Recharts performance)
-- **Memoization:** Prevents unnecessary re-renders
-- **Ring buffer:** Constant memory usage after 2 hours
-- **useCallback:** Stable function references
-- **No prop drilling:** Uses context where appropriate
-
-**Measured performance** (estimates based on code):
-- Chart render time: <16ms (60 FPS) for 500 points
-- Memory usage: ~360KB for 7200 state objects (manageable)
-- WebSocket append: O(1) with ref check, O(n) with array copy (acceptable at 1 Hz)
-
-**No performance issues expected** for the 1 Hz update rate and 2-hour retention period.
-
----
-
-## Git Workflow Assessment
-
-**Commit history is clean and organized:**
-
-```
-b50dc9b Migration: Update default remote to professional GitHub account
-b79a3e1 Task 29i: Documentation updates for Phase 6 completion
-9694dd1 Task 29h: Add Chart Interactions (Custom Tooltips...)
-cec992a Task 29g: Add Time Range Selector
-453a860 Task 29f: Add Real-Time Data Append to Charts
-cb79970 Task 29e: Integrate Charts into TrendsView
-cd370e8 Task 29d: Create ValveChart Component
-897a27d Task 29c: Create FlowsChart Component
-d76b8ae Task 29b: Create LevelChart Component
-e1251e7 Task 29a: Create useHistory Hook
-b03b106 Task 28f: Improve Error Color Semantics
-b9d60b3 Task 28e: Fetch PID Gains from /api/config
-17f5220 Task 28d: Reset Brownian Params on Mode Switch
-9ce00f6 Task 28c: Add Reverse Acting checkbox help text
-2afd5cd Task 28b: Extract SVG magic numbers to constants
-569058e Task 28a: Conditional flow indicator animation
-```
-
-**Excellent practices:**
-- One commit per task (easy to review)
-- Clear "Task N:" prefix format
-- Descriptive commit messages
-- Logical progression (polish → trends → integration → documentation)
-
----
-
-## Conclusion
-
-**Phase 6 is high-quality work with one critical fix needed.**
-
-The implementation demonstrates:
-
-✅ Professional React patterns (hooks, memoization, state management)  
-✅ Robust error handling and input validation  
-✅ Performance optimization (downsampling, memoization)  
-✅ Excellent documentation and code organization  
-✅ Complete delivery of all 14 specified tasks  
-⚠️ **One critical bug:** Chart interpolation must change from monotone to linear  
-
-**After fixing the interpolation issue, this code is production-ready and should be merged with confidence.**
-
----
-
-**Reviewer:** Claude (Code Reviewer Role)  
-**Next Steps:** 
-1. Fix chart interpolation (5 minutes)
-2. Test with Brownian motion enabled
+## Reviewer: Claude (Code Reviewer Role)
+**Next Steps:**
+1. Fix 3 critical Playwright issues
+2. Address major ErrorBoundary coverage gap
 3. Merge to main
-4. Deploy to professional GitHub (rwconsult8254)
+4. Address remaining items in subsequent commits

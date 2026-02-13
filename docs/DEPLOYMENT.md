@@ -109,8 +109,9 @@ uv --version
 ### Clone Repository
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/tank_dynamics.git
+# Clone the repository (replace with your actual repository URL)
+# Example: git clone https://github.com/yourusername/tank_dynamics.git
+git clone YOUR_REPOSITORY_URL
 cd tank_dynamics
 
 # Or if deploying from existing clone, ensure latest version
@@ -361,17 +362,24 @@ RUN apt-get update && apt-get install -y \
 # Copy application
 COPY . .
 
-# Install dependencies
-RUN pip install uv && \
-    uv venv --python 3.10 && \
-    . .venv/bin/activate && \
+# Install uv using official installer
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Set PATH to include uv
+ENV PATH="/root/.cargo/bin:$PATH"
+
+# Create virtual environment and install dependencies
+RUN uv venv --python 3.10 && \
     uv pip install -e .
+
+# Set PATH to use venv by default
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Expose port
 EXPOSE 8000
 
 # Start backend
-CMD [".venv/bin/uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 Create `Dockerfile.frontend`:
