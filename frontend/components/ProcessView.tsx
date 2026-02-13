@@ -6,6 +6,7 @@ import { ConnectionStatus } from "./ConnectionStatus";
 import TankGraphic from "./TankGraphic";
 import SetpointControl from "./SetpointControl";
 import PIDTuningControl from "./PIDTuningControl";
+import InletFlowControl from "./InletFlowControl";
 import {
   formatLevel,
   formatFlowRate,
@@ -26,7 +27,8 @@ import {
  * - Waiting message when disconnected
  */
 export function ProcessView() {
-  const { state, setSetpoint, setPIDGains } = useSimulation();
+  const { state, setSetpoint, setPIDGains, setInletFlow, setInletMode } =
+    useSimulation();
   const [currentPIDGains, setCurrentPIDGains] = React.useState({
     Kc: 1.0,
     tau_I: 10.0,
@@ -51,6 +53,21 @@ export function ProcessView() {
       tau_I: newGains.tau_I,
       tau_D: newGains.tau_D,
     });
+  };
+
+  const handleFlowChange = (value: number) => {
+    setInletFlow(value);
+  };
+
+  const handleModeChange = (
+    mode: "constant" | "brownian",
+    config?: { min: number; max: number; variance: number },
+  ) => {
+    if (mode === "constant") {
+      setInletMode("constant", 0, 0, 0);
+    } else if (config) {
+      setInletMode(mode, config.min, config.max, config.variance);
+    }
   };
 
   return (
@@ -170,6 +187,15 @@ export function ProcessView() {
                 reverseActing={reverseActing}
                 onGainsChange={handlePIDChange}
                 onReverseActingChange={setReverseActing}
+              />
+            </div>
+
+            {/* Inlet Flow Control */}
+            <div className="pt-4 border-t border-gray-700">
+              <InletFlowControl
+                currentFlow={state.inlet_flow}
+                onFlowChange={handleFlowChange}
+                onModeChange={handleModeChange}
               />
             </div>
           </div>
